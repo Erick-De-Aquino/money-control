@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Redirigiendo...</title>
+    <script>
+        var url = window.location.href;
+        var hash = window.location.hash;
+        var baseUrl = 'https://erick-de-aquino.github.io/money-control/';
+        
+        if (hash.includes('access_denied') || hash.includes('confirmation_token')) {
+            window.location.href = baseUrl + hash;
+        } else {
+            window.location.href = baseUrl;
+        }
+    </script>
+</head>
+<body>
+    <p>Redirigiendo a la aplicación...</p>
+</body>
+</html>
