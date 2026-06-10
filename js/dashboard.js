@@ -5,6 +5,7 @@
 // Variables globales para gráficos
 let monthlyChart = null;
 let categoryChart = null;
+let intervaloParpadeo = null;
 // Variables de filtros del dashboard
 let filtroDashboard = {
     desde: '',
@@ -17,14 +18,20 @@ async function loadDashboardData() {
     try {
         const supabase = getSupabase();
         
+        // Fechas del mes actual (por defecto)
+        const hoy = new Date();
+        const añoActual = hoy.getFullYear();
+        const mesActual = hoy.getMonth() + 1;
+        const fechaInicioDefault = `${añoActual}-${String(mesActual).padStart(2, '0')}-01`;
+        const fechaFinDefault = `${añoActual}-${String(mesActual).padStart(2, '0')}-${new Date(añoActual, mesActual, 0).getDate()}`;
+        
+        // Usar filtros del dashboard si existen, sino usar mes actual
+        const desde = filtroDashboard.desde || fechaInicioDefault;
+        const hasta = filtroDashboard.hasta || fechaFinDefault;
+        
         // Consulta de gastos con filtros
         let gastosQuery = supabase.from(TABLES.gastos).select('*');
-        if (filtroDashboard.desde) {
-            gastosQuery = gastosQuery.gte('fecha', filtroDashboard.desde);
-        }
-        if (filtroDashboard.hasta) {
-            gastosQuery = gastosQuery.lte('fecha', filtroDashboard.hasta);
-        }
+        gastosQuery = gastosQuery.gte('fecha', desde).lte('fecha', hasta);
         if (filtroDashboard.categoria) {
             gastosQuery = gastosQuery.eq('categoria', filtroDashboard.categoria);
         }
@@ -32,14 +39,9 @@ async function loadDashboardData() {
         const { data: gastos, error: errorGastos } = await gastosQuery;
         if (errorGastos) console.error('Error cargando gastos:', errorGastos);
         
-        // Consulta de ingresos (sin filtro de categoría porque es de gastos)
+        // Consulta de ingresos
         let ingresosQuery = supabase.from(TABLES.ingresos).select('*');
-        if (filtroDashboard.desde) {
-            ingresosQuery = ingresosQuery.gte('fecha', filtroDashboard.desde);
-        }
-        if (filtroDashboard.hasta) {
-            ingresosQuery = ingresosQuery.lte('fecha', filtroDashboard.hasta);
-        }
+        ingresosQuery = ingresosQuery.gte('fecha', desde).lte('fecha', hasta);
         
         const { data: ingresos, error: errorIngresos } = await ingresosQuery;
         if (errorIngresos) console.error('Error cargando ingresos:', errorIngresos);
@@ -102,6 +104,42 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
         } else {
             gananciaOperacionesEl.style.color = 'var(--error, #f44336)';
         }
+    }
+
+    // --- NUEVO: Agregar botón "Progreso" en la tarjeta de Total Gastos ---
+    const targetCardGastos = totalGastosEl.closest('.stat-card');
+    if (targetCardGastos && !document.getElementById('btnProgresoGastos')) {
+        const btnContainer = document.createElement('div');
+        btnContainer.style.marginTop = '12px';
+        btnContainer.style.textAlign = 'center';
+        
+        const btnProgreso = document.createElement('button');
+        btnProgreso.id = 'btnProgresoGastos';
+        btnProgreso.textContent = '📊 Progreso';
+        btnProgreso.className = 'btn btn-secondary btn-small';
+        btnProgreso.style.width = '100%';
+        btnProgreso.onclick = () => mostrarModalProgreso();
+        
+        btnContainer.appendChild(btnProgreso);
+        targetCardGastos.appendChild(btnContainer);
+    }
+
+    // --- NUEVO: Agregar botón "Progreso" en la tarjeta de Total Ingresos ---
+    const targetCardIngresos = totalIngresosEl.closest('.stat-card');
+    if (targetCardIngresos && !document.getElementById('btnProgresoIngresos')) {
+        const btnContainer = document.createElement('div');
+        btnContainer.style.marginTop = '12px';
+        btnContainer.style.textAlign = 'center';
+        
+        const btnProgreso = document.createElement('button');
+        btnProgreso.id = 'btnProgresoIngresos';
+        btnProgreso.textContent = '📊 Progreso';
+        btnProgreso.className = 'btn btn-secondary btn-small';
+        btnProgreso.style.width = '100%';
+        btnProgreso.onclick = () => mostrarModalProgresoIngresos();
+        
+        btnContainer.appendChild(btnProgreso);
+        targetCardIngresos.appendChild(btnContainer);
     }
 }
 
@@ -395,6 +433,34 @@ function initDashboard() {
     
     // Cargar categorías del select
     actualizarSelectDashboardCategorias();
+
+    // --- NUEVO: Eventos para modal de filtros ---
+    const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltros');
+    if (btnAbrirFiltros) {
+        btnAbrirFiltros.addEventListener('click', abrirModalFiltros);
+    }
+    
+    const closeModalFiltros = document.getElementById('closeModalFiltros');
+    if (closeModalFiltros) {
+        closeModalFiltros.addEventListener('click', cerrarModalFiltros);
+    }
+    
+    const modalFiltros = document.getElementById('modalFiltros');
+    if (modalFiltros) {
+        modalFiltros.addEventListener('click', (e) => {
+            if (e.target === modalFiltros) {
+                cerrarModalFiltros();
+            }
+        });
+    }
+
+    // --- NUEVO: Evento para el botón "Limpiar filtro" de la reseña ---
+    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroDashboardReseña');
+    if (btnLimpiarReseña) {
+        btnLimpiarReseña.addEventListener('click', () => {
+            limpiarFiltroDashboard();
+        });
+    }
 }
 
 // Mostrar página seleccionada
@@ -613,6 +679,58 @@ async function aplicarFiltroDashboard() {
     
     await actualizarSelectDashboardCategorias();
     await loadDashboardData();
+    cerrarModalFiltros();
+    
+    // Mostrar reseña del filtro aplicado
+    const reseña = document.getElementById('filtroReseña');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
+    
+    if (filtroDashboard.desde || filtroDashboard.hasta || filtroDashboard.categoria) {
+        if (reseña) {
+            let texto = '⚠️ Filtro aplicado';
+            if (filtroDashboard.desde && filtroDashboard.hasta) {
+                texto = `⚠️ FILTRO APRICADO CON RANGO ${filtroDashboard.desde} - ${filtroDashboard.hasta}`;
+            } else if (filtroDashboard.desde) {
+                texto = `⚠️ Filtro aplicado desde ${filtroDashboard.desde}`;
+            } else if (filtroDashboard.hasta) {
+                texto = `⚠️ Filtro aplicado hasta ${filtroDashboard.hasta}`;
+            }
+            if (filtroDashboard.categoria) {
+                texto += ` | Categoría: ${filtroDashboard.categoria}`;
+            }
+            reseña.textContent = texto;
+            reseña.style.display = 'inline-block';
+            reseña.className = 'filtro-reseña-normal';
+            
+            // Limpiar intervalo anterior si existe
+            if (intervaloParpadeo) clearInterval(intervaloParpadeo);
+            
+            // Iniciar nuevo intervalo
+            let estado = true;
+            intervaloParpadeo = setInterval(() => {
+                if (reseña && reseña.style.display !== 'none') {
+                    reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+                    estado = !estado;
+                } else {
+                    clearInterval(intervaloParpadeo);
+                    intervaloParpadeo = null;
+                }
+            }, 500);
+        }
+        if (btnLimpiar) {
+            btnLimpiar.style.display = 'inline-block';
+        }
+    } else {
+        if (reseña) {
+            reseña.style.display = 'none';
+            if (intervaloParpadeo) {
+                clearInterval(intervaloParpadeo);
+                intervaloParpadeo = null;
+            }
+        }
+        if (btnLimpiar) btnLimpiar.style.display = 'none';
+    }
+    
     showSuccess('Filtros aplicados al dashboard');
 }
 
@@ -628,6 +746,21 @@ function limpiarFiltroDashboard() {
     
     loadDashboardData();
     actualizarSelectDashboardCategorias();
+    cerrarModalFiltros();
+    
+    // Ocultar reseña y botón de limpiar
+    const reseña = document.getElementById('filtroReseña');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
+    if (reseña) {
+        reseña.style.display = 'none';
+        // Detener el intervalo de parpadeo
+        if (intervaloParpadeo) {
+            clearInterval(intervaloParpadeo);
+            intervaloParpadeo = null;
+        }
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    
     showSuccess('Filtros del dashboard limpiados');
 }
 
@@ -643,6 +776,19 @@ function resetearFiltrosDashboard() {
     if (catSelect) catSelect.value = '';
     
     loadDashboardData();
+    
+    // Ocultar reseña y botón de limpiar
+    const reseña = document.getElementById('filtroReseña');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
+    if (reseña) {
+        reseña.style.display = 'none';
+        // Detener el intervalo de parpadeo
+        if (intervaloParpadeo) {
+            clearInterval(intervaloParpadeo);
+            intervaloParpadeo = null;
+        }
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
 }
 
 // Verificar presupuestos y mostrar alertas
@@ -693,6 +839,240 @@ async function verificarAlertasPresupuesto() {
             () => {},
             'Alertas de Presupuesto'
         );
+    }
+}
+
+// Mostrar modal con progreso de gastos del mes actual
+async function mostrarModalProgreso() {
+    try {
+        const supabase = getSupabase();
+        const hoy = new Date();
+        const añoActual = hoy.getFullYear();
+        const mesActual = hoy.getMonth() + 1;
+        
+        // Fechas del mes actual
+        const fechaInicio = `${añoActual}-${String(mesActual).padStart(2, '0')}-01`;
+        const fechaFin = `${añoActual}-${String(mesActual).padStart(2, '0')}-${new Date(añoActual, mesActual, 0).getDate()}`;
+        
+        // Obtener gastos del mes actual
+        const { data: gastos, error } = await supabase
+            .from(TABLES.gastos)
+            .select('*')
+            .gte('fecha', fechaInicio)
+            .lte('fecha', fechaFin);
+        
+        if (error) {
+            console.error('Error cargando gastos del mes:', error);
+            showError('Error al cargar los datos');
+            return;
+        }
+        
+        // Agrupar por categoría y sumar montos en EUR
+        const categorias = {};
+        let totalMes = 0;
+        
+        (gastos || []).forEach(gasto => {
+            const cat = gasto.categoria || 'Sin categoría';
+            const montoEUR = gasto.monto_eur || gasto.monto;
+            categorias[cat] = (categorias[cat] || 0) + montoEUR;
+            totalMes += montoEUR;
+        });
+        
+        // Ordenar categorías por monto (mayor a menor)
+        const categoriasOrdenadas = Object.entries(categorias)
+            .sort((a, b) => b[1] - a[1]);
+        
+        // Crear contenido HTML del modal
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.querySelector('#modal .modal-body');
+        
+        if (!modal || !modalTitle || !modalBody) return;
+        
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        
+        modalTitle.textContent = `📊 Progreso de Gastos - ${meses[mesActual - 1]} ${añoActual}`;
+        
+        if (categoriasOrdenadas.length === 0) {
+            modalBody.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <p>No hay gastos registrados en este mes.</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" id="cerrarModalProgreso">Cerrar</button>
+                </div>
+            `;
+        } else {
+            let listaHTML = '<div style="max-height: 400px; overflow-y: auto;">';
+            listaHTML += '<table style="width: 100%; border-collapse: collapse;">';
+            listaHTML += '<thead><tr style="border-bottom: 1px solid var(--border-light);"><th style="text-align: left; padding: 8px;">Categoría</th><th style="text-align: right; padding: 8px;">Monto (EUR)</th></tr></thead>';
+            listaHTML += '<tbody>';
+            
+            for (const [categoria, monto] of categoriasOrdenadas) {
+                listaHTML += `
+                    <tr style="border-bottom: 1px solid var(--border-light);">
+                        <td style="padding: 8px;">${categoria}</td>
+                        <td style="text-align: right; padding: 8px; font-weight: 500;">${formatCurrency(monto, 'EUR')}</td>
+                    </tr>
+                `;
+            }
+            
+            listaHTML += '</tbody>';
+            listaHTML += '</table>';
+            listaHTML += '</div>';
+            
+            listaHTML += `
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 2px solid var(--primary);">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem;">
+                        <span>Total del mes:</span>
+                        <span>${formatCurrency(totalMes, 'EUR')}</span>
+                    </div>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-primary" id="cerrarModalProgreso">Cerrar</button>
+                </div>
+            `;
+            
+            modalBody.innerHTML = listaHTML;
+        }
+        
+        modal.classList.add('active');
+        
+        // Evento para cerrar modal
+        const cerrarBtn = document.getElementById('cerrarModalProgreso');
+        if (cerrarBtn) {
+            cerrarBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error en mostrarModalProgreso:', error);
+        showError('Error al mostrar el progreso');
+    }
+}
+
+// Mostrar modal con progreso de ingresos del mes actual
+async function mostrarModalProgresoIngresos() {
+    try {
+        const supabase = getSupabase();
+        const hoy = new Date();
+        const añoActual = hoy.getFullYear();
+        const mesActual = hoy.getMonth() + 1;
+        
+        // Fechas del mes actual
+        const fechaInicio = `${añoActual}-${String(mesActual).padStart(2, '0')}-01`;
+        const fechaFin = `${añoActual}-${String(mesActual).padStart(2, '0')}-${new Date(añoActual, mesActual, 0).getDate()}`;
+        
+        // Obtener ingresos del mes actual
+        const { data: ingresos, error } = await supabase
+            .from(TABLES.ingresos)
+            .select('*')
+            .gte('fecha', fechaInicio)
+            .lte('fecha', fechaFin);
+        
+        if (error) {
+            console.error('Error cargando ingresos del mes:', error);
+            showError('Error al cargar los datos');
+            return;
+        }
+        
+        // Agrupar por origen y sumar montos en EUR
+        const origenes = {};
+        let totalMes = 0;
+        
+        (ingresos || []).forEach(ingreso => {
+            const orig = ingreso.origen || 'Sin origen';
+            const montoEUR = ingreso.monto_eur || ingreso.monto;
+            origenes[orig] = (origenes[orig] || 0) + montoEUR;
+            totalMes += montoEUR;
+        });
+        
+        // Ordenar orígenes por monto (mayor a menor)
+        const origenesOrdenados = Object.entries(origenes)
+            .sort((a, b) => b[1] - a[1]);
+        
+        // Crear contenido HTML del modal
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.querySelector('#modal .modal-body');
+        
+        if (!modal || !modalTitle || !modalBody) return;
+        
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        
+        modalTitle.textContent = `📊 Progreso de Ingresos - ${meses[mesActual - 1]} ${añoActual}`;
+        
+        if (origenesOrdenados.length === 0) {
+            modalBody.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <p>No hay ingresos registrados en este mes.</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" id="cerrarModalProgresoIngresos">Cerrar</button>
+                </div>
+            `;
+        } else {
+            let listaHTML = '<div style="max-height: 400px; overflow-y: auto;">';
+            listaHTML += '<table style="width: 100%; border-collapse: collapse;">';
+            listaHTML += '<thead><tr style="border-bottom: 1px solid var(--border-light);"><th style="text-align: left; padding: 8px;">Origen</th><th style="text-align: right; padding: 8px;">Monto (EUR)</th></tr></thead>';
+            listaHTML += '<tbody>';
+            
+            for (const [origen, monto] of origenesOrdenados) {
+                listaHTML += `
+                    <tr style="border-bottom: 1px solid var(--border-light);">
+                        <td style="padding: 8px;">${origen}</td>
+                        <td style="text-align: right; padding: 8px; font-weight: 500;">${formatCurrency(monto, 'EUR')}</td>
+                    </tr>
+                `;
+            }
+            
+            listaHTML += '</tbody>';
+            listaHTML += '</table>';
+            listaHTML += '</div>';
+            
+            listaHTML += `
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 2px solid var(--primary);">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem;">
+                        <span>Total del mes:</span>
+                        <span>${formatCurrency(totalMes, 'EUR')}</span>
+                    </div>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-primary" id="cerrarModalProgresoIngresos">Cerrar</button>
+                </div>
+            `;
+            
+            modalBody.innerHTML = listaHTML;
+        }
+        
+        modal.classList.add('active');
+        
+        // Evento para cerrar modal
+        const cerrarBtn = document.getElementById('cerrarModalProgresoIngresos');
+        if (cerrarBtn) {
+            cerrarBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error en mostrarModalProgresoIngresos:', error);
+        showError('Error al mostrar el progreso');
+    }
+}
+
+function abrirModalFiltros() {
+    const modal = document.getElementById('modalFiltros');
+    if (modal) {
+        modal.classList.add('active');
+    }
+}
+
+function cerrarModalFiltros() {
+    const modal = document.getElementById('modalFiltros');
+    if (modal) {
+        modal.classList.remove('active');
     }
 }
 

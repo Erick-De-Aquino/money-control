@@ -407,3 +407,88 @@ body.dark-mode .tasa-card {
 .theme-toggle:hover {
     background-color: var(--bg-hover, #F5F0F7);
 }
+
+.filtro-reseña-normal {
+    background-color: #ffd500;
+    color: #0a0a0a;
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+    flex: 1;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.filtro-reseña-alerta {
+    background-color: #f82516;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+    flex: 1;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* ===== FILTROS - RESPONSIVE MÓVIL ===== */
+.filtros-movil-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.filtros-movil-container .filtro-reseña-wrapper {
+    width: 100%;
+}
+
+.filtros-movil-container #filtroReseña {
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+}
+
+.filtros-movil-container .filtros-botones {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filtros-movil-container .filtros-botones button {
+    width: 100%;
+}
+
+/* Escritorio */
+@media (min-width: 768px) {
+    .filtros-movil-container {
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .filtros-movil-container .filtro-reseña-wrapper {
+        flex: 1;
+    }
+    
+    .filtros-movil-container #filtroReseña {
+        width: 100%;
+        display: flex;
+    }
+    
+    .filtros-movil-container .filtros-botones {
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+    
+    .filtros-movil-container .filtros-botones button {
+        width: auto;
+    }
+}

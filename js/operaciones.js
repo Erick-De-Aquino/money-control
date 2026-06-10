@@ -243,7 +243,8 @@ async function saveOperacion(event) {
         monto_recibido: montoRecibido,
         moneda_recibida: monedaRecibida,
         ganancia_perdida: ganancia,
-        notas: notas || null
+        notas: notas || null,
+        user_id: getCurrentUser()?.id
     };
     
     try {
@@ -279,7 +280,6 @@ async function saveOperacion(event) {
         showError('Error al guardar la operación');
     }
 }
-
 // Editar operación
 async function editOperacion(id) {
     const operacion = operacionesList.find(o => o.id === id);

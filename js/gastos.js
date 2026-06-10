@@ -279,7 +279,8 @@ async function saveGasto(event) {
         monto,
         moneda,
         monto_eur: montoEUR,
-        descripcion: descripcion || null
+        descripcion: descripcion || null,
+        user_id: getCurrentUser()?.id
     };
     
     try {
