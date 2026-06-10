@@ -689,7 +689,7 @@ async function aplicarFiltroDashboard() {
         if (reseña) {
             let texto = '⚠️ Filtro aplicado';
             if (filtroDashboard.desde && filtroDashboard.hasta) {
-                texto = `⚠️ FILTRO APRICADO CON RANGO ${filtroDashboard.desde} - ${filtroDashboard.hasta}`;
+                texto = `⚠️ FILTRO APLICADO CON RANGO ${filtroDashboard.desde} - ${filtroDashboard.hasta}`;
             } else if (filtroDashboard.desde) {
                 texto = `⚠️ Filtro aplicado desde ${filtroDashboard.desde}`;
             } else if (filtroDashboard.hasta) {
