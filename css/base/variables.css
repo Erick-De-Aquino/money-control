@@ -62,7 +62,7 @@
     
     /* ===== BORDES ===== */
     --border-radius-sm: 0.25rem;  /* 4px */
-    --border-radius-md: 0.5rem;   /* 8px */
+    --border-radius-md: 0.3rem;   /* 8px */
     --border-radius-lg: 0.75rem;  /* 12px */
     --border-radius-xl: 1rem;     /* 16px */
     --border-radius-full: 9999px;  /* Circular */
