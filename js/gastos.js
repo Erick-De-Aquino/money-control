@@ -423,7 +423,7 @@ async function aplicarFiltroGastos() {
             }, 500);
         }
         if (btnLimpiar) {
-            btnLimpiar.style.display = 'inline-block';
+            btnLimpiar.style.display = 'flex';
         }
     } else {
         if (reseña) {

@@ -701,7 +701,7 @@ async function aplicarFiltroDashboard() {
                     texto += ` | Categoría: ${filtroGastos.categoria}`;
                 }
                 reseña.textContent = texto;
-                reseña.style.display = 'inline-block';
+                reseña.style.display = 'flex';
                 reseña.className = 'filtro-reseña-normal';
                 
                 if (intervaloParpadeoGastos) clearInterval(intervaloParpadeoGastos);
@@ -715,9 +715,9 @@ async function aplicarFiltroDashboard() {
                         clearInterval(intervaloParpadeoGastos);
                         intervaloParpadeoGastos = null;
                     }
-                }, 500);
+                }, 2000);
             }
-            if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
+            if (btnLimpiar) btnLimpiar.style.display = 'flex';
         } else {
             if (reseña) {
                 reseña.style.display = 'none';
@@ -757,7 +757,7 @@ async function aplicarFiltroDashboard() {
                     texto += ` | Categoría: ${filtroIngresos.categoria}`;
                 }
                 reseña.textContent = texto;
-                reseña.style.display = 'inline-block';
+                reseña.style.display = 'flex';
                 reseña.className = 'filtro-reseña-normal';
                 
                 if (intervaloParpadeoIngresos) clearInterval(intervaloParpadeoIngresos);
@@ -773,7 +773,7 @@ async function aplicarFiltroDashboard() {
                     }
                 }, 500);
             }
-            if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
+            if (btnLimpiar) btnLimpiar.style.display = 'flex';
         } else {
             if (reseña) {
                 reseña.style.display = 'none';
@@ -814,7 +814,7 @@ async function aplicarFiltroDashboard() {
                     texto += ` | Categoría: ${filtroDashboard.categoria}`;
                 }
                 reseña.textContent = texto;
-                reseña.style.display = 'inline-block';
+                reseña.style.display = 'flex';
                 reseña.className = 'filtro-reseña-normal';
                 
                 if (intervaloParpadeo) clearInterval(intervaloParpadeo);
@@ -830,7 +830,7 @@ async function aplicarFiltroDashboard() {
                     }
                 }, 500);
             }
-            if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
+            if (btnLimpiar) btnLimpiar.style.display = 'flex';
         } else {
             if (reseña) {
                 reseña.style.display = 'none';

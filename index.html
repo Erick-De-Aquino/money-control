@@ -244,23 +244,37 @@
                 <div id="pageGastos" class="page">
                     <div class="page-header">
                         <h2>💸 Gastos</h2>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button id="btnExportGastos" class="btn btn-secondary btn-small">📥 Exportar</button>
-                            <button id="btnAddGasto" class="btn btn-primary btn-small">+ Nuevo Gasto</button>
-                        </div>
                     </div>
 
-                    <!-- Botón de filtro para Gastos -->
+                    <!-- Controles de Gastos -->
                     <div class="filtros-movil-container" style="margin-bottom: 1rem;">
+
                         <div class="filtro-reseña-wrapper">
                             <span id="filtroReseñaGastos" class="filtro-reseña-normal" style="display: none;">
                                 ⚠️ Filtro aplicado
                             </span>
                         </div>
+
                         <div class="filtros-botones">
-                            <button id="btnLimpiarFiltroGastosReseña" class="btn btn-secondary" style="display: none;">🗑️ Limpiar filtro</button>
-                            <button id="btnAbrirModalFiltrosGastos" class="btn btn-primary">🔍 Filtro</button>
+
+                            <button id="btnExportGastos" class="btn btn-secondary btn-small">
+                                📥 Exportar
+                            </button>
+
+                            <button id="btnAddGasto" class="btn btn-primary btn-small">
+                                + Nuevo Gasto
+                            </button>
+
+                            <button id="btnLimpiarFiltroGastosReseña" class="btn btn-secondary" style="display: none;">
+                                🗑️ Limpiar filtro
+                            </button>
+
+                            <button id="btnAbrirModalFiltrosGastos" class="btn btn-primary">
+                                🔍 Filtro
+                            </button>
+
                         </div>
+
                     </div>
                     
                     <!-- Total de gastos filtrados -->
