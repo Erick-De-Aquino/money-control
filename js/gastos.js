@@ -5,6 +5,7 @@
 // Variables globales
 let categoriasGastos = [];
 let gastosList = [];
+let intervaloParpadeoGastos = null;
 let editingGastoId = null;
 let filtroGastos = {
     desde: '',
@@ -377,19 +378,74 @@ async function loadCategoriasGastosConDatos() {
 }
 
 async function aplicarFiltroGastos() {
-    filtroGastos.desde = document.getElementById('filtroGastosDesde')?.value || '';
-    filtroGastos.hasta = document.getElementById('filtroGastosHasta')?.value || '';
-    filtroGastos.categoria = document.getElementById('filtroGastosCategoria')?.value || '';
+    // Tomar valores del modal
+    filtroGastos.desde = document.getElementById('filtroGastosDesdeModal')?.value || '';
+    filtroGastos.hasta = document.getElementById('filtroGastosHastaModal')?.value || '';
+    filtroGastos.categoria = document.getElementById('filtroGastosCategoriaModal')?.value || '';
     
     await loadGastos();
+    
+    // Cerrar modal
+    cerrarModalFiltros();
+    
+    // Mostrar reseña del filtro aplicado
+    const reseña = document.getElementById('filtroReseñaGastos');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
+    
+    if (filtroGastos.desde || filtroGastos.hasta || filtroGastos.categoria) {
+        if (reseña) {
+            let texto = '⚠️ Filtro aplicado';
+            if (filtroGastos.desde && filtroGastos.hasta) {
+                texto = `⚠️ Filtro aplicado con rango ${filtroGastos.desde} - ${filtroGastos.hasta}`;
+            } else if (filtroGastos.desde) {
+                texto = `⚠️ Filtro aplicado desde ${filtroGastos.desde}`;
+            } else if (filtroGastos.hasta) {
+                texto = `⚠️ Filtro aplicado hasta ${filtroGastos.hasta}`;
+            }
+            if (filtroGastos.categoria) {
+                texto += ` | Categoría: ${filtroGastos.categoria}`;
+            }
+            reseña.textContent = texto;
+            reseña.style.display = 'block';
+            reseña.className = 'filtro-reseña-normal';
+            
+            if (intervaloParpadeoGastos) clearInterval(intervaloParpadeoGastos);
+            
+            let estado = true;
+            intervaloParpadeoGastos = setInterval(() => {
+                if (reseña && reseña.style.display !== 'none') {
+                    reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+                    estado = !estado;
+                } else {
+                    clearInterval(intervaloParpadeoGastos);
+                    intervaloParpadeoGastos = null;
+                }
+            }, 500);
+        }
+        if (btnLimpiar) {
+            btnLimpiar.style.display = 'inline-block';
+        }
+    } else {
+        if (reseña) {
+            reseña.style.display = 'none';
+            if (intervaloParpadeoGastos) {
+                clearInterval(intervaloParpadeoGastos);
+                intervaloParpadeoGastos = null;
+            }
+        }
+        if (btnLimpiar) btnLimpiar.style.display = 'none';
+    }
+    
     showSuccess('Filtro aplicado');
 }
 
 async function limpiarFiltroGastos() {
     filtroGastos = { desde: '', hasta: '', categoria: '' };
-    const desdeInput = document.getElementById('filtroGastosDesde');
-    const hastaInput = document.getElementById('filtroGastosHasta');
-    const catSelect = document.getElementById('filtroGastosCategoria');
+    
+    // Limpiar inputs del modal
+    const desdeInput = document.getElementById('filtroGastosDesdeModal');
+    const hastaInput = document.getElementById('filtroGastosHastaModal');
+    const catSelect = document.getElementById('filtroGastosCategoriaModal');
     
     if (desdeInput) desdeInput.value = '';
     if (hastaInput) hastaInput.value = '';
@@ -401,6 +457,22 @@ async function limpiarFiltroGastos() {
     }
     
     await loadGastos();
+    
+    // Ocultar reseña y botón de limpiar de Gastos
+    const reseña = document.getElementById('filtroReseñaGastos');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
+    if (reseña) {
+        reseña.style.display = 'none';
+        if (intervaloParpadeoGastos) {
+            clearInterval(intervaloParpadeoGastos);
+            intervaloParpadeoGastos = null;
+        }
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    
+    // Cerrar modal si está abierto
+    cerrarModalFiltros();
+    
     showSuccess('Filtros limpiados');
 }
 
@@ -429,6 +501,17 @@ async function initGastosEvents() {
     if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroGastos);
     if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroGastos);
     
+    // Eventos para modal de filtros
+    const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosGastos');
+    if (btnAbrirFiltros) {
+        btnAbrirFiltros.addEventListener('click', abrirModalFiltrosGastos);
+    }
+    
+    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroGastosReseña');
+    if (btnLimpiarReseña) {
+        btnLimpiarReseña.addEventListener('click', limpiarFiltroGastos);
+    }
+    
     await loadGastosCategorias();
     await actualizarSelectCategoriasGastos();
     await resetearFiltrosGastos();
@@ -446,9 +529,9 @@ function actualizarTotalGastosFiltrados() {
 // Limpiar filtros y UI de gastos
 async function resetearFiltrosGastos() {
     filtroGastos = { desde: '', hasta: '', categoria: '' };
-    const desdeInput = document.getElementById('filtroGastosDesde');
-    const hastaInput = document.getElementById('filtroGastosHasta');
-    const catSelect = document.getElementById('filtroGastosCategoria');
+    const desdeInput = document.getElementById('filtroGastosDesdeModal');
+    const hastaInput = document.getElementById('filtroGastosHastaModal');
+    const catSelect = document.getElementById('filtroGastosCategoriaModal');
     
     if (desdeInput) desdeInput.value = '';
     if (hastaInput) hastaInput.value = '';
@@ -459,7 +542,27 @@ async function resetearFiltrosGastos() {
         totalElement.textContent = formatCurrency(0, 'EUR');
     }
     
+    // Limpiar reseña y detener parpadeo
+    const reseña = document.getElementById('filtroReseñaGastos');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
+    if (reseña) {
+        reseña.style.display = 'none';
+        if (intervaloParpadeoGastos) {
+            clearInterval(intervaloParpadeoGastos);
+            intervaloParpadeoGastos = null;
+        }
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    
     await loadGastos();
+}
+
+function abrirModalFiltrosGastos() {
+    // Guardar qué página está usando el modal
+    window.filtroActivoPara = 'gastos';
+    
+    // Abrir el modal central
+    abrirModalFiltros();
 }
 
 console.log('✅ Módulo de gastos cargado');

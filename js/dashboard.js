@@ -476,7 +476,10 @@ function showPage(page) {
         selectedPage.classList.add('active');
     }
     
-    // Limpiar filtros según la página
+    // Actualizar el filtro activo para el modal central
+    window.filtroActivoPara = page;
+    
+    // Limpiar filtros según la página (se limpia TODO al cambiar)
     if (page === 'gastos') {
         resetearFiltrosGastos();
     } else if (page === 'ingresos') {
@@ -673,54 +676,229 @@ async function actualizarSelectDashboardCategorias() {
 }
 
 async function aplicarFiltroDashboard() {
-    filtroDashboard.desde = document.getElementById('filtroDashboardDesde')?.value || '';
-    filtroDashboard.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
-    filtroDashboard.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
-    
-    await actualizarSelectDashboardCategorias();
-    await loadDashboardData();
-    cerrarModalFiltros();
-    
-    // Mostrar reseña del filtro aplicado
-    const reseña = document.getElementById('filtroReseña');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
-    
-    if (filtroDashboard.desde || filtroDashboard.hasta || filtroDashboard.categoria) {
-        if (reseña) {
-            let texto = '⚠️ Filtro aplicado';
-            if (filtroDashboard.desde && filtroDashboard.hasta) {
-                texto = `⚠️ FILTRO APLICADO CON RANGO ${filtroDashboard.desde} - ${filtroDashboard.hasta}`;
-            } else if (filtroDashboard.desde) {
-                texto = `⚠️ Filtro aplicado desde ${filtroDashboard.desde}`;
-            } else if (filtroDashboard.hasta) {
-                texto = `⚠️ Filtro aplicado hasta ${filtroDashboard.hasta}`;
+    if (window.filtroActivoPara === 'gastos') {
+        // Ejecutar filtro de gastos
+        filtroGastos.desde = document.getElementById('filtroDashboardDesde')?.value || '';
+        filtroGastos.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
+        filtroGastos.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
+        
+        await loadGastos();
+        
+        const reseña = document.getElementById('filtroReseñaGastos');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
+        
+        if (filtroGastos.desde || filtroGastos.hasta || filtroGastos.categoria) {
+            if (reseña) {
+                let texto = '⚠️ Filtro aplicado';
+                if (filtroGastos.desde && filtroGastos.hasta) {
+                    texto = `⚠️ Filtro aplicado con rango ${filtroGastos.desde} - ${filtroGastos.hasta}`;
+                } else if (filtroGastos.desde) {
+                    texto = `⚠️ Filtro aplicado desde ${filtroGastos.desde}`;
+                } else if (filtroGastos.hasta) {
+                    texto = `⚠️ Filtro aplicado hasta ${filtroGastos.hasta}`;
+                }
+                if (filtroGastos.categoria) {
+                    texto += ` | Categoría: ${filtroGastos.categoria}`;
+                }
+                reseña.textContent = texto;
+                reseña.style.display = 'inline-block';
+                reseña.className = 'filtro-reseña-normal';
+                
+                if (intervaloParpadeoGastos) clearInterval(intervaloParpadeoGastos);
+                
+                let estado = true;
+                intervaloParpadeoGastos = setInterval(() => {
+                    if (reseña && reseña.style.display !== 'none') {
+                        reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+                        estado = !estado;
+                    } else {
+                        clearInterval(intervaloParpadeoGastos);
+                        intervaloParpadeoGastos = null;
+                    }
+                }, 500);
             }
-            if (filtroDashboard.categoria) {
-                texto += ` | Categoría: ${filtroDashboard.categoria}`;
+            if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
+        } else {
+            if (reseña) {
+                reseña.style.display = 'none';
+                if (intervaloParpadeoGastos) {
+                    clearInterval(intervaloParpadeoGastos);
+                    intervaloParpadeoGastos = null;
+                }
             }
-            reseña.textContent = texto;
-            reseña.style.display = 'inline-block';
-            reseña.className = 'filtro-reseña-normal';
-            
-            // Limpiar intervalo anterior si existe
-            if (intervaloParpadeo) clearInterval(intervaloParpadeo);
-            
-            // Iniciar nuevo intervalo
-            let estado = true;
-            intervaloParpadeo = setInterval(() => {
-                if (reseña && reseña.style.display !== 'none') {
-                    reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
-                    estado = !estado;
-                } else {
+            if (btnLimpiar) btnLimpiar.style.display = 'none';
+        }
+        
+        cerrarModalFiltros();
+        showSuccess('Filtro aplicado a gastos');
+        
+    } else if (window.filtroActivoPara === 'ingresos') {
+        // Ejecutar filtro de ingresos
+        filtroIngresos.desde = document.getElementById('filtroDashboardDesde')?.value || '';
+        filtroIngresos.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
+        filtroIngresos.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
+        
+        await loadIngresos();
+        
+        const reseña = document.getElementById('filtroReseñaIngresos');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresosReseña');
+        
+        if (filtroIngresos.desde || filtroIngresos.hasta || filtroIngresos.categoria) {
+            if (reseña) {
+                let texto = '⚠️ Filtro aplicado';
+                if (filtroIngresos.desde && filtroIngresos.hasta) {
+                    texto = `⚠️ Filtro aplicado con rango ${filtroIngresos.desde} - ${filtroIngresos.hasta}`;
+                } else if (filtroIngresos.desde) {
+                    texto = `⚠️ Filtro aplicado desde ${filtroIngresos.desde}`;
+                } else if (filtroIngresos.hasta) {
+                    texto = `⚠️ Filtro aplicado hasta ${filtroIngresos.hasta}`;
+                }
+                if (filtroIngresos.categoria) {
+                    texto += ` | Categoría: ${filtroIngresos.categoria}`;
+                }
+                reseña.textContent = texto;
+                reseña.style.display = 'inline-block';
+                reseña.className = 'filtro-reseña-normal';
+                
+                if (intervaloParpadeoIngresos) clearInterval(intervaloParpadeoIngresos);
+                
+                let estado = true;
+                intervaloParpadeoIngresos = setInterval(() => {
+                    if (reseña && reseña.style.display !== 'none') {
+                        reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+                        estado = !estado;
+                    } else {
+                        clearInterval(intervaloParpadeoIngresos);
+                        intervaloParpadeoIngresos = null;
+                    }
+                }, 500);
+            }
+            if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
+        } else {
+            if (reseña) {
+                reseña.style.display = 'none';
+                if (intervaloParpadeoIngresos) {
+                    clearInterval(intervaloParpadeoIngresos);
+                    intervaloParpadeoIngresos = null;
+                }
+            }
+            if (btnLimpiar) btnLimpiar.style.display = 'none';
+        }
+        
+        cerrarModalFiltros();
+        showSuccess('Filtro aplicado a ingresos');
+        
+    } else {
+        // Dashboard (default)
+        filtroDashboard.desde = document.getElementById('filtroDashboardDesde')?.value || '';
+        filtroDashboard.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
+        filtroDashboard.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
+        
+        await actualizarSelectDashboardCategorias();
+        await loadDashboardData();
+        
+        const reseña = document.getElementById('filtroReseña');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
+        
+        if (filtroDashboard.desde || filtroDashboard.hasta || filtroDashboard.categoria) {
+            if (reseña) {
+                let texto = '⚠️ Filtro aplicado';
+                if (filtroDashboard.desde && filtroDashboard.hasta) {
+                    texto = `⚠️ Filtro aplicado con rango ${filtroDashboard.desde} - ${filtroDashboard.hasta}`;
+                } else if (filtroDashboard.desde) {
+                    texto = `⚠️ Filtro aplicado desde ${filtroDashboard.desde}`;
+                } else if (filtroDashboard.hasta) {
+                    texto = `⚠️ Filtro aplicado hasta ${filtroDashboard.hasta}`;
+                }
+                if (filtroDashboard.categoria) {
+                    texto += ` | Categoría: ${filtroDashboard.categoria}`;
+                }
+                reseña.textContent = texto;
+                reseña.style.display = 'inline-block';
+                reseña.className = 'filtro-reseña-normal';
+                
+                if (intervaloParpadeo) clearInterval(intervaloParpadeo);
+                
+                let estado = true;
+                intervaloParpadeo = setInterval(() => {
+                    if (reseña && reseña.style.display !== 'none') {
+                        reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+                        estado = !estado;
+                    } else {
+                        clearInterval(intervaloParpadeo);
+                        intervaloParpadeo = null;
+                    }
+                }, 500);
+            }
+            if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
+        } else {
+            if (reseña) {
+                reseña.style.display = 'none';
+                if (intervaloParpadeo) {
                     clearInterval(intervaloParpadeo);
                     intervaloParpadeo = null;
                 }
-            }, 500);
+            }
+            if (btnLimpiar) btnLimpiar.style.display = 'none';
         }
-        if (btnLimpiar) {
-            btnLimpiar.style.display = 'inline-block';
+        
+        cerrarModalFiltros();
+        showSuccess('Filtros aplicados al dashboard');
+    }
+}
+
+// Limpiar filtros del dashboard (genérico)
+function limpiarFiltroDashboard() {
+    if (window.filtroActivoPara === 'gastos') {
+        // Limpiar filtros de gastos
+        filtroGastos = { desde: '', hasta: '', categoria: '' };
+        
+        const desdeInput = document.getElementById('filtroDashboardDesde');
+        const hastaInput = document.getElementById('filtroDashboardHasta');
+        const catSelect = document.getElementById('filtroDashboardCategoria');
+        
+        if (desdeInput) desdeInput.value = '';
+        if (hastaInput) hastaInput.value = '';
+        if (catSelect) catSelect.value = '';
+        
+        loadGastos();
+        
+        const reseña = document.getElementById('filtroReseñaGastos');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
+        if (reseña) {
+            reseña.style.display = 'none';
+            if (intervaloParpadeoGastos) {
+                clearInterval(intervaloParpadeoGastos);
+                intervaloParpadeoGastos = null;
+            }
         }
+        if (btnLimpiar) btnLimpiar.style.display = 'none';
+        
+        cerrarModalFiltros();
+        showSuccess('Filtros de gastos limpiados');
+        
+    } else if (window.filtroActivoPara === 'ingresos') {
+        // Limpiar filtros de ingresos (lo implementaremos después)
+        console.log('Limpiar filtros de ingresos - pendiente');
+        cerrarModalFiltros();
+        
     } else {
+        // Dashboard (default)
+        filtroDashboard = { desde: '', hasta: '', categoria: '' };
+        const desdeInput = document.getElementById('filtroDashboardDesde');
+        const hastaInput = document.getElementById('filtroDashboardHasta');
+        const catSelect = document.getElementById('filtroDashboardCategoria');
+        
+        if (desdeInput) desdeInput.value = '';
+        if (hastaInput) hastaInput.value = '';
+        if (catSelect) catSelect.value = '';
+        
+        loadDashboardData();
+        actualizarSelectDashboardCategorias();
+        cerrarModalFiltros();
+        
+        const reseña = document.getElementById('filtroReseña');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
         if (reseña) {
             reseña.style.display = 'none';
             if (intervaloParpadeo) {
@@ -729,39 +907,9 @@ async function aplicarFiltroDashboard() {
             }
         }
         if (btnLimpiar) btnLimpiar.style.display = 'none';
+        
+        showSuccess('Filtros del dashboard limpiados');
     }
-    
-    showSuccess('Filtros aplicados al dashboard');
-}
-
-function limpiarFiltroDashboard() {
-    filtroDashboard = { desde: '', hasta: '', categoria: '' };
-    const desdeInput = document.getElementById('filtroDashboardDesde');
-    const hastaInput = document.getElementById('filtroDashboardHasta');
-    const catSelect = document.getElementById('filtroDashboardCategoria');
-    
-    if (desdeInput) desdeInput.value = '';
-    if (hastaInput) hastaInput.value = '';
-    if (catSelect) catSelect.value = '';
-    
-    loadDashboardData();
-    actualizarSelectDashboardCategorias();
-    cerrarModalFiltros();
-    
-    // Ocultar reseña y botón de limpiar
-    const reseña = document.getElementById('filtroReseña');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
-    if (reseña) {
-        reseña.style.display = 'none';
-        // Detener el intervalo de parpadeo
-        if (intervaloParpadeo) {
-            clearInterval(intervaloParpadeo);
-            intervaloParpadeo = null;
-        }
-    }
-    if (btnLimpiar) btnLimpiar.style.display = 'none';
-    
-    showSuccess('Filtros del dashboard limpiados');
 }
 
 // Limpiar filtros del dashboard
@@ -1062,11 +1210,72 @@ async function mostrarModalProgresoIngresos() {
     }
 }
 
+// Abrir modal de filtros (cargando valores según página activa)
 function abrirModalFiltros() {
+    // Cargar valores actuales según la página activa
+    if (window.filtroActivoPara === 'gastos') {
+        const desdeInput = document.getElementById('filtroDashboardDesde');
+        const hastaInput = document.getElementById('filtroDashboardHasta');
+        const catSelect = document.getElementById('filtroDashboardCategoria');
+        
+        if (desdeInput) desdeInput.value = filtroGastos.desde || '';
+        if (hastaInput) hastaInput.value = filtroGastos.hasta || '';
+        if (catSelect) {
+            // Cargar categorías de gastos en el select
+            cargarCategoriasEnSelectGastos(catSelect);
+            catSelect.value = filtroGastos.categoria || '';
+        }
+    } else if (window.filtroActivoPara === 'ingresos') {
+        const desdeInput = document.getElementById('filtroDashboardDesde');
+        const hastaInput = document.getElementById('filtroDashboardHasta');
+        const catSelect = document.getElementById('filtroDashboardCategoria');
+        
+        if (desdeInput) desdeInput.value = filtroIngresos.desde || '';
+        if (hastaInput) hastaInput.value = filtroIngresos.hasta || '';
+        if (catSelect) {
+            // Cargar categorías de ingresos en el select
+            cargarCategoriasEnSelectIngresos(catSelect);
+            catSelect.value = filtroIngresos.categoria || '';
+        }
+    } else {
+        // Dashboard
+        const desdeInput = document.getElementById('filtroDashboardDesde');
+        const hastaInput = document.getElementById('filtroDashboardHasta');
+        const catSelect = document.getElementById('filtroDashboardCategoria');
+        
+        if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
+        if (hastaInput) hastaInput.value = filtroDashboard.hasta || '';
+        if (catSelect) catSelect.value = filtroDashboard.categoria || '';
+    }
+    
     const modal = document.getElementById('modalFiltros');
     if (modal) {
         modal.classList.add('active');
     }
+}
+
+// Función auxiliar para cargar categorías de gastos en el select
+function cargarCategoriasEnSelectGastos(select) {
+    if (!select) return;
+    select.innerHTML = '<option value="">Todas las categorías</option>';
+    categoriasGastos.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.nombre;
+        option.textContent = cat.nombre;
+        select.appendChild(option);
+    });
+}
+
+// Función auxiliar para cargar categorías de ingresos en el select
+function cargarCategoriasEnSelectIngresos(select) {
+    if (!select) return;
+    select.innerHTML = '<option value="">Todas las categorías</option>';
+    categoriasIngresos.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.nombre;
+        option.textContent = cat.nombre;
+        select.appendChild(option);
+    });
 }
 
 function cerrarModalFiltros() {

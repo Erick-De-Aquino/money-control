@@ -5,6 +5,7 @@
 // Variables globales
 let categoriasIngresos = [];
 let ingresosList = [];
+let intervaloParpadeoIngresos = null;
 let editingIngresoId = null;
 let filtroIngresos = {
     desde: '',
@@ -379,19 +380,75 @@ async function loadCategoriasIngresosConDatos() {
 }
 
 async function aplicarFiltroIngresos() {
-    filtroIngresos.desde = document.getElementById('filtroIngresosDesde')?.value || '';
-    filtroIngresos.hasta = document.getElementById('filtroIngresosHasta')?.value || '';
-    filtroIngresos.categoria = document.getElementById('filtroIngresosCategoria')?.value || '';
+    // Tomar valores del modal
+    filtroIngresos.desde = document.getElementById('filtroDashboardDesde')?.value || '';
+    filtroIngresos.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
+    filtroIngresos.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
     
     await loadIngresos();
-    showSuccess('Filtro aplicado');
+    
+    // Cerrar modal
+    cerrarModalFiltros();
+    
+    // Mostrar reseña del filtro aplicado
+    const reseña = document.getElementById('filtroReseñaIngresos');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresosReseña');
+    
+    if (filtroIngresos.desde || filtroIngresos.hasta || filtroIngresos.categoria) {
+        if (reseña) {
+            let texto = '⚠️ Filtro aplicado';
+            if (filtroIngresos.desde && filtroIngresos.hasta) {
+                texto = `⚠️ Filtro aplicado con rango ${filtroIngresos.desde} - ${filtroIngresos.hasta}`;
+            } else if (filtroIngresos.desde) {
+                texto = `⚠️ Filtro aplicado desde ${filtroIngresos.desde}`;
+            } else if (filtroIngresos.hasta) {
+                texto = `⚠️ Filtro aplicado hasta ${filtroIngresos.hasta}`;
+            }
+            if (filtroIngresos.categoria) {
+                texto += ` | Categoría: ${filtroIngresos.categoria}`;
+            }
+            reseña.textContent = texto;
+            reseña.style.display = 'block';
+            reseña.className = 'filtro-reseña-normal';
+            
+            if (intervaloParpadeoIngresos) clearInterval(intervaloParpadeoIngresos);
+            
+            let estado = true;
+            intervaloParpadeoIngresos = setInterval(() => {
+                if (reseña && reseña.style.display !== 'none') {
+                    reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+                    estado = !estado;
+                } else {
+                    clearInterval(intervaloParpadeoIngresos);
+                    intervaloParpadeoIngresos = null;
+                }
+            }, 500);
+        }
+        if (btnLimpiar) {
+            btnLimpiar.style.display = 'inline-block';
+        }
+    } else {
+        if (reseña) {
+            reseña.style.display = 'none';
+            if (intervaloParpadeoIngresos) {
+                clearInterval(intervaloParpadeoIngresos);
+                intervaloParpadeoIngresos = null;
+            }
+        }
+        if (btnLimpiar) btnLimpiar.style.display = 'none';
+    }
+    
+    showSuccess('Filtro aplicado a ingresos');
 }
 
+// Limpiar filtros de ingresos
 async function limpiarFiltroIngresos() {
     filtroIngresos = { desde: '', hasta: '', categoria: '' };
-    const desdeInput = document.getElementById('filtroIngresosDesde');
-    const hastaInput = document.getElementById('filtroIngresosHasta');
-    const catSelect = document.getElementById('filtroIngresosCategoria');
+    
+    // Limpiar inputs del modal
+    const desdeInput = document.getElementById('filtroDashboardDesde');
+    const hastaInput = document.getElementById('filtroDashboardHasta');
+    const catSelect = document.getElementById('filtroDashboardCategoria');
     
     if (desdeInput) desdeInput.value = '';
     if (hastaInput) hastaInput.value = '';
@@ -408,6 +465,21 @@ async function limpiarFiltroIngresos() {
     if (container) {
         container.innerHTML = '<p class="empty-message">Cargando...</p>';
     }
+    
+    // Ocultar reseña y botón de limpiar
+    const reseña = document.getElementById('filtroReseñaIngresos');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresosReseña');
+    if (reseña) {
+        reseña.style.display = 'none';
+        if (intervaloParpadeoIngresos) {
+            clearInterval(intervaloParpadeoIngresos);
+            intervaloParpadeoIngresos = null;
+        }
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    
+    // Cerrar modal si está abierto
+    cerrarModalFiltros();
     
     // Recargar datos
     await loadIngresos();
@@ -426,12 +498,15 @@ async function actualizarSelectCategoriasIngresos() {
 // Actualizar total de ingresos filtrados
 
 
+
 // Limpiar filtros y UI de ingresos al entrar a la página
 async function resetearFiltrosIngresos() {
     filtroIngresos = { desde: '', hasta: '', categoria: '' };
-    const desdeInput = document.getElementById('filtroIngresosDesde');
-    const hastaInput = document.getElementById('filtroIngresosHasta');
-    const catSelect = document.getElementById('filtroIngresosCategoria');
+    
+    // Limpiar inputs del modal
+    const desdeInput = document.getElementById('filtroDashboardDesde');
+    const hastaInput = document.getElementById('filtroDashboardHasta');
+    const catSelect = document.getElementById('filtroDashboardCategoria');
     
     if (desdeInput) desdeInput.value = '';
     if (hastaInput) hastaInput.value = '';
@@ -443,9 +518,20 @@ async function resetearFiltrosIngresos() {
         totalElement.textContent = formatCurrency(0, 'EUR');
     }
     
+    // Limpiar reseña y detener parpadeo
+    const reseña = document.getElementById('filtroReseñaIngresos');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresosReseña');
+    if (reseña) {
+        reseña.style.display = 'none';
+        if (intervaloParpadeoIngresos) {
+            clearInterval(intervaloParpadeoIngresos);
+            intervaloParpadeoIngresos = null;
+        }
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    
     await loadIngresos();
 }
-
 // Inicializar eventos de ingresos
 async function initIngresosEvents() {
     const btnAddIngreso = document.getElementById('btnAddIngreso');
@@ -456,15 +542,25 @@ async function initIngresosEvents() {
         });
     }
     
-    const btnAplicar = document.getElementById('btnAplicarFiltroIngresos');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresos');
+    // Eventos para modal de filtros
+    const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosIngresos');
+    if (btnAbrirFiltros) {
+        btnAbrirFiltros.addEventListener('click', abrirModalFiltrosIngresos);
+    }
     
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroIngresos);
-    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroIngresos);
+    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroIngresosReseña');
+    if (btnLimpiarReseña) {
+        btnLimpiarReseña.addEventListener('click', limpiarFiltroIngresos);
+    }
     
     await loadIngresosCategorias();
     await actualizarSelectCategoriasIngresos();
     await resetearFiltrosIngresos();
+}
+
+function abrirModalFiltrosIngresos() {
+    window.filtroActivoPara = 'ingresos';
+    abrirModalFiltros();
 }
 
 console.log('✅ Módulo de ingresos cargado');

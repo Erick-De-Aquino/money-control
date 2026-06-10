@@ -416,6 +416,7 @@ body.dark-mode .tasa-card {
     font-size: 0.9rem;
     transition: background-color 0.3s;
     flex: 1;
+    width: 100%;
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -431,6 +432,7 @@ body.dark-mode .tasa-card {
     font-size: 0.9rem;
     transition: background-color 0.3s;
     flex: 1;
+    width: 100%;
     font-weight: bold;
     display: flex;
     align-items: center;
