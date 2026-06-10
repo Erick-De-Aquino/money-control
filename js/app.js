@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateAllTasas();
         });
     }
+
+    // Inicializar toggles de contraseña
+    initPasswordToggles();
     
     console.log('✅ Aplicación inicializada correctamente');
 });

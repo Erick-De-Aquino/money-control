@@ -44,7 +44,15 @@
                     
                     <div class="form-group">
                         <label for="loginPassword">Contraseña</label>
-                        <input type="password" id="loginPassword" placeholder="••••••••" required>
+                        <div style="position: relative;">
+                            <input type="password" id="loginPassword" placeholder="••••••••" required style="padding-right: 40px;">
+                            <button type="button" class="toggle-password" data-target="loginPassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-full">Iniciar Sesión</button>
@@ -75,12 +83,28 @@
                     
                     <div class="form-group">
                         <label for="registerPassword">Contraseña</label>
-                        <input type="password" id="registerPassword" placeholder="••••••••" required>
+                        <div style="position: relative;">
+                            <input type="password" id="registerPassword" placeholder="••••••••" required style="padding-right: 40px;">
+                            <button type="button" class="toggle-password" data-target="registerPassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="registerConfirmPassword">Confirmar contraseña</label>
-                        <input type="password" id="registerConfirmPassword" placeholder="••••••••" required>
+                        <div style="position: relative;">
+                            <input type="password" id="registerConfirmPassword" placeholder="••••••••" required style="padding-right: 40px;">
+                            <button type="button" class="toggle-password" data-target="registerConfirmPassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-full">Registrarse</button>
