@@ -79,6 +79,7 @@ async function registerUser(email, password, confirmPassword) {
             email: email,
             password: password,
             options: {
+                emailRedirectTo: 'https://erick-de-aquino.github.io/money-control/',
                 data: {
                     created_at: new Date().toISOString()
                 }
