@@ -1,0 +1,532 @@
+<<<<<<< HEAD
+/* ============================================
+   TARJETAS - Estilos de contenedores y cards
+   ============================================ */
+
+/* ===== TARJETA BASE ===== */
+.card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    box-shadow: var(--shadow-md, 0 1px 3px 0 rgba(0, 0, 0, 0.1));
+    padding: var(--spacing-md, 1rem);
+    transition: all var(--transition-normal, 250ms ease);
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    transform: translateY(-2px);
+}
+
+/* ===== VARIANTES DE TARJETAS ===== */
+
+/* Tarjeta con borde destacado */
+.card-bordered {
+    border: 2px solid var(--primary, #E1D5E7);
+}
+
+/* Tarjeta sin sombra */
+.card-flat {
+    box-shadow: none;
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.card-flat:hover {
+    box-shadow: none;
+    transform: none;
+    background-color: var(--bg-hover, #F5F0F7);
+}
+
+/* Tarjeta elevada */
+.card-elevated {
+    box-shadow: var(--shadow-xl, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+}
+
+/* Tarjeta con fondo de color */
+.card-primary {
+    background-color: var(--primary, #E1D5E7);
+    border: none;
+}
+
+.card-primary .card-title,
+.card-primary .card-text {
+    color: var(--text-primary, #2C2530);
+}
+
+/* Tarjeta de estadísticas */
+.stat-card {
+    background: linear-gradient(135deg, var(--bg-card, #FFFFFF) 0%, var(--bg-hover, #F5F0F7) 100%);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    padding: var(--spacing-md, 1rem);
+    text-align: center;
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.stat-card h3 {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-secondary, #5A4B63);
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    font-weight: var(--font-medium, 500);
+}
+
+.stat-card .stat-value {
+    font-size: var(--font-size-2xl, 1.5rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary, #2C2530);
+}
+
+/* Tarjeta de tasa de cambio */
+.tasa-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    padding: var(--spacing-md, 1rem);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border-light, #E8E0EC);
+    transition: all var(--transition-fast, 150ms ease);
+}
+
+.tasa-card:hover {
+    background-color: var(--bg-hover, #F5F0F7);
+    border-color: var(--primary, #E1D5E7);
+}
+
+.tasa-label {
+    font-size: var(--font-size-md, 1rem);
+    font-weight: var(--font-medium, 500);
+    color: var(--text-secondary, #5A4B63);
+}
+
+.tasa-value {
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary, #2C2530);
+}
+
+/* ===== TARJETA DE LISTA (ítems) ===== */
+.list-item-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-md, 0.5rem);
+    padding: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    border: 1px solid var(--border-light, #E8E0EC);
+    transition: all var(--transition-fast, 150ms ease);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm, 0.5rem);
+}
+
+.list-item-card:hover {
+    background-color: var(--bg-hover, #F5F0F7);
+    border-color: var(--primary, #E1D5E7);
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-title {
+    font-size: var(--font-size-md, 1rem);
+    font-weight: var(--font-semibold, 600);
+    color: var(--text-primary, #2C2530);
+    margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.item-subtitle {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-tertiary, #8D7B99);
+}
+
+.item-amount {
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary, #2C2530);
+}
+
+.item-amount.positive {
+    color: var(--success, #4CAF50);
+}
+
+.item-amount.negative {
+    color: var(--error, #f44336);
+}
+
+.item-actions {
+    display: flex;
+    gap: var(--spacing-sm, 0.5rem);
+}
+
+/* ===== TARJETA DE LOGIN ===== */
+.login-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-xl, 1rem);
+    padding: var(--spacing-2xl, 2rem);
+    box-shadow: var(--shadow-xl, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+    width: 90%;
+    max-width: 400px;
+    margin: var(--spacing-2xl, 2rem) auto;
+}
+
+.login-card .logo {
+    text-align: center;
+    margin-bottom: var(--spacing-xl, 2rem);
+}
+
+.login-card .logo h1 {
+    font-size: var(--font-size-2xl, 1.5rem);
+    margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.login-card .logo p {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-tertiary, #8D7B99);
+}
+
+/* ===== TARJETA DE GRÁFICO ===== */
+.chart-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    padding: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.chart-card h3 {
+    font-size: var(--font-size-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+    color: var(--text-secondary, #5A4B63);
+}
+
+/* ===== HEADER DE TARJETA ===== */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md, 1rem);
+    padding-bottom: var(--spacing-sm, 0.5rem);
+    border-bottom: 1px solid var(--border-light, #E8E0EC);
+}
+
+.card-header h2,
+.card-header h3 {
+    margin-bottom: 0;
+}
+
+/* ===== CUERPO DE TARJETA ===== */
+.card-body {
+    margin-bottom: var(--spacing-md, 1rem);
+}
+
+.card-body:last-child {
+    margin-bottom: 0;
+}
+
+/* ===== PIE DE TARJETA ===== */
+.card-footer {
+    margin-top: var(--spacing-md, 1rem);
+    padding-top: var(--spacing-sm, 0.5rem);
+    border-top: 1px solid var(--border-light, #E8E0EC);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm, 0.5rem);
+}
+
+/* ===== GRID DE TARJETAS ===== */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .list-item-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .item-actions {
+        align-self: flex-end;
+    }
+    
+    .login-card {
+        padding: var(--spacing-lg, 1.5rem);
+        width: 95%;
+    }
+=======
+/* ============================================
+   TARJETAS - Estilos de contenedores y cards
+   ============================================ */
+
+/* ===== TARJETA BASE ===== */
+.card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    box-shadow: var(--shadow-md, 0 1px 3px 0 rgba(0, 0, 0, 0.1));
+    padding: var(--spacing-md, 1rem);
+    transition: all var(--transition-normal, 250ms ease);
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    transform: translateY(-2px);
+}
+
+/* ===== VARIANTES DE TARJETAS ===== */
+
+/* Tarjeta con borde destacado */
+.card-bordered {
+    border: 2px solid var(--primary, #E1D5E7);
+}
+
+/* Tarjeta sin sombra */
+.card-flat {
+    box-shadow: none;
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.card-flat:hover {
+    box-shadow: none;
+    transform: none;
+    background-color: var(--bg-hover, #F5F0F7);
+}
+
+/* Tarjeta elevada */
+.card-elevated {
+    box-shadow: var(--shadow-xl, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+}
+
+/* Tarjeta con fondo de color */
+.card-primary {
+    background-color: var(--primary, #E1D5E7);
+    border: none;
+}
+
+.card-primary .card-title,
+.card-primary .card-text {
+    color: var(--text-primary, #2C2530);
+}
+
+/* Tarjeta de estadísticas */
+.stat-card {
+    background: linear-gradient(135deg, var(--bg-card, #FFFFFF) 0%, var(--bg-hover, #F5F0F7) 100%);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    padding: var(--spacing-md, 1rem);
+    text-align: center;
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.stat-card h3 {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-secondary, #5A4B63);
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    font-weight: var(--font-medium, 500);
+}
+
+.stat-card .stat-value {
+    font-size: var(--font-size-2xl, 1.5rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary, #2C2530);
+}
+
+/* Tarjeta de tasa de cambio */
+.tasa-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    padding: var(--spacing-md, 1rem);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border-light, #E8E0EC);
+    transition: all var(--transition-fast, 150ms ease);
+}
+
+.tasa-card:hover {
+    background-color: var(--bg-hover, #F5F0F7);
+    border-color: var(--primary, #E1D5E7);
+}
+
+.tasa-label {
+    font-size: var(--font-size-md, 1rem);
+    font-weight: var(--font-medium, 500);
+    color: var(--text-secondary, #5A4B63);
+}
+
+.tasa-value {
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary, #2C2530);
+}
+
+/* ===== TARJETA DE LISTA (ítems) ===== */
+.list-item-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-md, 0.5rem);
+    padding: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    border: 1px solid var(--border-light, #E8E0EC);
+    transition: all var(--transition-fast, 150ms ease);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm, 0.5rem);
+}
+
+.list-item-card:hover {
+    background-color: var(--bg-hover, #F5F0F7);
+    border-color: var(--primary, #E1D5E7);
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-title {
+    font-size: var(--font-size-md, 1rem);
+    font-weight: var(--font-semibold, 600);
+    color: var(--text-primary, #2C2530);
+    margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.item-subtitle {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-tertiary, #8D7B99);
+}
+
+.item-amount {
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary, #2C2530);
+}
+
+.item-amount.positive {
+    color: var(--success, #4CAF50);
+}
+
+.item-amount.negative {
+    color: var(--error, #f44336);
+}
+
+.item-actions {
+    display: flex;
+    gap: var(--spacing-sm, 0.5rem);
+}
+
+/* ===== TARJETA DE LOGIN ===== */
+.login-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-xl, 1rem);
+    padding: var(--spacing-2xl, 2rem);
+    box-shadow: var(--shadow-xl, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+    width: 90%;
+    max-width: 400px;
+    margin: var(--spacing-2xl, 2rem) auto;
+}
+
+.login-card .logo {
+    text-align: center;
+    margin-bottom: var(--spacing-xl, 2rem);
+}
+
+.login-card .logo h1 {
+    font-size: var(--font-size-2xl, 1.5rem);
+    margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.login-card .logo p {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--text-tertiary, #8D7B99);
+}
+
+/* ===== TARJETA DE GRÁFICO ===== */
+.chart-card {
+    background-color: var(--bg-card, #FFFFFF);
+    border-radius: var(--border-radius-lg, 0.75rem);
+    padding: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border-light, #E8E0EC);
+}
+
+.chart-card h3 {
+    font-size: var(--font-size-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+    color: var(--text-secondary, #5A4B63);
+}
+
+/* ===== HEADER DE TARJETA ===== */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md, 1rem);
+    padding-bottom: var(--spacing-sm, 0.5rem);
+    border-bottom: 1px solid var(--border-light, #E8E0EC);
+}
+
+.card-header h2,
+.card-header h3 {
+    margin-bottom: 0;
+}
+
+/* ===== CUERPO DE TARJETA ===== */
+.card-body {
+    margin-bottom: var(--spacing-md, 1rem);
+}
+
+.card-body:last-child {
+    margin-bottom: 0;
+}
+
+/* ===== PIE DE TARJETA ===== */
+.card-footer {
+    margin-top: var(--spacing-md, 1rem);
+    padding-top: var(--spacing-sm, 0.5rem);
+    border-top: 1px solid var(--border-light, #E8E0EC);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm, 0.5rem);
+}
+
+/* ===== GRID DE TARJETAS ===== */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md, 1rem);
+    margin-bottom: var(--spacing-md, 1rem);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .list-item-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .item-actions {
+        align-self: flex-end;
+    }
+    
+    .login-card {
+        padding: var(--spacing-lg, 1.5rem);
+        width: 95%;
+    }
+>>>>>>> f3bae395b482f94449aa12c36abfcec5eb8392c9
+}
