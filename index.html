@@ -257,16 +257,16 @@
 
                         <div class="filtros-botones">
 
+                            <button id="btnLimpiarFiltroGastosReseña" class="btn btn-secondary" style="display: none;">
+                                🗑️ Limpiar filtro
+                            </button>
+
                             <button id="btnExportGastos" class="btn btn-secondary btn-small">
                                 📥 Exportar
                             </button>
 
                             <button id="btnAddGasto" class="btn btn-primary btn-small">
                                 + Nuevo Gasto
-                            </button>
-
-                            <button id="btnLimpiarFiltroGastosReseña" class="btn btn-secondary" style="display: none;">
-                                🗑️ Limpiar filtro
                             </button>
 
                             <button id="btnAbrirModalFiltrosGastos" class="btn btn-primary">
@@ -290,25 +290,39 @@
                 <!-- Página Ingresos -->
                 <div id="pageIngresos" class="page">
                     <div class="page-header">
-                        <h2>💰 Ingresos</h2>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button id="btnExportIngresos" class="btn btn-secondary btn-small">📥 Exportar</button>
-                            <button id="btnAddIngreso" class="btn btn-primary btn-small">+ Nuevo Ingreso</button>
-                        </div>
+                    <h2>💰 Ingresos</h2>
+                </div>
+
+                <!-- Controles de Ingresos -->
+                <div class="filtros-movil-container" style="margin-bottom: 1rem;">
+
+                    <div class="filtro-reseña-wrapper">
+                        <span id="filtroReseñaIngresos" class="filtro-reseña-normal" style="display: none;">
+                            ⚠️ Filtro aplicado
+                        </span>
                     </div>
 
-                    <!-- Botón de filtro para Ingresos -->
-                    <div class="filtros-movil-container" style="margin-bottom: 1rem;">
-                        <div class="filtro-reseña-wrapper">
-                            <span id="filtroReseñaIngresos" class="filtro-reseña-normal" style="display: none;">
-                                ⚠️ Filtro aplicado
-                            </span>
-                        </div>
-                        <div class="filtros-botones">
-                            <button id="btnLimpiarFiltroIngresosReseña" class="btn btn-secondary" style="display: none;">🗑️ Limpiar filtro</button>
-                            <button id="btnAbrirModalFiltrosIngresos" class="btn btn-primary">🔍 Filtro</button>
-                        </div>
+                    <div class="filtros-botones">
+
+                        <button id="btnLimpiarFiltroIngresosReseña" class="btn btn-secondary" style="display: none;">
+                            🗑️ Limpiar filtro
+                        </button>
+
+                        <button id="btnExportIngresos" class="btn btn-secondary btn-small">
+                            📥 Exportar
+                        </button>
+
+                        <button id="btnAddIngreso" class="btn btn-primary btn-small">
+                            + Nuevo Ingreso
+                        </button>
+
+                        <button id="btnAbrirModalFiltrosIngresos" class="btn btn-primary">
+                            🔍 Filtro
+                        </button>
+
                     </div>
+
+                </div>
                     
                     <!-- Total de ingresos filtrados -->
                     <div class="total-filtrado" style="background: var(--primary); padding: 0.75rem; border-radius: var(--border-radius-md); margin-bottom: 1rem; text-align: center;">
