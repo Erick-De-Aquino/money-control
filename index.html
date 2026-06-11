@@ -189,9 +189,25 @@
                                 ⚠️ Filtro aplicado
                             </span>
                         </div>
+
                         <div class="filtros-botones">
-                            <button id="btnLimpiarFiltroDashboardReseña" class="btn btn-secondary" style="display: none;">🗑️ Limpiar filtro</button>
-                            <button id="btnAbrirModalFiltros" class="btn btn-primary">🔍 Filtro</button>
+
+                            <button id="btnLimpiarFiltroDashboardReseña" class="btn btn-secondary" style="display: none;">
+                                🗑️ Limpiar filtro
+                            </button>
+
+                            <button id="btnResumenCategoriasGastos" class="btn btn-secondary">
+                                📌 Gastos
+                            </button>
+
+                            <button id="btnResumenCategoriasIngresos" class="btn btn-secondary">
+                                💰 Ingresos
+                            </button>
+
+                            <button id="btnAbrirModalFiltros" class="btn btn-primary">
+                                🔍 Filtro
+                            </button>
+
                         </div>
                     </div>
 
@@ -561,6 +577,24 @@
                     <button id="btnLimpiarFiltroDashboard" class="btn btn-secondary">🗑️ Limpiar</button>
                     <button id="btnAplicarFiltroDashboard" class="btn btn-primary">🔍 Aplicar Filtro</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Resumen de Categorías -->
+    <div id="modalResumenCategorias" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="tituloResumenCategorias">Resumen</h3>
+                <button class="modal-close" id="closeModalResumenCategorias">&times;</button>
+            </div>
+
+            <div class="modal-body">
+
+                <div id="contenidoResumenCategorias">
+                    <!-- Se genera dinámicamente -->
+                </div>
+
             </div>
         </div>
     </div>

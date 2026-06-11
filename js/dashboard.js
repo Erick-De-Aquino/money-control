@@ -38,13 +38,17 @@ async function loadDashboardData() {
         
         const { data: gastos, error: errorGastos } = await gastosQuery;
         if (errorGastos) console.error('Error cargando gastos:', errorGastos);
-        
+
         // Consulta de ingresos
         let ingresosQuery = supabase.from(TABLES.ingresos).select('*');
         ingresosQuery = ingresosQuery.gte('fecha', desde).lte('fecha', hasta);
-        
+
         const { data: ingresos, error: errorIngresos } = await ingresosQuery;
         if (errorIngresos) console.error('Error cargando ingresos:', errorIngresos);
+
+        // Guardar datos filtrados para los modales de resumen
+        window.dashboardGastosFiltrados = gastos || [];
+        window.dashboardIngresosFiltrados = ingresos || [];
         
         const operaciones = await loadOperaciones();
         
@@ -369,13 +373,13 @@ function initDashboard() {
         item.addEventListener('click', () => {
             const page = item.dataset.page;
             showPage(page);
-            
+
             // Actualizar clase activa en menú
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             item.classList.add('active');
         });
     });
-    
+
     // Botón de logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
@@ -389,33 +393,35 @@ function initDashboard() {
             );
         });
     }
-    
+
     // Menú hamburguesa
     const menuToggle = document.getElementById('menuToggle');
     const sideMenu = document.getElementById('sideMenu');
     const closeMenu = document.getElementById('closeMenu');
-    
+
     if (menuToggle && sideMenu) {
         menuToggle.addEventListener('click', () => {
             sideMenu.classList.add('open');
         });
-        
+
         if (closeMenu) {
             closeMenu.addEventListener('click', () => {
                 sideMenu.classList.remove('open');
             });
         }
-        
+
         // Cerrar menú al hacer clic fuera
         document.addEventListener('click', (e) => {
-            if (sideMenu.classList.contains('open') && 
-                !sideMenu.contains(e.target) && 
-                !menuToggle.contains(e.target)) {
+            if (
+                sideMenu.classList.contains('open') &&
+                !sideMenu.contains(e.target) &&
+                !menuToggle.contains(e.target)
+            ) {
                 sideMenu.classList.remove('open');
             }
         });
     }
-    
+
     // Cargar datos del dashboard al iniciar
     loadDashboardData();
     setupChartExpand();
@@ -423,29 +429,33 @@ function initDashboard() {
     // Eventos de filtros del dashboard
     const btnAplicarDashboard = document.getElementById('btnAplicarFiltroDashboard');
     const btnLimpiarDashboard = document.getElementById('btnLimpiarFiltroDashboard');
-    
+
     if (btnAplicarDashboard) {
         btnAplicarDashboard.addEventListener('click', aplicarFiltroDashboard);
     }
+
     if (btnLimpiarDashboard) {
         btnLimpiarDashboard.addEventListener('click', limpiarFiltroDashboard);
     }
-    
+
     // Cargar categorías del select
     actualizarSelectDashboardCategorias();
 
-    // --- NUEVO: Eventos para modal de filtros ---
+    // Modal filtros
     const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltros');
+
     if (btnAbrirFiltros) {
         btnAbrirFiltros.addEventListener('click', abrirModalFiltros);
     }
-    
+
     const closeModalFiltros = document.getElementById('closeModalFiltros');
+
     if (closeModalFiltros) {
         closeModalFiltros.addEventListener('click', cerrarModalFiltros);
     }
-    
+
     const modalFiltros = document.getElementById('modalFiltros');
+
     if (modalFiltros) {
         modalFiltros.addEventListener('click', (e) => {
             if (e.target === modalFiltros) {
@@ -454,12 +464,55 @@ function initDashboard() {
         });
     }
 
-    // --- NUEVO: Evento para el botón "Limpiar filtro" de la reseña ---
+    // Botón limpiar filtro de la reseña
     const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroDashboardReseña');
+
     if (btnLimpiarReseña) {
         btnLimpiarReseña.addEventListener('click', () => {
             limpiarFiltroDashboard();
         });
+    }
+
+    // ==========================
+    // RESUMEN DE CATEGORÍAS
+    // ==========================
+
+    const btnResumenGastos = document.getElementById('btnResumenCategoriasGastos');
+
+    if (btnResumenGastos) {
+        btnResumenGastos.addEventListener('click', () => {
+            mostrarResumenCategorias('gastos');
+        });
+    }
+
+    const btnResumenIngresos = document.getElementById('btnResumenCategoriasIngresos');
+
+    if (btnResumenIngresos) {
+        btnResumenIngresos.addEventListener('click', () => {
+            mostrarResumenCategorias('ingresos');
+        });
+    }
+
+    const closeResumen = document.getElementById('closeModalResumenCategorias');
+
+    if (closeResumen) {
+        closeResumen.addEventListener('click', cerrarModalResumenCategorias);
+    }
+
+    const modalResumen = document.getElementById('modalResumenCategorias');
+
+    if (modalResumen) {
+        modalResumen.addEventListener('click', (e) => {
+            if (e.target === modalResumen) {
+                cerrarModalResumenCategorias();
+            }
+        });
+    }
+
+    const closeModalResumen = document.getElementById('closeModalResumenCategorias');
+
+    if (closeModalResumen) {
+        closeModalResumen.addEventListener('click', cerrarModalResumenCategorias);
     }
 }
 
@@ -1280,6 +1333,137 @@ function cargarCategoriasEnSelectIngresos(select) {
 
 function cerrarModalFiltros() {
     const modal = document.getElementById('modalFiltros');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function mostrarResumenCategorias(tipo) {
+
+    const titulo = document.getElementById('tituloResumenCategorias');
+    const contenido = document.getElementById('contenidoResumenCategorias');
+
+    let datos = [];
+    let totalGeneral = 0;
+
+    if (tipo === 'gastos') {
+
+        titulo.textContent = 'Resumen de Gastos';
+
+        const agrupados = {};
+
+        (window.dashboardGastosFiltrados || []).forEach(gasto => {
+
+            const categoria = gasto.categoria || 'Sin categoría';
+            const monto = Number(gasto.monto || 0);
+
+            agrupados[categoria] = (agrupados[categoria] || 0) + monto;
+            totalGeneral += monto;
+
+        });
+
+        datos = Object.entries(agrupados)
+            .map(([nombre, total]) => ({ nombre, total }))
+            .sort((a, b) => b.total - a.total);
+
+    } else {
+
+        titulo.textContent = 'Resumen de Ingresos';
+
+        const agrupados = {};
+
+        (window.dashboardIngresosFiltrados || []).forEach(ingreso => {
+
+            const origen = ingreso.origen || 'Sin origen';
+            const monto = Number(ingreso.monto || 0);
+
+            agrupados[origen] = (agrupados[origen] || 0) + monto;
+            totalGeneral += monto;
+
+        });
+
+        datos = Object.entries(agrupados)
+            .map(([nombre, total]) => ({ nombre, total }))
+            .sort((a, b) => b.total - a.total);
+
+    }
+
+    if (datos.length === 0) {
+
+        contenido.innerHTML = `
+            <div style="text-align:center;padding:2rem;">
+                No hay datos para mostrar
+            </div>
+        `;
+
+        abrirModalResumenCategorias();
+        return;
+    }
+
+    let html = `
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:8px;">Categoría</th>
+                    <th style="text-align:right;padding:8px;">Importe</th>
+                    <th style="text-align:right;padding:8px;">%</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    datos.forEach(item => {
+
+        const porcentaje = totalGeneral > 0
+            ? ((item.total / totalGeneral) * 100).toFixed(1)
+            : 0;
+
+        html += `
+            <tr>
+                <td style="padding:8px;">${item.nombre}</td>
+                <td style="padding:8px;text-align:right;">
+                    ${item.total.toFixed(2)} €
+                </td>
+                <td style="padding:8px;text-align:right;">
+                    ${porcentaje}%
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+
+        <hr style="margin:1rem 0;">
+
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            font-weight:bold;
+            font-size:1.1rem;
+        ">
+            <span>TOTAL</span>
+            <span>${totalGeneral.toFixed(2)} €</span>
+        </div>
+    `;
+
+    contenido.innerHTML = html;
+
+    abrirModalResumenCategorias();
+}
+
+function abrirModalResumenCategorias() {
+    const modal = document.getElementById('modalResumenCategorias');
+
+    if (modal) {
+        modal.classList.add('active');
+    }
+}
+
+function cerrarModalResumenCategorias() {
+    const modal = document.getElementById('modalResumenCategorias');
+
     if (modal) {
         modal.classList.remove('active');
     }
