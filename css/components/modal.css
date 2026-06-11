@@ -87,8 +87,8 @@
     padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
     border-top: 1px solid var(--border-light, #E8E0EC);
     display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-md, 1rem);
+    justify-content: center;
+    gap: 2rem;
 }
 
 .modal-footer-center {

@@ -388,31 +388,82 @@
                 <!-- Página Categorías -->
                 <div id="pageCategorias" class="page">
                     <div class="page-header">
-                        <h2>🏷️ Admin de Categorías</h2>
-                        <button id="btnExportCategorias" class="btn btn-secondary btn-small">📥 Exportar</button>
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label for="searchCategorias">🔍 Buscar categoría</label>
-                        <input type="text" id="searchCategorias" placeholder="Escribe para buscar...">
+                    <h2>🏷️ Admin de Categorías</h2>
+                </div>
+
+                <div class="categorias-toolbar">
+
+                    <div class="search-wrapper">
+
+                        <input
+                            type="text"
+                            id="searchCategorias"
+                            placeholder="Buscar categoría..."
+                        >
+
+                        <span class="search-icon">🔍</span>
+
                     </div>
 
+                    <button id="btnExportCategorias"
+                            class="btn btn-secondary btn-small">
+                        Exportar
+                    </button>
+
+                </div>
+
                     <div class="categorias-admin">
+
                         <div class="categorias-section">
-                            <h3>📌 Categorías de Gastos</h3>
-                            <button id="btnAddCategoriaGasto" class="btn btn-primary btn-small" style="margin-bottom: 1rem;">+ Nueva Categoría de Gasto</button>
-                            <div id="categoriasGastosList" class="items-list">
-                                <p class="empty-message">No hay categorías de gastos. Crea una.</p>
+
+                            <div class="accordion-header" id="toggleCategoriasGastos">
+                                <h3 id="tituloCategoriasGastos">Categorías de Gastos</h3>
+                                <span class="accordion-icon">▼</span>
                             </div>
+
+                            <div class="accordion-content" id="accordionCategoriasGastos">
+
+                                <button id="btnAddCategoriaGasto"
+                                        class="btn btn-primary btn-small"
+                                        style="margin-bottom:1rem;">
+                                    + Nueva Categoría de Gasto
+                                </button>
+
+                                <div id="categoriasGastosList" class="items-list">
+                                    <p class="empty-message">
+                                        No hay categorías de gastos. Crea una.
+                                    </p>
+                                </div>
+
+                            </div>
+
                         </div>
-                        
+
                         <div class="categorias-section">
-                            <h3>💰 Categorías de Ingresos</h3>
-                            <button id="btnAddCategoriaIngreso" class="btn btn-primary btn-small" style="margin-bottom: 1rem;">+ Nueva Categoría de Ingreso</button>
-                            <div id="categoriasIngresosList" class="items-list">
-                                <p class="empty-message">No hay categorías de ingresos. Crea una.</p>
+
+                            <div class="accordion-header" id="toggleCategoriasIngresos">
+                                <h3 id="tituloCategoriasIngresos">Categorías de Ingresos</h3>
+                                <span class="accordion-icon">▼</span>
                             </div>
+
+                            <div class="accordion-content" id="accordionCategoriasIngresos">
+
+                                <button id="btnAddCategoriaIngreso"
+                                        class="btn btn-primary btn-small"
+                                        style="margin-bottom:1rem;">
+                                    + Nueva Categoría de Ingreso
+                                </button>
+
+                                <div id="categoriasIngresosList" class="items-list">
+                                    <p class="empty-message">
+                                        No hay categorías de ingresos. Crea una.
+                                    </p>
+                                </div>
+
+                            </div>
+
                         </div>
+
                     </div>
                 </div>
 

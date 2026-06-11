@@ -160,6 +160,20 @@ function displayCategoriasAdmin(categoriasGastos, categoriasIngresos, filtro = '
     const ingresosFiltrados = categoriasIngresos.filter(cat => 
         cat.nombre.toLowerCase().includes(filtroLower)
     );
+
+    // Actualizar contadores en los acordeones
+    const tituloGastos = document.getElementById('tituloCategoriasGastos');
+    const tituloIngresos = document.getElementById('tituloCategoriasIngresos');
+
+    if (tituloGastos) {
+        tituloGastos.textContent =
+            `Categorías de Gastos (${gastosFiltrados.length})`;
+    }
+
+    if (tituloIngresos) {
+        tituloIngresos.textContent =
+            `Categorías de Ingresos (${ingresosFiltrados.length})`;
+    }
     
     // Mostrar categorías de gastos (fondo rojo suave)
     const gastosContainer = document.getElementById('categoriasGastosList');

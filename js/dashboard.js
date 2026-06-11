@@ -514,6 +514,43 @@ function initDashboard() {
     if (closeModalResumen) {
         closeModalResumen.addEventListener('click', cerrarModalResumenCategorias);
     }
+
+    // Acordeón categorías
+    const toggleCategoriasGastos = document.getElementById('toggleCategoriasGastos');
+    const accordionCategoriasGastos = document.getElementById('accordionCategoriasGastos');
+
+    if (toggleCategoriasGastos && accordionCategoriasGastos) {
+
+        toggleCategoriasGastos.addEventListener('click', () => {
+
+            accordionCategoriasGastos.classList.toggle('hidden');
+
+            const icon =
+                toggleCategoriasGastos.querySelector('.accordion-icon');
+
+            if (icon) {
+                icon.classList.toggle('rotated');
+            }
+        });
+    }
+
+    const toggleCategoriasIngresos = document.getElementById('toggleCategoriasIngresos');
+    const accordionCategoriasIngresos = document.getElementById('accordionCategoriasIngresos');
+
+    if (toggleCategoriasIngresos && accordionCategoriasIngresos) {
+
+        toggleCategoriasIngresos.addEventListener('click', () => {
+
+            accordionCategoriasIngresos.classList.toggle('hidden');
+
+            const icon =
+                toggleCategoriasIngresos.querySelector('.accordion-icon');
+
+            if (icon) {
+                icon.classList.toggle('rotated');
+            }
+        });
+    }
 }
 
 // Mostrar página seleccionada
@@ -1357,13 +1394,26 @@ function mostrarResumenCategorias(tipo) {
             const categoria = gasto.categoria || 'Sin categoría';
             const monto = Number(gasto.monto || 0);
 
-            agrupados[categoria] = (agrupados[categoria] || 0) + monto;
+            if (!agrupados[categoria]) {
+                agrupados[categoria] = {
+                    total: 0,
+                    operaciones: 0
+                };
+            }
+
+            agrupados[categoria].total += monto;
+            agrupados[categoria].operaciones += 1;
+
             totalGeneral += monto;
 
         });
 
         datos = Object.entries(agrupados)
-            .map(([nombre, total]) => ({ nombre, total }))
+            .map(([nombre, info]) => ({
+                nombre,
+                total: info.total,
+                operaciones: info.operaciones
+            }))
             .sort((a, b) => b.total - a.total);
 
     } else {
@@ -1377,13 +1427,26 @@ function mostrarResumenCategorias(tipo) {
             const origen = ingreso.origen || 'Sin origen';
             const monto = Number(ingreso.monto || 0);
 
-            agrupados[origen] = (agrupados[origen] || 0) + monto;
+            if (!agrupados[origen]) {
+                agrupados[origen] = {
+                    total: 0,
+                    operaciones: 0
+                };
+            }
+
+            agrupados[origen].total += monto;
+            agrupados[origen].operaciones += 1;
+
             totalGeneral += monto;
 
         });
 
         datos = Object.entries(agrupados)
-            .map(([nombre, total]) => ({ nombre, total }))
+            .map(([nombre, info]) => ({
+                nombre,
+                total: info.total,
+                operaciones: info.operaciones
+            }))
             .sort((a, b) => b.total - a.total);
 
     }
@@ -1407,6 +1470,7 @@ function mostrarResumenCategorias(tipo) {
                     <th style="text-align:left;padding:8px;">Categoría</th>
                     <th style="text-align:right;padding:8px;">Importe</th>
                     <th style="text-align:right;padding:8px;">%</th>
+                    <th style="text-align:center;padding:8px;">Ops</th>
                 </tr>
             </thead>
             <tbody>
@@ -1421,15 +1485,26 @@ function mostrarResumenCategorias(tipo) {
         html += `
             <tr>
                 <td style="padding:8px;">${item.nombre}</td>
+
                 <td style="padding:8px;text-align:right;">
                     ${item.total.toFixed(2)} €
                 </td>
+
                 <td style="padding:8px;text-align:right;">
                     ${porcentaje}%
+                </td>
+
+                <td style="padding:8px;text-align:center;">
+                    (${item.operaciones})
                 </td>
             </tr>
         `;
     });
+
+    const totalOperaciones = datos.reduce(
+        (sum, item) => sum + item.operaciones,
+        0
+    );
 
     html += `
             </tbody>
@@ -1445,6 +1520,15 @@ function mostrarResumenCategorias(tipo) {
         ">
             <span>TOTAL</span>
             <span>${totalGeneral.toFixed(2)} €</span>
+        </div>
+
+        <div style="
+            margin-top:0.75rem;
+            text-align:center;
+            color:var(--text-secondary);
+            font-size:0.9rem;
+        ">
+            ${datos.length} categorías · ${totalOperaciones} operaciones
         </div>
     `;
 
