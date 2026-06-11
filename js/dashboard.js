@@ -537,6 +537,22 @@ function initDashboard() {
     const toggleCategoriasIngresos = document.getElementById('toggleCategoriasIngresos');
     const accordionCategoriasIngresos = document.getElementById('accordionCategoriasIngresos');
 
+    // En móvil iniciar acordeones cerrados
+    if (window.innerWidth <= 768) {
+
+        accordionCategoriasGastos?.classList.add('hidden');
+        accordionCategoriasIngresos?.classList.add('hidden');
+
+        const iconGastos =
+            toggleCategoriasGastos?.querySelector('.accordion-icon');
+
+        const iconIngresos =
+            toggleCategoriasIngresos?.querySelector('.accordion-icon');
+
+        iconGastos?.classList.add('rotated');
+        iconIngresos?.classList.add('rotated');
+    }
+
     if (toggleCategoriasIngresos && accordionCategoriasIngresos) {
 
         toggleCategoriasIngresos.addEventListener('click', () => {
