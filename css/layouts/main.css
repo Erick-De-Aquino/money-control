@@ -148,6 +148,18 @@
     margin-bottom: var(--spacing-xl, 2rem);
 }
 
+@media (max-width: 767px) {
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stats-grid .stat-card:last-child {
+        grid-column: 1 / -1;
+    }
+
+}
+
 /* ===== CONTENEDOR DE GRÁFICOS ===== */
 .charts-container {
     display: flex;
