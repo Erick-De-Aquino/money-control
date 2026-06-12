@@ -292,6 +292,19 @@ async function updateUserPassword(newPassword) {
             'resetPasswordMessage'
         );
 
+        const resetForm =
+            document.getElementById('resetPasswordForm');
+
+        if (resetForm) {
+            resetForm.reset();
+        }
+
+        isRecoveringPassword = false;
+
+        setTimeout(() => {
+            showLoginScreen();
+        }, 2000);
+
         return true;
 
     } catch (error) {
