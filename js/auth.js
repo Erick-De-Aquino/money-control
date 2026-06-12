@@ -29,7 +29,9 @@ async function initAuth() {
         
         // Escuchar cambios en la autenticación
         supabase.auth.onAuthStateChange((event, session) => {
+
             console.log('🔥 EVENTO AUTH:', event);
+            console.log('🔥 SESSION:', session);
 
             if (event === 'SIGNED_IN' && session) {
                 currentUser = session.user;
