@@ -82,6 +82,55 @@ function setupAuthEvents() {
             await resetPassword(email);
         };
     }
+
+    // Reset password form
+    const resetPasswordForm = document.getElementById('resetPasswordForm');
+
+    if (resetPasswordForm) {
+
+        resetPasswordForm.onsubmit = async (e) => {
+
+            e.preventDefault();
+
+            const password =
+                document.getElementById('newPassword')?.value;
+
+            const confirmPassword =
+                document.getElementById('confirmNewPassword')?.value;
+
+            if (!password || !confirmPassword) {
+
+                showError(
+                    'Todos los campos son obligatorios',
+                    'resetPasswordMessage'
+                );
+
+                return;
+            }
+
+            if (password.length < 6) {
+
+                showError(
+                    'La contraseña debe tener al menos 6 caracteres',
+                    'resetPasswordMessage'
+                );
+
+                return;
+            }
+
+            if (password !== confirmPassword) {
+
+                showError(
+                    'Las contraseñas no coinciden',
+                    'resetPasswordMessage'
+                );
+
+                return;
+            }
+
+            await updateUserPassword(password);
+        };
+    }
     
     // Mostrar registro
     const showRegisterLink = document.getElementById('showRegisterLink');

@@ -142,6 +142,56 @@
                 <div id="forgotMessage" class="message"></div>
             </div>
         </div>
+
+        <!-- Pantalla Nueva Contraseña -->
+        <div id="resetPasswordScreen" class="screen">
+            <div class="login-card">
+
+                <div class="logo">
+                    <h1>🔐 Nueva Contraseña</h1>
+                    <p>Introduce tu nueva contraseña</p>
+                </div>
+
+                <form id="resetPasswordForm">
+
+                    <div class="form-group">
+                        <label for="newPassword">
+                            Nueva contraseña
+                        </label>
+
+                        <input
+                            type="password"
+                            id="newPassword"
+                            placeholder="Nueva contraseña"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmNewPassword">
+                            Confirmar contraseña
+                        </label>
+
+                        <input
+                            type="password"
+                            id="confirmNewPassword"
+                            placeholder="Repite la contraseña"
+                            required>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary btn-full">
+
+                        Actualizar contraseña
+
+                    </button>
+
+                </form>
+
+                <div id="resetPasswordMessage" class="message"></div>
+
+            </div>
+        </div>
         
         <!-- Dashboard Principal (protegido) -->
         <div id="dashboardScreen" class="screen">

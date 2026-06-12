@@ -36,7 +36,7 @@ async function initAuth() {
 
             if (event === 'PASSWORD_RECOVERY') {
 
-                alert('RECUPERACIÓN DETECTADA');
+                showResetPasswordScreen();
 
                 return;
             }
@@ -254,6 +254,49 @@ async function resetPassword(email) {
     }
 }
 
+// Actualizar contraseña después de recuperación
+async function updateUserPassword(newPassword) {
+
+    try {
+
+        const supabase = getSupabase();
+
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword
+        });
+
+        if (error) {
+
+            console.error('Error actualizando contraseña:', error);
+
+            showError(
+                error.message,
+                'resetPasswordMessage'
+            );
+
+            return false;
+        }
+
+        showSuccess(
+            'Contraseña actualizada correctamente. Ya puedes iniciar sesión.',
+            'resetPasswordMessage'
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error('Error en updateUserPassword:', error);
+
+        showError(
+            'Error al actualizar la contraseña',
+            'resetPasswordMessage'
+        );
+
+        return false;
+    }
+}
+
 // Guardar configuración de usuario
 async function saveUserConfig(email) {
     try {
@@ -310,6 +353,20 @@ function showLoginScreen() {
     
     // Detener actualización de tasas
     stopTasaInterval();
+}
+
+function showResetPasswordScreen() {
+
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+    });
+
+    const resetScreen =
+        document.getElementById('resetPasswordScreen');
+
+    if (resetScreen) {
+        resetScreen.classList.add('active');
+    }
 }
 
 // Verificar si usuario está autenticado
