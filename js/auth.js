@@ -35,7 +35,16 @@ async function initAuth() {
             console.log('🔥 EVENTO AUTH:', event);
             console.log('🔥 SESSION:', session);
 
-            if (event === 'PASSWORD_RECOVERY')
+            if (event === 'PASSWORD_RECOVERY') {
+
+                console.log('PASSWORD_RECOVERY detectado');
+
+                isRecoveringPassword = true;
+
+                showResetPasswordScreen();
+
+                return;
+            }
 
             if (event === 'SIGNED_IN' && session) {
 
