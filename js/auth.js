@@ -33,6 +33,13 @@ async function initAuth() {
             console.log('🔥 EVENTO AUTH:', event);
             console.log('🔥 SESSION:', session);
 
+            if (event === 'PASSWORD_RECOVERY') {
+
+                alert('RECUPERACIÓN DETECTADA');
+
+                return;
+            }
+
             if (event === 'SIGNED_IN' && session) {
                 currentUser = session.user;
                 showDashboard();
