@@ -21,8 +21,9 @@ async function initAuth() {
         
         if (session) {
             currentUser = session.user;
-            showDashboard();
+
             console.log('✅ Usuario autenticado:', currentUser.email);
+
         } else {
             showLoginScreen();
         }
