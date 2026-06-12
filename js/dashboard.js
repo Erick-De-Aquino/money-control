@@ -80,17 +80,19 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     const totalGastosEl = document.getElementById('totalGastos');
     const totalIngresosEl = document.getElementById('totalIngresos');
     const balanceEl = document.getElementById('balance');
+
     
     if (totalGastosEl) {
         totalGastosEl.textContent = formatCurrency(totalGastos, 'EUR');
     }
-    
+
     if (totalIngresosEl) {
         totalIngresosEl.textContent = formatCurrency(totalIngresos, 'EUR');
     }
-    
+
     if (balanceEl) {
         balanceEl.textContent = formatCurrency(balance, 'EUR');
+
         // Cambiar color según balance
         if (balance >= 0) {
             balanceEl.style.color = 'var(--success, #4CAF50)';
@@ -98,54 +100,79 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
             balanceEl.style.color = 'var(--error, #f44336)';
         }
     }
-    
+
     // Mostrar ganancia de operaciones si existe el elemento
     const gananciaOperacionesEl = document.getElementById('gananciaOperaciones');
+
     if (gananciaOperacionesEl) {
-        gananciaOperacionesEl.textContent = formatCurrency(gananciaOperaciones, 'EUR');
+
+        gananciaOperacionesEl.textContent =
+            formatCurrency(gananciaOperaciones, 'EUR');
+
         if (gananciaOperaciones >= 0) {
-            gananciaOperacionesEl.style.color = 'var(--success, #4CAF50)';
+            gananciaOperacionesEl.style.color =
+                'var(--success, #4CAF50)';
         } else {
-            gananciaOperacionesEl.style.color = 'var(--error, #f44336)';
+            gananciaOperacionesEl.style.color =
+                'var(--error, #f44336)';
         }
     }
 
-    // --- NUEVO: Agregar botón "Progreso" en la tarjeta de Total Gastos ---
+    // Botón detalle gastos
     const targetCardGastos = totalGastosEl.closest('.stat-card');
-    if (targetCardGastos && !document.getElementById('btnProgresoGastos')) {
+
+    if (targetCardGastos &&
+        !document.getElementById('btnProgresoGastos')) {
+
         const btnContainer = document.createElement('div');
+
         btnContainer.style.marginTop = '12px';
         btnContainer.style.textAlign = 'center';
-        
+
         const btnProgreso = document.createElement('button');
+
         btnProgreso.id = 'btnProgresoGastos';
-        btnProgreso.textContent = '📊 Progreso';
+        btnProgreso.textContent = 'Ver detalle';
         btnProgreso.className = 'btn btn-secondary btn-small';
         btnProgreso.style.width = '100%';
-        btnProgreso.onclick = () => mostrarModalProgreso();
-        
+
+        btnProgreso.onclick = () => {
+            mostrarResumenCategorias('gastos');
+        };
+
         btnContainer.appendChild(btnProgreso);
         targetCardGastos.appendChild(btnContainer);
     }
 
-    // --- NUEVO: Agregar botón "Progreso" en la tarjeta de Total Ingresos ---
+    // Botón detalle ingresos
     const targetCardIngresos = totalIngresosEl.closest('.stat-card');
-    if (targetCardIngresos && !document.getElementById('btnProgresoIngresos')) {
+
+    if (targetCardIngresos &&
+        !document.getElementById('btnProgresoIngresos')) {
+
         const btnContainer = document.createElement('div');
+
         btnContainer.style.marginTop = '12px';
         btnContainer.style.textAlign = 'center';
-        
+
         const btnProgreso = document.createElement('button');
+
         btnProgreso.id = 'btnProgresoIngresos';
-        btnProgreso.textContent = '📊 Progreso';
+        btnProgreso.textContent = 'Ver detalle';
         btnProgreso.className = 'btn btn-secondary btn-small';
         btnProgreso.style.width = '100%';
-        btnProgreso.onclick = () => mostrarModalProgresoIngresos();
-        
+
+        btnProgreso.onclick = () => {
+            mostrarResumenCategorias('ingresos');
+        };
+
         btnContainer.appendChild(btnProgreso);
         targetCardIngresos.appendChild(btnContainer);
     }
+    
+
 }
+
 
 // Actualizar gráfico mensual (línea)
 function updateMonthlyChart(gastos, ingresos) {
@@ -473,26 +500,6 @@ function initDashboard() {
         });
     }
 
-    // ==========================
-    // RESUMEN DE CATEGORÍAS
-    // ==========================
-
-    const btnResumenGastos = document.getElementById('btnResumenCategoriasGastos');
-
-    if (btnResumenGastos) {
-        btnResumenGastos.addEventListener('click', () => {
-            mostrarResumenCategorias('gastos');
-        });
-    }
-
-    const btnResumenIngresos = document.getElementById('btnResumenCategoriasIngresos');
-
-    if (btnResumenIngresos) {
-        btnResumenIngresos.addEventListener('click', () => {
-            mostrarResumenCategorias('ingresos');
-        });
-    }
-
     const closeResumen = document.getElementById('closeModalResumenCategorias');
 
     if (closeResumen) {
@@ -565,6 +572,34 @@ function initDashboard() {
             if (icon) {
                 icon.classList.toggle('rotated');
             }
+        });
+    }
+
+    // Nuevo gasto desde dashboard
+    const btnNuevoGastoDashboard =
+        document.getElementById('btnNuevoGastoDashboard');
+
+    if (btnNuevoGastoDashboard) {
+
+        btnNuevoGastoDashboard.addEventListener('click', async () => {
+
+            await loadGastosCategorias();
+
+            showGastoModal();
+        });
+    }
+
+    // Nuevo ingreso desde dashboard
+    const btnNuevoIngresoDashboard =
+        document.getElementById('btnNuevoIngresoDashboard');
+
+    if (btnNuevoIngresoDashboard) {
+
+        btnNuevoIngresoDashboard.addEventListener('click', async () => {
+
+            await loadIngresosCategorias();
+
+            showIngresoModal();
         });
     }
 }
