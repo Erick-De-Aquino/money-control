@@ -5,6 +5,7 @@
 // Variables globales de autenticación
 let currentUser = null;
 let authInitialized = false;
+let isRecoveringPassword = false;
 
 // Inicializar autenticación
 async function initAuth() {
@@ -34,14 +35,14 @@ async function initAuth() {
             console.log('🔥 EVENTO AUTH:', event);
             console.log('🔥 SESSION:', session);
 
-            if (event === 'PASSWORD_RECOVERY') {
-
-                showResetPasswordScreen();
-
-                return;
-            }
+            if (event === 'PASSWORD_RECOVERY')
 
             if (event === 'SIGNED_IN' && session) {
+
+                if (isRecoveringPassword) {
+                    return;
+                }
+
                 currentUser = session.user;
                 showDashboard();
             } else if (event === 'SIGNED_OUT') {
