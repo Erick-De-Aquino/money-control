@@ -271,7 +271,7 @@ function updateCategoryChart(gastos) {
     
     const labels = Object.keys(categorias);
     const data = Object.values(categorias);
-    
+
     // Colores para las categorías
         const colores = [
         '#E1D5E7', '#BCAAA4', '#4CAF50', '#FF9800', '#2196F3', 
@@ -279,6 +279,49 @@ function updateCategoryChart(gastos) {
         '#607D8B', '#FF5722', '#009688', '#673AB7', '#3F51B5',
         '#CDDC39', '#FFC107', '#8BC34A', '#E91E63', '#F44336'
     ];
+
+    // Generar leyenda desplegable
+    const leyendaContainer =
+        document.getElementById('leyendaCategoriasGastos');
+
+    if (leyendaContainer) {
+
+        let leyendaHTML = `
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(2, 1fr);
+                gap:8px 16px;
+                margin-top:8px;
+            ">
+        `;
+
+        labels.forEach((categoria, index) => {
+
+            leyendaHTML += `
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    font-size:0.9rem;
+                ">
+                    <span style="
+                        width:12px;
+                        height:12px;
+                        border-radius:2px;
+                        background:${colores[index]};
+                        display:inline-block;
+                        flex-shrink:0;
+                    "></span>
+
+                    <span>${categoria}</span>
+                </div>
+            `;
+        });
+
+        leyendaHTML += '</div>';
+
+        leyendaContainer.innerHTML = leyendaHTML;
+    }
     
     // Destruir gráfico anterior si existe
     if (categoryChart) {
@@ -301,12 +344,7 @@ function updateCategoryChart(gastos) {
             maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: {
-                        font: {
-                            size: 11
-                        }
-                    }
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
@@ -320,36 +358,122 @@ function updateCategoryChart(gastos) {
             }
         }
     });
+
+    const btnToggleLeyenda =
+    document.getElementById('btnToggleLeyendaGastos');
+
+    if (
+        btnToggleLeyenda &&
+        !btnToggleLeyenda.dataset.eventAttached
+    ) {
+
+        btnToggleLeyenda.dataset.eventAttached = 'true';
+
+        btnToggleLeyenda.addEventListener('click', () => {
+
+            const leyenda =
+                document.getElementById('leyendaCategoriasGastos');
+
+            if (!leyenda) return;
+
+            const visible =
+                leyenda.style.display === 'block';
+
+            leyenda.style.display =
+                visible ? 'none' : 'block';
+
+            btnToggleLeyenda.textContent =
+                visible
+                    ? 'Ver categorías'
+                    : 'Ocultar categorías';
+        });
+    }
 }
+
 
 // Actualizar gráfico de categorías de ingresos (dona)
 function updateIncomeCategoryChart(ingresos) {
-    const ctx = document.getElementById('incomeCategoryChart')?.getContext('2d');
+
+    const ctx =
+        document.getElementById('incomeCategoryChart')
+        ?.getContext('2d');
+
     if (!ctx) return;
-    
+
     // Agrupar por origen
     const origenes = {};
+
     ingresos.forEach(i => {
+
         const orig = i.origen || 'Otros';
-        origenes[orig] = (origenes[orig] || 0) + (i.monto_eur || i.monto);
+
+        origenes[orig] =
+            (origenes[orig] || 0) +
+            (i.monto_eur || i.monto);
     });
-    
+
     const labels = Object.keys(origenes);
     const data = Object.values(origenes);
-    
+
     // Colores para los orígenes
-        const colores = [
-        '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', 
+    const colores = [
+        '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107',
         '#FF9800', '#E1D5E7', '#BCAAA4', '#2196F3', '#9C27B0',
         '#607D8B', '#FF5722', '#009688', '#673AB7', '#3F51B5',
         '#795548', '#E91E63', '#F44336', '#00BCD4', '#9E9E9E'
     ];
-    
-        // Destruir gráfico anterior si existe
-    if (window.incomeCategoryChart && typeof window.incomeCategoryChart.destroy === 'function') {
+
+    // Generar leyenda desplegable
+    const leyendaContainer =
+        document.getElementById('leyendaCategoriasIngresos');
+
+    if (leyendaContainer) {
+
+        let leyendaHTML = `
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(2, 1fr);
+                gap:8px 16px;
+                margin-top:8px;
+            ">
+        `;
+
+        labels.forEach((origen, index) => {
+
+            leyendaHTML += `
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    font-size:0.9rem;
+                ">
+                    <span style="
+                        width:12px;
+                        height:12px;
+                        border-radius:2px;
+                        background:${colores[index]};
+                        display:inline-block;
+                        flex-shrink:0;
+                    "></span>
+
+                    <span>${origen}</span>
+                </div>
+            `;
+        });
+
+        leyendaHTML += '</div>';
+
+        leyendaContainer.innerHTML = leyendaHTML;
+    }
+
+    // Destruir gráfico anterior si existe
+    if (
+        window.incomeCategoryChart &&
+        typeof window.incomeCategoryChart.destroy === 'function'
+    ) {
         window.incomeCategoryChart.destroy();
     }
-    
+
     // Crear nuevo gráfico
     window.incomeCategoryChart = new Chart(ctx, {
         type: 'doughnut',
@@ -366,18 +490,19 @@ function updateIncomeCategoryChart(ingresos) {
             maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: {
-                        font: {
-                            size: 11
-                        }
-                    }
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const total = data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.raw / total) * 100).toFixed(1);
+
+                            const total =
+                                data.reduce((a, b) => a + b, 0);
+
+                            const percentage =
+                                ((context.raw / total) * 100)
+                                .toFixed(1);
+
                             return `${context.label}: ${formatCurrency(context.raw, 'EUR')} (${percentage}%)`;
                         }
                     }
@@ -385,6 +510,40 @@ function updateIncomeCategoryChart(ingresos) {
             }
         }
     });
+
+    const btnToggleLeyenda =
+        document.getElementById(
+            'btnToggleLeyendaIngresos'
+        );
+
+    if (
+        btnToggleLeyenda &&
+        !btnToggleLeyenda.dataset.eventAttached
+    ) {
+
+        btnToggleLeyenda.dataset.eventAttached = 'true';
+
+        btnToggleLeyenda.addEventListener('click', () => {
+
+            const leyenda =
+                document.getElementById(
+                    'leyendaCategoriasIngresos'
+                );
+
+            if (!leyenda) return;
+
+            const visible =
+                leyenda.style.display === 'block';
+
+            leyenda.style.display =
+                visible ? 'none' : 'block';
+
+            btnToggleLeyenda.textContent =
+                visible
+                    ? 'Ver categorías'
+                    : 'Ocultar categorías';
+        });
+    }
 }
 
 // Actualizar dashboard completo

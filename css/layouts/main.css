@@ -300,11 +300,13 @@
     .charts-container {
         flex-direction: row;
         flex-wrap: wrap;
+        align-items: flex-start;
     }
     
     .chart-card {
         flex: 1;
         min-width: 300px;
+        min-height: 450px;
     }
 }
 
