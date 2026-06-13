@@ -257,7 +257,12 @@ function showEditCategoriaModal(id, nombreActual, tipo) {
             e.preventDefault();
             const nuevoNombre = document.getElementById('editCategoriaNombre')?.value.trim();
             if (nuevoNombre && nuevoNombre !== nombreActual) {
-                await updateCategoria(id, nuevoNombre, tipo);
+                await updateCategoria(
+                    id,
+                    nombreActual,
+                    nuevoNombre,
+                    tipo
+                );
             } else if (nuevoNombre === nombreActual) {
                 showInfo('El nombre no ha cambiado');
                 closeModal();
@@ -272,7 +277,7 @@ function showEditCategoriaModal(id, nombreActual, tipo) {
 }
 
 // Actualizar categoría
-async function updateCategoria(id, nuevoNombre, tipo) {
+async function updateCategoria(id, nombreAnterior, nuevoNombre, tipo) {
     const nombreFormateado = nuevoNombre.charAt(0).toUpperCase() + nuevoNombre.slice(1).toLowerCase();
     
     try {
@@ -295,14 +300,14 @@ async function updateCategoria(id, nuevoNombre, tipo) {
             const { error: errorGastos } = await supabase
                 .from('gastos')
                 .update({ categoria: nombreFormateado })
-                .eq('categoria', nuevoNombre);
+                .eq('categoria', nombreAnterior);
             
             if (errorGastos) console.error('Error actualizando gastos:', errorGastos);
         } else {
             const { error: errorIngresos } = await supabase
                 .from('ingresos')
                 .update({ origen: nombreFormateado })
-                .eq('origen', nuevoNombre);
+                .eq('origen', nombreAnterior);
             
             if (errorIngresos) console.error('Error actualizando ingresos:', errorIngresos);
         }
