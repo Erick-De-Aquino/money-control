@@ -148,28 +148,30 @@ function displayIngresos() {
 // Mostrar modal para agregar/editar ingreso
 async function showIngresoModal(ingreso = null) {
     editingIngresoId = ingreso ? ingreso.id : null;
-    
-    await getCategoriasCache('ingresos');
-    
+
+    const categorias = await getCategoriasCache('ingresos');
+
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
+
     modalTitle.textContent = ingreso ? '✏️ Editar Ingreso' : '💰 Nuevo Ingreso';
-    
-    const categoriasOptions = categoriasIngresos.length > 0 
-        ? categoriasIngresos.map(cat => `<option value="${cat.nombre}" ${ingreso && ingreso.origen === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`).join('')
+
+    const categoriasOptions = categorias.length > 0 
+        ? categorias.map(cat =>
+            `<option value="${cat.nombre}" ${ingreso && ingreso.origen === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`
+          ).join('')
         : '<option value="">No hay categorías. Crea una primero.</option>';
-    
+
     modalBody.innerHTML = `
         <form id="ingresoForm">
             <div class="form-group">
                 <label for="ingresoFecha">Fecha *</label>
                 <input type="date" id="ingresoFecha" name="fecha" value="${ingreso ? ingreso.fecha : getTodayDate()}" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="ingresoOrigen">Origen *</label>
                 <select id="ingresoOrigen" name="origen" required>
@@ -178,13 +180,13 @@ async function showIngresoModal(ingreso = null) {
                 </select>
                 <button type="button" id="btnNuevaCategoriaIngreso" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="ingresoMonto">Monto *</label>
                     <input type="number" id="ingresoMonto" name="monto" step="0.01" value="${ingreso ? ingreso.monto : ''}" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="ingresoMoneda">Moneda *</label>
                     <select id="ingresoMoneda" name="moneda" required>
@@ -194,31 +196,24 @@ async function showIngresoModal(ingreso = null) {
                     </select>
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label for="ingresoDescripcion">Descripción</label>
                 <textarea id="ingresoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${ingreso ? ingreso.descripcion || '' : ''}</textarea>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelIngresoBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">${ingreso ? 'Actualizar' : 'Guardar'}</button>
             </div>
         </form>
     `;
-    
+
     modal.classList.add('active');
-    
-    const form = document.getElementById('ingresoForm');
-    if (form) {
-        form.addEventListener('submit', saveIngreso);
-    }
-    
-    const cancelBtn = document.getElementById('cancelIngresoBtn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', closeModal);
-    }
-    
+
+    document.getElementById('ingresoForm')?.addEventListener('submit', saveIngreso);
+    document.getElementById('cancelIngresoBtn')?.addEventListener('click', closeModal);
+
     const btnNuevaCategoria = document.getElementById('btnNuevaCategoriaIngreso');
     if (btnNuevaCategoria) {
         btnNuevaCategoria.onclick = () => {
@@ -226,16 +221,9 @@ async function showIngresoModal(ingreso = null) {
             setTimeout(() => showAddCategoriaModal('ingreso'), 100);
         };
     }
-    
-    const monedaSelect = document.getElementById('ingresoMoneda');
-    if (monedaSelect) {
-        monedaSelect.addEventListener('change', () => showIngresoConversion());
-    }
-    
-    const montoInput = document.getElementById('ingresoMonto');
-    if (montoInput) {
-        montoInput.addEventListener('input', () => showIngresoConversion());
-    }
+
+    document.getElementById('ingresoMoneda')?.addEventListener('change', () => showIngresoConversion());
+    document.getElementById('ingresoMonto')?.addEventListener('input', () => showIngresoConversion());
 }
 
 // Mostrar conversión en tiempo real para ingresos

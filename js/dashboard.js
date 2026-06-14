@@ -745,7 +745,7 @@ function initDashboard() {
 
         btnNuevoGastoDashboard.addEventListener('click', async () => {
 
-            await loadGastosCategorias();
+            await getCategoriasCache('gastos');
 
             showGastoModal();
         });
@@ -759,7 +759,7 @@ function initDashboard() {
 
         btnNuevoIngresoDashboard.addEventListener('click', async () => {
 
-            await loadIngresosCategorias();
+            await getCategoriasCache('ingresos');
 
             showIngresoModal();
         });

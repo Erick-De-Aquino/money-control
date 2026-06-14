@@ -147,27 +147,30 @@ function displayGastos() {
 // Mostrar modal para agregar/editar gasto
 async function showGastoModal(gasto = null) {
     editingGastoId = gasto ? gasto.id : null;
-    
-    
+
+    const categorias = await getCategoriasCache('gastos');
+
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
+
     modalTitle.textContent = gasto ? '✏️ Editar Gasto' : '➕ Nuevo Gasto';
-    
-    const categoriasOptions = categoriasGastos.length > 0 
-        ? categoriasGastos.map(cat => `<option value="${cat.nombre}" ${gasto && gasto.categoria === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`).join('')
+
+    const categoriasOptions = categorias.length > 0 
+        ? categorias.map(cat =>
+            `<option value="${cat.nombre}" ${gasto && gasto.categoria === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`
+          ).join('')
         : '<option value="">No hay categorías. Crea una primero.</option>';
-    
+
     modalBody.innerHTML = `
         <form id="gastoForm">
             <div class="form-group">
                 <label for="gastoFecha">Fecha *</label>
                 <input type="date" id="gastoFecha" name="fecha" value="${gasto ? gasto.fecha : getTodayDate()}" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="gastoCategoria">Categoría *</label>
                 <select id="gastoCategoria" name="categoria" required>
@@ -176,13 +179,13 @@ async function showGastoModal(gasto = null) {
                 </select>
                 <button type="button" id="btnNuevaCategoriaGasto" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="gastoMonto">Monto *</label>
                     <input type="number" id="gastoMonto" name="monto" step="0.01" value="${gasto ? gasto.monto : ''}" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="gastoMoneda">Moneda *</label>
                     <select id="gastoMoneda" name="moneda" required>
@@ -192,31 +195,24 @@ async function showGastoModal(gasto = null) {
                     </select>
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label for="gastoDescripcion">Descripción</label>
                 <textarea id="gastoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${gasto ? gasto.descripcion || '' : ''}</textarea>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelGastoBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">${gasto ? 'Actualizar' : 'Guardar'}</button>
             </div>
         </form>
     `;
-    
+
     modal.classList.add('active');
-    
-    const form = document.getElementById('gastoForm');
-    if (form) {
-        form.addEventListener('submit', saveGasto);
-    }
-    
-    const cancelBtn = document.getElementById('cancelGastoBtn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', closeModal);
-    }
-    
+
+    document.getElementById('gastoForm')?.addEventListener('submit', saveGasto);
+    document.getElementById('cancelGastoBtn')?.addEventListener('click', closeModal);
+
     const btnNuevaCategoria = document.getElementById('btnNuevaCategoriaGasto');
     if (btnNuevaCategoria) {
         btnNuevaCategoria.onclick = () => {
@@ -224,16 +220,9 @@ async function showGastoModal(gasto = null) {
             setTimeout(() => showAddCategoriaModal('gasto'), 100);
         };
     }
-    
-    const monedaSelect = document.getElementById('gastoMoneda');
-    if (monedaSelect) {
-        monedaSelect.addEventListener('change', () => showGastoConversion());
-    }
-    
-    const montoInput = document.getElementById('gastoMonto');
-    if (montoInput) {
-        montoInput.addEventListener('input', () => showGastoConversion());
-    }
+
+    document.getElementById('gastoMoneda')?.addEventListener('change', () => showGastoConversion());
+    document.getElementById('gastoMonto')?.addEventListener('input', () => showGastoConversion());
 }
 
 // Mostrar conversión en tiempo real
