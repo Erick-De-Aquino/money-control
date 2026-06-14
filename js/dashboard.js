@@ -171,7 +171,6 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
 
 }
 
-
 // Actualizar gráfico mensual (línea)
 function updateMonthlyChart(gastos, ingresos) {
     const ctx = document.getElementById('monthlyChart')?.getContext('2d');
@@ -605,6 +604,20 @@ function initDashboard() {
         });
     }
 
+    // Cerrar sidebar al hacer click en opciones (excepto logout y dark mode)
+    const sideMenuLinks = document.querySelectorAll('#sideMenu a, #sideMenu button');
+
+    sideMenuLinks.forEach(el => {
+        el.addEventListener('click', (e) => {
+            const isLogout = el.id === 'btnLogout' || el.classList.contains('logout');
+            const isDarkMode = el.id === 'toggleDarkMode' || el.classList.contains('dark-mode-toggle');
+
+            if (!isLogout && !isDarkMode) {
+                sideMenu.classList.remove('open');
+            }
+        });
+    });
+
     // Cargar datos del dashboard al iniciar
     loadDashboardData();
     setupChartExpand();
@@ -819,7 +832,9 @@ function showPage(page) {
             }
             break;
         case 'historial':
-            if (typeof cargarHistorial === 'function') {
+            if (typeof initHistorialEvents === 'function') {
+                initHistorialEvents();
+            } else if (typeof cargarHistorial === 'function') {
                 cargarHistorial();
             }
             break;

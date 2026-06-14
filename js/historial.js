@@ -213,16 +213,22 @@ function limpiarFiltroHistorial() {
 // Inicializar eventos
 function initHistorialEvents() {
     const btnLimpiarTodo = document.getElementById('btnLimpiarHistorial');
+    const btnAplicar = document.getElementById('btnAplicarFiltroHistorial');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroHistorial');
+
     if (btnLimpiarTodo) {
         btnLimpiarTodo.addEventListener('click', limpiarTodoHistorial);
     }
-    
-    const btnAplicar = document.getElementById('btnAplicarFiltroHistorial');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroHistorial');
-    
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroHistorial);
-    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroHistorial);
-    
+
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', aplicarFiltroHistorial);
+    }
+
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener('click', limpiarFiltroHistorial);
+    }
+
+    // 🔥 IMPORTANTE: asegurar orden correcto
     initHistorialAnoSelect();
     cargarHistorial();
 }
