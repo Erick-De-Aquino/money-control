@@ -64,31 +64,48 @@ async function loadIngresos() {
 }
 
 // Cargar categorías de ingresos desde Supabase
-async function loadIngresosCategorias() {
-    try {
+async function getIngresosCategoriasCached() {
+
+    // 1. devolver cache si ya está listo
+    if (window.appCache.ingresos.loaded) {
+        return window.appCache.ingresos.categorias;
+    }
+
+    // 2. esperar request en curso
+    if (window.appCache.ingresos.promise) {
+        return await window.appCache.ingresos.promise;
+    }
+
+    // 3. crear request único
+    window.appCache.ingresos.promise = (async () => {
+
         const supabase = getSupabase();
+
         const { data, error } = await supabase
             .from('categorias')
             .select('*')
             .eq('tipo', 'ingreso')
             .order('nombre');
-        
+
         if (error) {
-            console.error('Error al cargar categorías de ingresos:', error);
+            console.error('❌ Error cargando ingresos:', error);
+            window.appCache.ingresos.promise = null;
             return [];
         }
-        
-        categoriasIngresos = data || [];
-        
-        if (categoriasIngresos.length === 0) {
-            console.log('No hay categorías de ingresos. El usuario debe crear una.');
-        }
-        
-        return categoriasIngresos;
-    } catch (error) {
-        console.error('Error en loadIngresosCategorias:', error);
-        return [];
-    }
+
+        const categorias = data || [];
+
+        // 🔥 SOLO CACHE CENTRAL (evita duplicación global)
+        window.appCache.ingresos.categorias = categorias;
+        window.appCache.ingresos.loaded = true;
+
+        // ⚠️ mantener compatibilidad (pero ya NO es fuente principal)
+        window.categoriasIngresos = categorias;
+
+        return categorias;
+    })();
+
+    return await window.appCache.ingresos.promise;
 }
 
 // Mostrar ingresos en UI
@@ -132,7 +149,7 @@ function displayIngresos() {
 async function showIngresoModal(ingreso = null) {
     editingIngresoId = ingreso ? ingreso.id : null;
     
-    await loadIngresosCategorias();
+    await getCategoriasCache('ingresos');
     
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
@@ -147,48 +164,48 @@ async function showIngresoModal(ingreso = null) {
         : '<option value="">No hay categorías. Crea una primero.</option>';
     
     modalBody.innerHTML = `
-    <form id="ingresoForm">
-        <div class="form-group">
-            <label for="ingresoFecha">Fecha *</label>
-            <input type="date" id="ingresoFecha" name="fecha" value="${ingreso ? ingreso.fecha : getTodayDate()}" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="ingresoOrigen">Origen *</label>
-            <select id="ingresoOrigen" name="origen" required>
-                <option value="">Seleccionar origen</option>
-                ${categoriasOptions}
-            </select>
-            <button type="button" id="btnNuevaCategoriaIngreso" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
-        </div>
-        
-        <div class="form-row">
+        <form id="ingresoForm">
             <div class="form-group">
-                <label for="ingresoMonto">Monto *</label>
-                <input type="number" id="ingresoMonto" name="monto" step="0.01" value="${ingreso ? ingreso.monto : ''}" required>
+                <label for="ingresoFecha">Fecha *</label>
+                <input type="date" id="ingresoFecha" name="fecha" value="${ingreso ? ingreso.fecha : getTodayDate()}" required>
             </div>
             
             <div class="form-group">
-                <label for="ingresoMoneda">Moneda *</label>
-                <select id="ingresoMoneda" name="moneda" required>
-                    <option value="EUR" ${ingreso && ingreso.moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                    <option value="USDT" ${ingreso && ingreso.moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                    <option value="BS" ${ingreso && ingreso.moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                <label for="ingresoOrigen">Origen *</label>
+                <select id="ingresoOrigen" name="origen" required>
+                    <option value="">Seleccionar origen</option>
+                    ${categoriasOptions}
                 </select>
+                <button type="button" id="btnNuevaCategoriaIngreso" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
             </div>
-        </div>
-        
-        <div class="form-group">
-            <label for="ingresoDescripcion">Descripción</label>
-            <textarea id="ingresoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${ingreso ? ingreso.descripcion || '' : ''}</textarea>
-        </div>
-        
-        <div class="form-actions">
-            <button type="button" class="btn btn-secondary" id="cancelIngresoBtn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${ingreso ? 'Actualizar' : 'Guardar'}</button>
-        </div>
-    </form>
-`;
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ingresoMonto">Monto *</label>
+                    <input type="number" id="ingresoMonto" name="monto" step="0.01" value="${ingreso ? ingreso.monto : ''}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ingresoMoneda">Moneda *</label>
+                    <select id="ingresoMoneda" name="moneda" required>
+                        <option value="EUR" ${ingreso && ingreso.moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                        <option value="USDT" ${ingreso && ingreso.moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
+                        <option value="BS" ${ingreso && ingreso.moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="ingresoDescripcion">Descripción</label>
+                <textarea id="ingresoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${ingreso ? ingreso.descripcion || '' : ''}</textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancelIngresoBtn">Cancelar</button>
+                <button type="submit" class="btn btn-primary">${ingreso ? 'Actualizar' : 'Guardar'}</button>
+            </div>
+        </form>
+    `;
     
     modal.classList.add('active');
     
@@ -495,10 +512,6 @@ async function actualizarSelectCategoriasIngresos() {
     }
 }
 
-// Actualizar total de ingresos filtrados
-
-
-
 // Limpiar filtros y UI de ingresos al entrar a la página
 async function resetearFiltrosIngresos() {
     filtroIngresos = { desde: '', hasta: '', categoria: '' };
@@ -532,35 +545,62 @@ async function resetearFiltrosIngresos() {
     
     await loadIngresos();
 }
+
 // Inicializar eventos de ingresos
 async function initIngresosEvents() {
     const btnAddIngreso = document.getElementById('btnAddIngreso');
     if (btnAddIngreso) {
         btnAddIngreso.addEventListener('click', async () => {
-            await loadIngresosCategorias();
+            await getCategoriasCache('ingresos');
             showIngresoModal();
         });
     }
-    
-    // Eventos para modal de filtros
+
     const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosIngresos');
     if (btnAbrirFiltros) {
-        btnAbrirFiltros.addEventListener('click', abrirModalFiltrosIngresos);
+        btnAbrirFiltros.addEventListener('click', () => {
+            window.filtroActivoPara = 'ingresos';
+            abrirModalFiltros();
+        });
     }
-    
+
     const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroIngresosReseña');
     if (btnLimpiarReseña) {
         btnLimpiarReseña.addEventListener('click', limpiarFiltroIngresos);
     }
-    
-    await loadIngresosCategorias();
-    await actualizarSelectCategoriasIngresos();
-    await resetearFiltrosIngresos();
+
+    // precarga segura
+    await getCategoriasCache('ingresos');
+
+    resetearFiltrosIngresos?.();
 }
 
-function abrirModalFiltrosIngresos() {
-    window.filtroActivoPara = 'ingresos';
-    abrirModalFiltros();
+async function initIngresosEvents() {
+    const btnAddIngreso = document.getElementById('btnAddIngreso');
+    if (btnAddIngreso) {
+        btnAddIngreso.addEventListener('click', async () => {
+            showIngresoModal();
+        });
+    }
+
+    const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosIngresos');
+    if (btnAbrirFiltros) {
+        btnAbrirFiltros.addEventListener('click', async () => {
+            window.filtroActivoPara = 'ingresos';
+            await abrirModalFiltros();
+        });
+    }
+
+    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroIngresosReseña');
+    if (btnLimpiarReseña) {
+        btnLimpiarReseña.addEventListener('click', limpiarFiltroIngresos);
+    }
+
+    resetearFiltrosIngresos?.();
+}
+
+async function getIngresosCategoriasCached() {
+    return await getCategoriasCache('ingresos');
 }
 
 console.log('✅ Módulo de ingresos cargado');

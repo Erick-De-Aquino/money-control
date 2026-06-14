@@ -121,12 +121,11 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     // Botón detalle gastos
     const targetCardGastos = totalGastosEl.closest('.stat-card');
 
-    if (targetCardGastos &&
-        !document.getElementById('btnProgresoGastos')) {
+    if (targetCardGastos && !document.getElementById('btnProgresoGastos')) {
 
         const btnContainer = document.createElement('div');
 
-        btnContainer.style.marginTop = '12px';
+        btnContainer.style.marginTop = '25px';  // ← Cambiado de 12px a 32px
         btnContainer.style.textAlign = 'center';
 
         const btnProgreso = document.createElement('button');
@@ -147,12 +146,11 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     // Botón detalle ingresos
     const targetCardIngresos = totalIngresosEl.closest('.stat-card');
 
-    if (targetCardIngresos &&
-        !document.getElementById('btnProgresoIngresos')) {
+    if (targetCardIngresos && !document.getElementById('btnProgresoIngresos')) {
 
         const btnContainer = document.createElement('div');
 
-        btnContainer.style.marginTop = '12px';
+        btnContainer.style.marginTop = '25px';  // ← Cambiado de 12px a 32px
         btnContainer.style.textAlign = 'center';
 
         const btnProgreso = document.createElement('button');
@@ -389,7 +387,6 @@ function updateCategoryChart(gastos) {
         });
     }
 }
-
 
 // Actualizar gráfico de categorías de ingresos (dona)
 function updateIncomeCategoryChart(ingresos) {
@@ -631,7 +628,13 @@ function initDashboard() {
     const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltros');
 
     if (btnAbrirFiltros) {
-        btnAbrirFiltros.addEventListener('click', abrirModalFiltros);
+        btnAbrirFiltros.addEventListener('click', () => {
+            console.log('CLICK DASHBOARD FILTRO');
+
+            window.filtroActivoPara = 'dashboard';
+
+            abrirModalFiltros();
+        });
     }
 
     const closeModalFiltros = document.getElementById('closeModalFiltros');
@@ -1291,51 +1294,80 @@ async function verificarAlertasPresupuesto() {
 }
 
 // Abrir modal de filtros (cargando valores según página activa)
-function abrirModalFiltros() {
-    // Cargar valores actuales según la página activa
-    if (window.filtroActivoPara === 'gastos') {
-        const desdeInput = document.getElementById('filtroDashboardDesde');
-        const hastaInput = document.getElementById('filtroDashboardHasta');
-        const catSelect = document.getElementById('filtroDashboardCategoria');
-        
-        if (desdeInput) desdeInput.value = filtroGastos.desde || '';
-        if (hastaInput) hastaInput.value = filtroGastos.hasta || '';
+async function abrirModalFiltros() {
+    if (!window.filtroActivoPara) {
+        console.warn('filtroActivoPara no definido, default dashboard');
+        window.filtroActivoPara = 'dashboard';
+    }
+
+    console.log('abrirModalFiltros');
+    console.log('filtroActivoPara =', window.filtroActivoPara);
+
+    const desdeInput = document.getElementById('filtroDashboardDesde');
+    const hastaInput = document.getElementById('filtroDashboardHasta');
+    const catSelect = document.getElementById('filtroDashboardCategoria');
+
+    // DASHBOARD
+    if (window.filtroActivoPara === 'dashboard') {
+        if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
+        if (hastaInput) desdeInput.value = filtroDashboard.hasta || '';
         if (catSelect) {
-            // Cargar categorías de gastos en el select
-            cargarCategoriasEnSelectGastos(catSelect);
+            const cats = await getCategoriasCache('gastos');
+            catSelect.innerHTML = '<option value="">Todas las categorías</option>' +
+                cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+            catSelect.value = filtroDashboard.categoria || '';
+        }
+    }
+
+    // GASTOS
+    else if (window.filtroActivoPara === 'gastos') {
+
+        if (desdeInput) desdeInput.value = filtroGastos.desde || '';
+        if (hastaInput) desdeInput.value = filtroGastos.hasta || '';
+
+        if (catSelect) {
+            const cats = await getCategoriasCache('gastos');
+            catSelect.innerHTML = '<option value="">Todas las categorías</option>' +
+                cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
             catSelect.value = filtroGastos.categoria || '';
         }
-    } else if (window.filtroActivoPara === 'ingresos') {
-        const desdeInput = document.getElementById('filtroDashboardDesde');
-        const hastaInput = document.getElementById('filtroDashboardHasta');
-        const catSelect = document.getElementById('filtroDashboardCategoria');
-        
+    }
+
+    // INGRESOS
+    else if (window.filtroActivoPara === 'ingresos') {
+
         if (desdeInput) desdeInput.value = filtroIngresos.desde || '';
-        if (hastaInput) hastaInput.value = filtroIngresos.hasta || '';
+        if (hastaInput) desdeInput.value = filtroIngresos.hasta || '';
+
         if (catSelect) {
-            // Cargar categorías de ingresos en el select
-            cargarCategoriasEnSelectIngresos(catSelect);
+            const cats = await getCategoriasCache('ingresos');
+            catSelect.innerHTML = '<option value="">Todas las categorías</option>' +
+                cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
             catSelect.value = filtroIngresos.categoria || '';
         }
-    } else {
-        // Dashboard
-        const desdeInput = document.getElementById('filtroDashboardDesde');
-        const hastaInput = document.getElementById('filtroDashboardHasta');
-        const catSelect = document.getElementById('filtroDashboardCategoria');
-        
-        if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
-        if (hastaInput) hastaInput.value = filtroDashboard.hasta || '';
-        if (catSelect) catSelect.value = filtroDashboard.categoria || '';
     }
-    
+
     const modal = document.getElementById('modalFiltros');
-    if (modal) {
-        modal.classList.add('active');
-    }
+    if (modal) modal.classList.add('active');
 }
 
 // Función auxiliar para cargar categorías de gastos en el select
-function cargarCategoriasEnSelectGastos(select) {
+async function cargarCategoriasEnSelectGastos(select) {
+
+    if (!select) return;
+
+    // 🔥 SI NO HAY DATOS, ESPERA CACHE
+    if (!categoriasGastos || categoriasGastos.length === 0) {
+        console.log('⚠️ categorias vacías, esperando cache...');
+        categoriasGastos = await getGastosCategoriasCached();
+    }
+    console.log('=== CARGANDO SELECT GASTOS ===');
+    console.log('categoriasGastos:', categoriasGastos);
+    console.log('cantidad:', categoriasGastos.length);
+
+    console.log('categoriasGastos en el select:', categoriasGastos);
+    console.log('cantidad:', categoriasGastos.length);
+
     if (!select) return;
     select.innerHTML = '<option value="">Todas las categorías</option>';
     categoriasGastos.forEach(cat => {

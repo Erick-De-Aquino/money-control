@@ -61,32 +61,50 @@ async function loadGastos() {
     }
 }
 
-// Cargar categorías de gastos desde Supabase
-async function loadGastosCategorias() {
-    try {
-        const supabase = getSupabase();
-        const { data, error } = await supabase
-            .from('categorias')
-            .select('*')
-            .eq('tipo', 'gasto')
-            .order('nombre');
-        
-        if (error) {
-            console.error('Error al cargar categorías de gastos:', error);
+// Cargar categorías de gastos desde Supabase (CACHE OPTIMIZADO)
+async function getGastosCategoriasCached() {
+
+    // 1. si ya están cargadas → devolverlas
+    if (window.appCache?.gastos?.loaded) {
+        return window.appCache.gastos.categorias;
+    }
+
+    // 2. si ya hay request en curso → esperarla
+    if (window.appCache?.gastos?.promise) {
+        return await window.appCache.gastos.promise;
+    }
+
+    // 3. crear request
+    window.appCache.gastos.promise = (async () => {
+
+        try {
+            const supabase = getSupabase();
+
+            const { data, error } = await supabase
+                .from('categorias')
+                .select('*')
+                .eq('tipo', 'gasto')
+                .order('nombre');
+
+            if (error) {
+                console.error(error);
+                window.appCache.gastos.promise = null;
+                return [];
+            }
+
+            window.appCache.gastos.categorias = data || [];
+            window.appCache.gastos.loaded = true;
+            window.categoriasGastos = data || [];
+
+            return data || [];
+        } catch (err) {
+            console.error('Error en cache gastos:', err);
+            window.appCache.gastos.promise = null;
             return [];
         }
-        
-        categoriasGastos = data || [];
-        
-        if (categoriasGastos.length === 0) {
-            console.log('No hay categorías de gastos. El usuario debe crear una.');
-        }
-        
-        return categoriasGastos;
-    } catch (error) {
-        console.error('Error en loadGastosCategorias:', error);
-        return [];
-    }
+    })();
+
+    return await window.appCache.gastos.promise;
 }
 
 // Mostrar gastos en UI
@@ -130,7 +148,6 @@ function displayGastos() {
 async function showGastoModal(gasto = null) {
     editingGastoId = gasto ? gasto.id : null;
     
-    await loadGastosCategorias();
     
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
@@ -145,48 +162,48 @@ async function showGastoModal(gasto = null) {
         : '<option value="">No hay categorías. Crea una primero.</option>';
     
     modalBody.innerHTML = `
-    <form id="gastoForm">
-        <div class="form-group">
-            <label for="gastoFecha">Fecha *</label>
-            <input type="date" id="gastoFecha" name="fecha" value="${gasto ? gasto.fecha : getTodayDate()}" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="gastoCategoria">Categoría *</label>
-            <select id="gastoCategoria" name="categoria" required>
-                <option value="">Seleccionar categoría</option>
-                ${categoriasOptions}
-            </select>
-            <button type="button" id="btnNuevaCategoriaGasto" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
-        </div>
-        
-        <div class="form-row">
+        <form id="gastoForm">
             <div class="form-group">
-                <label for="gastoMonto">Monto *</label>
-                <input type="number" id="gastoMonto" name="monto" step="0.01" value="${gasto ? gasto.monto : ''}" required>
+                <label for="gastoFecha">Fecha *</label>
+                <input type="date" id="gastoFecha" name="fecha" value="${gasto ? gasto.fecha : getTodayDate()}" required>
             </div>
             
             <div class="form-group">
-                <label for="gastoMoneda">Moneda *</label>
-                <select id="gastoMoneda" name="moneda" required>
-                    <option value="EUR" ${gasto && gasto.moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                    <option value="USDT" ${gasto && gasto.moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                    <option value="BS" ${gasto && gasto.moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                <label for="gastoCategoria">Categoría *</label>
+                <select id="gastoCategoria" name="categoria" required>
+                    <option value="">Seleccionar categoría</option>
+                    ${categoriasOptions}
                 </select>
+                <button type="button" id="btnNuevaCategoriaGasto" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
             </div>
-        </div>
-        
-        <div class="form-group">
-            <label for="gastoDescripcion">Descripción</label>
-            <textarea id="gastoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${gasto ? gasto.descripcion || '' : ''}</textarea>
-        </div>
-        
-        <div class="form-actions">
-            <button type="button" class="btn btn-secondary" id="cancelGastoBtn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">${gasto ? 'Actualizar' : 'Guardar'}</button>
-        </div>
-    </form>
-`;
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="gastoMonto">Monto *</label>
+                    <input type="number" id="gastoMonto" name="monto" step="0.01" value="${gasto ? gasto.monto : ''}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gastoMoneda">Moneda *</label>
+                    <select id="gastoMoneda" name="moneda" required>
+                        <option value="EUR" ${gasto && gasto.moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                        <option value="USDT" ${gasto && gasto.moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
+                        <option value="BS" ${gasto && gasto.moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="gastoDescripcion">Descripción</label>
+                <textarea id="gastoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${gasto ? gasto.descripcion || '' : ''}</textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancelGastoBtn">Cancelar</button>
+                <button type="submit" class="btn btn-primary">${gasto ? 'Actualizar' : 'Guardar'}</button>
+            </div>
+        </form>
+    `;
     
     modal.classList.add('active');
     
@@ -490,31 +507,32 @@ async function initGastosEvents() {
     const btnAddGasto = document.getElementById('btnAddGasto');
     if (btnAddGasto) {
         btnAddGasto.addEventListener('click', async () => {
-            await loadGastosCategorias();
             showGastoModal();
         });
     }
-    
+
     const btnAplicar = document.getElementById('btnAplicarFiltroGastos');
     const btnLimpiar = document.getElementById('btnLimpiarFiltroGastos');
-    
+
     if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroGastos);
     if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroGastos);
-    
-    // Eventos para modal de filtros
+
     const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosGastos');
+
     if (btnAbrirFiltros) {
-        btnAbrirFiltros.addEventListener('click', abrirModalFiltrosGastos);
+        btnAbrirFiltros.addEventListener('click', async () => {
+            console.log('CLICK GASTOS FILTRO');
+            window.filtroActivoPara = 'gastos';
+            await abrirModalFiltros();
+        });
     }
-    
+
     const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroGastosReseña');
     if (btnLimpiarReseña) {
         btnLimpiarReseña.addEventListener('click', limpiarFiltroGastos);
     }
-    
-    await loadGastosCategorias();
-    await actualizarSelectCategoriasGastos();
-    await resetearFiltrosGastos();
+
+    resetearFiltrosGastos?.();
 }
 
 // Actualizar total de gastos filtrados
@@ -557,12 +575,6 @@ async function resetearFiltrosGastos() {
     await loadGastos();
 }
 
-function abrirModalFiltrosGastos() {
-    // Guardar qué página está usando el modal
-    window.filtroActivoPara = 'gastos';
-    
-    // Abrir el modal central
-    abrirModalFiltros();
-}
+
 
 console.log('✅ Módulo de gastos cargado');

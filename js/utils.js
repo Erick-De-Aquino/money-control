@@ -369,7 +369,7 @@ function initTheme() {
 function updateThemeIcon(isDark) {
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
-        themeToggle.textContent = isDark ? '☀️' : '🌙';
+        themeToggle.textContent = isDark ? 'Modo Claro' : 'Modo Oscuro';
     }
 }
 

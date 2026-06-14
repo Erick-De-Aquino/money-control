@@ -348,12 +348,21 @@ function showDashboard() {
         dashboardScreen.classList.add('active');
     }
     
-    // Mostrar email del usuario
+        // Mostrar email del usuario
     const userEmailElement = document.getElementById('userEmail');
     if (userEmailElement && currentUser) {
         userEmailElement.textContent = currentUser.email;
     }
-    
+
+    // Cargar categorías para filtros y formularios
+    if (typeof loadGastosCategorias === 'function') {
+        loadGastosCategorias();
+    }
+
+    if (typeof loadIngresosCategorias === 'function') {
+        loadIngresosCategorias();
+    }
+
     // Cargar tasas al entrar
     if (typeof loadTasas === 'function') {
         loadTasas();

@@ -116,20 +116,21 @@ async function getGastosDelMes(año, mes) {
 // Mostrar modal para agregar/editar presupuesto
 async function showPresupuestoModal(presupuesto = null) {
     editingPresupuestoId = presupuesto ? presupuesto.id : null;
-    
+
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
+
     modalTitle.textContent = presupuesto ? '✏️ Editar Presupuesto' : '➕ Nuevo Presupuesto';
-    
-    const categorias = await loadGastosCategorias();
-    const categoriasOptions = categorias.map(cat => 
+
+    const categorias = await getCategoriasCache('gastos');
+
+    const categoriasOptions = categorias.map(cat =>
         `<option value="${cat.nombre}" ${presupuesto && presupuesto.categoria === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`
     ).join('');
-    
+
     modalBody.innerHTML = `
         <form id="presupuestoForm">
             <div class="form-group">
@@ -139,7 +140,7 @@ async function showPresupuestoModal(presupuesto = null) {
                     ${categoriasOptions}
                 </select>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="presupuestoMes">Mes *</label>
@@ -163,26 +164,26 @@ async function showPresupuestoModal(presupuesto = null) {
                     <input type="number" id="presupuestoAño" value="${presupuesto ? presupuesto.año : new Date().getFullYear()}" required>
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label for="presupuestoLimite">Límite (EUR) *</label>
                 <input type="number" id="presupuestoLimite" step="0.01" value="${presupuesto ? presupuesto.limite : ''}" required>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelPresupuestoBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">${presupuesto ? 'Actualizar' : 'Guardar'}</button>
             </div>
         </form>
     `;
-    
+
     modal.classList.add('active');
-    
+
     const form = document.getElementById('presupuestoForm');
     if (form) {
         form.addEventListener('submit', savePresupuesto);
     }
-    
+
     const cancelBtn = document.getElementById('cancelPresupuestoBtn');
     if (cancelBtn) {
         cancelBtn.addEventListener('click', closeModal);
@@ -253,6 +254,97 @@ async function editPresupuesto(id) {
     if (presupuesto) {
         await showPresupuestoModal(presupuesto);
     }
+}
+
+async function deletePresupuesto(id) {
+    const presupuesto = presupuestosList.find(p => p.id === id);
+
+    showConfirmModal(
+        `¿Eliminar presupuesto de ${presupuesto.categoria} para ${presupuesto.mes}/${presupuesto.año}?`,
+        async () => {
+            try {
+                const supabase = getSupabase();
+
+                const { error } = await supabase
+                    .from('presupuestos')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error('Error al eliminar presupuesto:', error);
+                    showError('Error al eliminar el presupuesto');
+                    return;
+                }
+
+                showSuccess('Presupuesto eliminado');
+                await loadPresupuestos();
+
+            } catch (error) {
+                console.error('Error en deletePresupuesto:', error);
+                showError('Error al eliminar el presupuesto');
+            }
+        },
+        'Eliminar Presupuesto'
+    );
+}
+
+async function aplicarFiltroPresupuestos() {
+    filtroPresupuesto.mes = parseInt(document.getElementById('filtroMesPresupuesto')?.value);
+    filtroPresupuesto.año = parseInt(document.getElementById('filtroAnoPresupuesto')?.value);
+
+    await loadPresupuestos();
+    showSuccess('Filtro aplicado');
+}
+
+function limpiarFiltroPresupuestos() {
+    const hoy = new Date();
+    filtroPresupuesto = {
+        mes: hoy.getMonth() + 1,
+        año: hoy.getFullYear()
+    };
+
+    const mesSelect = document.getElementById('filtroMesPresupuesto');
+    const añoSelect = document.getElementById('filtroAnoPresupuesto');
+
+    if (mesSelect) mesSelect.value = filtroPresupuesto.mes;
+    if (añoSelect) añoSelect.value = filtroPresupuesto.año;
+
+    loadPresupuestos();
+    showSuccess('Filtros limpiados');
+}
+
+function initAnoSelect() {
+    const añoSelect = document.getElementById('filtroAnoPresupuesto');
+    if (!añoSelect) return;
+
+    const añoActual = new Date().getFullYear();
+    añoSelect.innerHTML = '';
+
+    for (let i = añoActual - 2; i <= añoActual + 2; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        if (i === añoActual) option.selected = true;
+        añoSelect.appendChild(option);
+    }
+}
+
+function initPresupuestosEvents() {
+    initHistorialCheck();
+
+    const btnAdd = document.getElementById('btnAddPresupuesto');
+    if (btnAdd) {
+        btnAdd.addEventListener('click', () => showPresupuestoModal());
+    }
+
+    const btnAplicar = document.getElementById('btnAplicarFiltroPresupuesto');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltroPresupuesto');
+
+    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroPresupuestos);
+    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroPresupuestos);
+
+    initAnoSelect();
+    loadPresupuestos();
 }
 
 // Eliminar presupuesto

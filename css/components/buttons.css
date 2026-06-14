@@ -254,19 +254,40 @@
     color: var(--error, #f44336);
 }
 
-/* Botón logout */
-.logout-btn {
+.theme-toggle {
+    display: flex;
     background: none;
+    width: 100%;
+    align-items: flex-start;
     border: none;
     font-size: 1.25rem;
     cursor: pointer;
-    padding: var(--spacing-sm, 0.5rem);
+    font-size: var(--font-size-md, 1rem);
+    padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+    border-radius: var(--border-radius-md, 0.5rem);
+    color: var(--text-secondary, #5A4B63);
+}
+
+.theme-toggle:hover {
+    background-color: var(--bg-hover, #F5F0F7);
+}
+
+/* Botón logout */
+.logout-btn {
+    display: flex;
+    align-items: flex-start;
+    background: none;
+    width: 100%;
+    border: none;
+    font-size: var(--font-size-md, 1rem);
+    cursor: pointer;
+    padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
     border-radius: var(--border-radius-md, 0.5rem);
     color: var(--text-secondary, #5A4B63);
 }
 
 .logout-btn:hover {
-    background-color: var(--error, #f44336);
+    background-color: var(--bg-hover, #F5F0F7);
     color: var(--text-light, #FFFFFF);
 }
 

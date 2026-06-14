@@ -105,7 +105,8 @@
 }
 
 .user-info {
-    padding: var(--spacing-md, 1rem);
+    flex-direction: column;
+    gap: 8px;
     border-top: 1px solid var(--border-light, #E8E0EC);
     font-size: var(--font-size-sm, 0.875rem);
     color: var(--text-tertiary, #8D7B99);
@@ -408,20 +409,6 @@ body.dark-mode .tasa-card {
     background-color: #2d2d2d;
 }
 
-.theme-toggle {
-    background: none;
-    border: none;
-    font-size: 1.25rem;
-    cursor: pointer;
-    padding: var(--spacing-sm, 0.5rem);
-    border-radius: var(--border-radius-md, 0.5rem);
-    color: var(--text-primary, #2C2530);
-}
-
-.theme-toggle:hover {
-    background-color: var(--bg-hover, #F5F0F7);
-}
-
 .filtro-reseña-normal {
     background-color: #ffd500;
     color: #0a0a0a;
@@ -618,4 +605,15 @@ body.dark-mode .tasa-card {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.userEmail{
+    display: flex;
+    text-align: center;
+    align-items: center;
+    background-color: var(--primary, #E1D5E7);
+    width: 100%;
+    border: none;
+    font-size: var(--font-size-md, 1rem);
+    padding: var(--spacing-sm, 1rem) var(--spacing-lg, 1.5rem);
 }

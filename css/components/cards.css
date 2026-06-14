@@ -67,12 +67,19 @@
     color: var(--text-secondary, #5A4B63);
     margin-bottom: var(--spacing-sm, 0.5rem);
     font-weight: var(--font-medium, 500);
+    margin-bottom: 25px;
 }
 
 .stat-card .stat-value {
-    font-size: var(--font-size-2xl, 1.5rem);
+    font-size:  var(--font-size-4xl);
     font-weight: var(--font-bold, 700);
     color: var(--text-primary, #2C2530);
+    
+}
+
+/* Tamaño específico solo para el Balance */
+#balance {
+    font-size: var(--font-size-5xl, 2.5rem);
 }
 
 /* Tarjeta de tasa de cambio */
@@ -262,4 +269,39 @@
         padding: var(--spacing-lg, 1.5rem);
         width: 95%;
     }
+}
+
+/* Balance wrapper para centrar contenido */
+.balance-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.balance
+
+/* Botón del ojo centrado */
+.balance-eye {
+    background: none;
+    border: none;
+    cursor: pointer;
+    
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+    margin: 0 auto;
+}
+
+.balance-eye:hover {
+    background-color: var(--bg-hover, #F5F0F7);
+}
+
+/* Efecto de opacidad para los montos */
+.blurred {
+    filter: blur(10px);
+    transition: filter 0.3s ease;
 }

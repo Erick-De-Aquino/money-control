@@ -4,13 +4,8 @@
 
 // Configuración de Supabase
 const SUPABASE_CONFIG = {
-    // URL del proyecto (obtenida de Supabase)
     url: 'https://xcqoefomptnkonueloid.supabase.co',
-    
-    // Publishable key (clave pública para el cliente)
     anonKey: 'sb_publishable_IWZUGZiIzX024oEJ3_j-uA_IJgfJS7S',
-    
-    // Configuración adicional
     schema: 'public',
     autoRefreshToken: true,
     persistSession: true
@@ -18,23 +13,14 @@ const SUPABASE_CONFIG = {
 
 // Configuración de APIs de tasas de cambio
 const TASAS_CONFIG = {
-    // Binance API (pública, no requiere clave)
     binanceApi: 'https://api.binance.com/api/v3/ticker/price',
-    
-    // Bybit API (pública para tasas)
     bybitApi: 'https://api.bybit.com/v5/market/tickers',
-    
-    // Tiempo de actualización (5 minutos en milisegundos)
     refreshInterval: 5 * 60 * 1000,
-    
-    // Monedas soportadas
     currencies: {
         USDT: 'USDT',
         EUR: 'EUR',
         BS: 'BS'
     },
-    
-    // Pares de conversión
     pairs: [
         { from: 'USDT', to: 'EUR', symbol: 'USDTEUR' },
         { from: 'BS', to: 'EUR', symbol: 'BSEUR' }
@@ -43,16 +29,9 @@ const TASAS_CONFIG = {
 
 // Configuración de la aplicación
 const APP_CONFIG = {
-    // Nombre de la aplicación
     name: 'Gestor de Gastos y Remesas',
-    
-    // Versión
     version: '1.0.0',
-    
-    // Moneda base (para conversiones)
     baseCurrency: 'EUR',
-    
-    // Categorías predefinidas
     categories: {
         gastos: ['Alimentación', 'Transporte', 'Vivienda', 'Servicios', 'Entretenimiento', 'Salud', 'Educación', 'Otros'],
         ingresos: ['Trabajo', 'Remesa', 'Inversión', 'Regalo', 'Otros'],
@@ -69,7 +48,7 @@ const TABLES = {
     usuario_config: 'usuario_config'
 };
 
-// Mensajes de error predefinidos
+// Mensajes de error
 const ERROR_MESSAGES = {
     network: 'Error de conexión. Verifica tu internet.',
     auth: 'Error de autenticación. Inicia sesión nuevamente.',
@@ -82,7 +61,27 @@ const ERROR_MESSAGES = {
     invalidEmail: 'Correo electrónico inválido.'
 };
 
-// Inicializar cliente de Supabase
+// ============================================
+// 🧠 NIVEL 2 - CACHE GLOBAL (NUEVO)
+// ============================================
+
+window.appCache = {
+    gastos: {
+        categorias: null,
+        loaded: false,
+        promise: null
+    },
+    ingresos: {
+        categorias: null,
+        loaded: false,
+        promise: null
+    }
+};
+
+// ============================================
+// SUPABASE CLIENT
+// ============================================
+
 let supabaseClient = null;
 
 function initSupabase() {
@@ -101,7 +100,6 @@ function initSupabase() {
     return supabaseClient;
 }
 
-// Obtener cliente de Supabase (inicializado)
 function getSupabase() {
     if (!supabaseClient) {
         return initSupabase();
@@ -109,22 +107,26 @@ function getSupabase() {
     return supabaseClient;
 }
 
-// Verificar conexión a Supabase
+// Verificar conexión
 async function checkSupabaseConnection() {
     try {
         const supabase = getSupabase();
-        const { error } = await supabase.from(TABLES.gastos).select('count', { count: 'exact', head: true });
+        const { error } = await supabase
+            .from(TABLES.gastos)
+            .select('count', { count: 'exact', head: true });
+
         if (error && error.code !== 'PGRST301') {
             console.error('Error de conexión a Supabase:', error);
             return false;
         }
+
         console.log('✅ Conexión a Supabase exitosa');
         return true;
+
     } catch (error) {
         console.error('❌ Error conectando a Supabase:', error);
         return false;
     }
 }
 
-// Exportar configuración (para uso en otros archivos)
 console.log('✅ Configuración cargada correctamente');
