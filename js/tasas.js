@@ -1,4 +1,4 @@
-// ============================================
+/*// ============================================
 // TASAS DE CAMBIO - APIs y gestión de tasas
 // ============================================
 
@@ -131,7 +131,7 @@ async function updateAllTasas() {
         await loadTasasFromCache();
         
         showSuccess('Tasas actualizadas correctamente');
-        console.log('✅ Tasas actualizadas:', currentTasas);
+      console.log('✅ Tasas actualizadas:', currentTasas);
         
     } catch (error) {
         console.error('Error al actualizar tasas:', error);
@@ -244,7 +244,7 @@ function startTasaInterval() {
     tasaInterval = setInterval(() => {
         if (isAuthenticated()) {
             console.log('⏰ Actualización automática de tasas...');
-            updateAllTasas();
+            updateAllTasas?.();
         }
     }, TASAS_CONFIG.refreshInterval);
 }
@@ -263,7 +263,8 @@ async function loadTasas() {
     await loadTasasFromCache();
     
     // Luego actualizar desde APIs
-    await updateAllTasas();
+    await updateAllTasas?.();
 }
 
-console.log('✅ Módulo de tasas cargado');
+/*console.log('✅ Módulo de tasas cargado');*/
+

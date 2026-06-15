@@ -10,22 +10,31 @@ let editingOperacionId = null;
 async function loadOperaciones() {
     try {
         const supabase = getSupabase();
-        
+
+        const userId = getCurrentUser()?.id;
+
+        if (!userId || userId === 'undefined') {
+            console.error('No user ID en operaciones');
+            return [];
+        }
+
         const { data, error } = await supabase
             .from(TABLES.operaciones)
             .select('*')
+            .eq('user_id', userId)
             .order('fecha', { ascending: false });
-        
+
         if (error) {
             console.error('Error al cargar operaciones:', error);
-            showError('Error al cargar las operaciones');
+            showError?.('Error al cargar las operaciones');
             return [];
         }
-        
+
         operacionesList = data || [];
-        displayOperaciones();
+        displayOperaciones?.();
+
         return operacionesList;
-        
+
     } catch (error) {
         console.error('Error en loadOperaciones:', error);
         return [];
@@ -272,7 +281,7 @@ async function saveOperacion(event) {
         
         showSuccess(editingOperacionId ? 'Operación actualizada' : 'Operación guardada');
         closeModal();
-        await loadOperaciones();
+        await loadOperaciones?.();
         await loadDashboardData();
         
     } catch (error) {
@@ -311,7 +320,7 @@ async function deleteOperacion(id) {
                 }
                 
                 showSuccess('Operación eliminada');
-                await loadOperaciones();
+                await loadOperaciones?.();
                 await loadDashboardData();
                 
             } catch (error) {
@@ -325,10 +334,14 @@ async function deleteOperacion(id) {
 
 // Inicializar eventos de operaciones
 function initOperacionesEvents() {
+
     const btnAddOperacion = document.getElementById('btnAddOperacion');
-    if (btnAddOperacion) {
-        btnAddOperacion.addEventListener('click', () => showOperacionModal());
-    }
+
+    if (!btnAddOperacion) return;
+
+    btnAddOperacion.addEventListener('click', () => {
+        showOperacionModal();
+    });
 }
 
 console.log('✅ Módulo de operaciones cargado');

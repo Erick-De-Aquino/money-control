@@ -6,24 +6,23 @@
 // Esperar a que el DOM esté listo
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Iniciando aplicación Gestor de Gastos y Remesas...');
-    
-    // Inicializar Supabase
+
     initSupabase();
-    
-    // Verificar conexión
+
     const connected = await checkSupabaseConnection();
+
     if (!connected) {
         console.warn('⚠️ No se pudo conectar a Supabase. Verifica tu conexión.');
         showError('Error de conexión con la base de datos. Verifica tu internet.', 'loginMessage');
     }
-    
-    // Inicializar módulos
+
     window.appCache = window.appCache || {};
 
     if (typeof loadCache === 'function') {
         loadCache();
     } else {
         console.warn('⚠️ Cache aún no disponible, se inicializará vacío');
+
         window.appCache = {
             categorias: {
                 gastos: { loaded: false, promise: null, data: [] },
@@ -31,31 +30,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
     }
-    initAuth();
+
+    // 🔥 ESPERAR AUTH COMPLETAMENTE
+    await initAuth();
+
     initDashboard();
     initModalEvents();
     initGastosEvents();
     initIngresosEvents();
-    initOperacionesEvents();
+    initOperacionesEvents?.();
     initCategoriasAdminEvents();
 
     console.log('El DOM está listo, voy a ejecutar setupAuthEvents');
+
     setupAuthEvents();
-    
-    // Eventos de autenticación
+
     setTimeout(setupAuthEvents, 100);
-    
-    // Configurar botón de actualización de tasas
+
     const refreshTasasBtn = document.getElementById('btnRefreshTasas');
+
     if (refreshTasasBtn) {
         refreshTasasBtn.addEventListener('click', () => {
-            updateAllTasas();
+            updateAllTasas?.();
         });
     }
 
-    // Inicializar toggles de contraseña
     initPasswordToggles();
-    
+
     console.log('✅ Aplicación inicializada correctamente');
 });
 

@@ -19,33 +19,45 @@ let ultimaCarga = 0;
 async function loadIngresos() {
     try {
         const supabase = getSupabase();
-        let query = supabase.from(TABLES.ingresos).select('*');
-        
+
+        const userId = getCurrentUser()?.id;
+
+        if (!userId || userId === 'undefined') {
+            console.error('No user ID en ingresos');
+            return [];
+        }
+
+        let query = supabase
+            .from(TABLES.ingresos)
+            .select('*')
+            .eq('user_id', userId);
+
         if (filtroIngresos.desde) {
             query = query.gte('fecha', filtroIngresos.desde);
         }
+
         if (filtroIngresos.hasta) {
             query = query.lte('fecha', filtroIngresos.hasta);
         }
+
         if (filtroIngresos.categoria) {
             query = query.eq('origen', filtroIngresos.categoria);
         }
-        
+
         const { data, error } = await query.order('fecha', { ascending: false });
-        
+
         if (error) {
             console.error('Error al cargar ingresos:', error);
-            showError('Error al cargar los ingresos');
+            showError?.('Error al cargar los ingresos');
             return [];
         }
-        
+
         ingresosList = data || [];
-        displayIngresos();
-        
-        // Calcular total solo si hay filtros activos
+        displayIngresos?.();
+
         const hayFiltros = filtroIngresos.desde || filtroIngresos.hasta || filtroIngresos.categoria;
         const totalElement = document.getElementById('totalIngresosFiltrados');
-        
+
         if (totalElement) {
             if (hayFiltros) {
                 const total = ingresosList.reduce((sum, i) => sum + (i.monto_eur || i.monto), 0);
@@ -54,9 +66,9 @@ async function loadIngresos() {
                 totalElement.textContent = formatCurrency(0, 'EUR');
             }
         }
-        
+
         return ingresosList;
-        
+
     } catch (error) {
         console.error('Error en loadIngresos:', error);
         return [];

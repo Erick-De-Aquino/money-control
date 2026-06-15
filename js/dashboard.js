@@ -16,59 +16,114 @@ let filtroDashboard = {
 // Cargar datos para el dashboard
 async function loadDashboardData() {
     try {
+
         const supabase = getSupabase();
-        
-        // Fechas del mes actual (por defecto)
+
+        // =========================
+        // ESPERAR AUTH LISTA
+        // =========================
+        const user = getCurrentUser();
+
+        if (!user || !user.id) {
+            console.warn('⏳ Esperando sesión de usuario...');
+
+            // reintento corto (evita race condition)
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const retryUser = getCurrentUser();
+
+            if (!retryUser?.id) {
+                console.error('No user ID válido');
+                return null;
+            }
+        }
+
+        const userId = getCurrentUser().id;
+
+        // =========================
+        // FECHAS
+        // =========================
         const hoy = new Date();
         const añoActual = hoy.getFullYear();
         const mesActual = hoy.getMonth() + 1;
+
         const fechaInicioDefault = `${añoActual}-${String(mesActual).padStart(2, '0')}-01`;
         const fechaFinDefault = `${añoActual}-${String(mesActual).padStart(2, '0')}-${new Date(añoActual, mesActual, 0).getDate()}`;
-        
-        // Usar filtros del dashboard si existen, sino usar mes actual
-        const desde = filtroDashboard.desde || fechaInicioDefault;
-        const hasta = filtroDashboard.hasta || fechaFinDefault;
-        
-        // Consulta de gastos con filtros
-        let gastosQuery = supabase.from(TABLES.gastos).select('*');
-        gastosQuery = gastosQuery.gte('fecha', desde).lte('fecha', hasta);
-        if (filtroDashboard.categoria) {
+
+        const desde = filtroDashboard?.desde || fechaInicioDefault;
+        const hasta = filtroDashboard?.hasta || fechaFinDefault;
+
+        // =========================
+        // GASTOS
+        // =========================
+        let gastosQuery = supabase
+            .from(TABLES.gastos)
+            .select('*')
+            .eq('user_id', userId)
+            .gte('fecha', desde)
+            .lte('fecha', hasta);
+
+        if (filtroDashboard?.categoria) {
             gastosQuery = gastosQuery.eq('categoria', filtroDashboard.categoria);
         }
-        
+
         const { data: gastos, error: errorGastos } = await gastosQuery;
-        if (errorGastos) console.error('Error cargando gastos:', errorGastos);
 
-        // Consulta de ingresos
-        let ingresosQuery = supabase.from(TABLES.ingresos).select('*');
-        ingresosQuery = ingresosQuery.gte('fecha', desde).lte('fecha', hasta);
+        if (errorGastos) {
+            console.error('Error cargando gastos:', errorGastos);
+        }
 
-        const { data: ingresos, error: errorIngresos } = await ingresosQuery;
-        if (errorIngresos) console.error('Error cargando ingresos:', errorIngresos);
+        // =========================
+        // INGRESOS
+        // =========================
+        const { data: ingresos, error: errorIngresos } = await supabase
+            .from(TABLES.ingresos)
+            .select('*')
+            .eq('user_id', userId)
+            .gte('fecha', desde)
+            .lte('fecha', hasta);
 
-        // Guardar datos filtrados para los modales de resumen
+        if (errorIngresos) {
+            console.error('Error cargando ingresos:', errorIngresos);
+        }
+
+        // =========================
+        // CACHE
+        // =========================
         window.dashboardGastosFiltrados = gastos || [];
         window.dashboardIngresosFiltrados = ingresos || [];
-        
-        const operaciones = await loadOperaciones();
-        
-        const totalGastos = (gastos || []).reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
-        const totalIngresos = (ingresos || []).reduce((sum, i) => sum + (i.monto_eur || i.monto), 0);
+
+        // =========================
+        // REMESAS
+        // =========================
+        const remesas = (await loadRemesas?.()) || [];
+
+        // =========================
+        // CALCULOS
+        // =========================
+        const totalGastos = (gastos || []).reduce((s, g) => s + (g.monto_eur || g.monto || 0), 0);
+        const totalIngresos = (ingresos || []).reduce((s, i) => s + (i.monto_eur || i.monto || 0), 0);
         const balance = totalIngresos - totalGastos;
-        const gananciaOperaciones = operaciones.reduce((sum, o) => sum + (o.ganancia_perdida || 0), 0);
-        
-        updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaciones);
+
+        const gananciaRemesas = remesas.reduce(
+            (s, r) => s + (r.ganancia_real || r.ganancia_calculada || 0),
+            0
+        );
+
+        // =========================
+        // UI
+        // =========================
+        updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaRemesas);
         updateMonthlyChart(gastos || [], ingresos || []);
         updateCategoryChart(gastos || []);
         updateIncomeCategoryChart(ingresos || []);
-        
-        // Verificar alertas de presupuesto (nuevas con 75/90/100)
+
         if (typeof verificarTodasAlertas === 'function') {
             verificarTodasAlertas();
         }
-        
-        return { totalGastos, totalIngresos, balance, gananciaOperaciones };
-        
+
+        return { totalGastos, totalIngresos, balance, gananciaRemesas };
+
     } catch (error) {
         console.error('Error en loadDashboardData:', error);
         return null;
@@ -81,7 +136,6 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     const totalIngresosEl = document.getElementById('totalIngresos');
     const balanceEl = document.getElementById('balance');
 
-    
     if (totalGastosEl) {
         totalGastosEl.textContent = formatCurrency(totalGastos, 'EUR');
     }
@@ -93,82 +147,78 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     if (balanceEl) {
         balanceEl.textContent = formatCurrency(balance, 'EUR');
 
-        // Cambiar color según balance
-        if (balance >= 0) {
-            balanceEl.style.color = 'var(--success, #4CAF50)';
-        } else {
-            balanceEl.style.color = 'var(--error, #f44336)';
-        }
+        balanceEl.style.color =
+            balance >= 0
+                ? 'var(--success, #4CAF50)'
+                : 'var(--error, #f44336)';
     }
 
-    // Mostrar ganancia de operaciones si existe el elemento
     const gananciaOperacionesEl = document.getElementById('gananciaOperaciones');
 
     if (gananciaOperacionesEl) {
+        gananciaOperacionesEl.textContent = formatCurrency(gananciaOperaciones, 'EUR');
 
-        gananciaOperacionesEl.textContent =
-            formatCurrency(gananciaOperaciones, 'EUR');
+        gananciaOperacionesEl.style.color =
+            gananciaOperaciones >= 0
+                ? 'var(--success, #4CAF50)'
+                : 'var(--error, #f44336)';
+    }
 
-        if (gananciaOperaciones >= 0) {
-            gananciaOperacionesEl.style.color =
-                'var(--success, #4CAF50)';
-        } else {
-            gananciaOperacionesEl.style.color =
-                'var(--error, #f44336)';
+    // =========================
+    // BOTÓN GASTOS (SAFE)
+    // =========================
+    if (totalGastosEl) {
+        const targetCardGastos = totalGastosEl.closest('.stat-card');
+
+        if (targetCardGastos && !targetCardGastos.querySelector('#btnProgresoGastos')) {
+            const btnContainer = document.createElement('div');
+
+            btnContainer.style.marginTop = '25px';
+            btnContainer.style.textAlign = 'center';
+
+            const btnProgreso = document.createElement('button');
+
+            btnProgreso.id = 'btnProgresoGastos';
+            btnProgreso.textContent = 'Ver detalle';
+            btnProgreso.className = 'btn btn-secondary btn-small';
+            btnProgreso.style.width = '100%';
+
+            btnProgreso.onclick = () => {
+                mostrarResumenCategorias('gastos');
+            };
+
+            btnContainer.appendChild(btnProgreso);
+            targetCardGastos.appendChild(btnContainer);
         }
     }
 
-    // Botón detalle gastos
-    const targetCardGastos = totalGastosEl.closest('.stat-card');
+    // =========================
+    // BOTÓN INGRESOS (SAFE)
+    // =========================
+    if (totalIngresosEl) {
+        const targetCardIngresos = totalIngresosEl.closest('.stat-card');
 
-    if (targetCardGastos && !document.getElementById('btnProgresoGastos')) {
+        if (targetCardIngresos && !targetCardIngresos.querySelector('#btnProgresoIngresos')) {
+            const btnContainer = document.createElement('div');
 
-        const btnContainer = document.createElement('div');
+            btnContainer.style.marginTop = '25px';
+            btnContainer.style.textAlign = 'center';
 
-        btnContainer.style.marginTop = '25px';  // ← Cambiado de 12px a 32px
-        btnContainer.style.textAlign = 'center';
+            const btnProgreso = document.createElement('button');
 
-        const btnProgreso = document.createElement('button');
+            btnProgreso.id = 'btnProgresoIngresos';
+            btnProgreso.textContent = 'Ver detalle';
+            btnProgreso.className = 'btn btn-secondary btn-small';
+            btnProgreso.style.width = '100%';
 
-        btnProgreso.id = 'btnProgresoGastos';
-        btnProgreso.textContent = 'Ver detalle';
-        btnProgreso.className = 'btn btn-secondary btn-small';
-        btnProgreso.style.width = '100%';
+            btnProgreso.onclick = () => {
+                mostrarResumenCategorias('ingresos');
+            };
 
-        btnProgreso.onclick = () => {
-            mostrarResumenCategorias('gastos');
-        };
-
-        btnContainer.appendChild(btnProgreso);
-        targetCardGastos.appendChild(btnContainer);
+            btnContainer.appendChild(btnProgreso);
+            targetCardIngresos.appendChild(btnContainer);
+        }
     }
-
-    // Botón detalle ingresos
-    const targetCardIngresos = totalIngresosEl.closest('.stat-card');
-
-    if (targetCardIngresos && !document.getElementById('btnProgresoIngresos')) {
-
-        const btnContainer = document.createElement('div');
-
-        btnContainer.style.marginTop = '25px';  // ← Cambiado de 12px a 32px
-        btnContainer.style.textAlign = 'center';
-
-        const btnProgreso = document.createElement('button');
-
-        btnProgreso.id = 'btnProgresoIngresos';
-        btnProgreso.textContent = 'Ver detalle';
-        btnProgreso.className = 'btn btn-secondary btn-small';
-        btnProgreso.style.width = '100%';
-
-        btnProgreso.onclick = () => {
-            mostrarResumenCategorias('ingresos');
-        };
-
-        btnContainer.appendChild(btnProgreso);
-        targetCardIngresos.appendChild(btnContainer);
-    }
-    
-
 }
 
 // Actualizar gráfico mensual (línea)
@@ -542,260 +592,245 @@ function updateIncomeCategoryChart(ingresos) {
     }
 }
 
+function getUserRole() {
+    return window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
+}
+
+function isOperador() {
+    return getUserRole() === 'operador';
+}
+
+function canAccessPage(page) {
+    const role = getUserRole();
+
+    const operadorOnlyPages = [
+        'operaciones',
+        'remesas',
+        'tasas'
+    ];
+
+    if (role === 'usuario' && operadorOnlyPages.includes(page)) {
+        return false;
+    }
+
+    return true;
+}
+
+function canExecuteAction(action) {
+
+    const role = getUserRole();
+
+    const operadorOnlyActions = [
+        'create_operation',
+        'create_remesa',
+        'execute_remesa',
+        'delete_operation',
+        'admin_finance'
+    ];
+
+    if (role === 'usuario' && operadorOnlyActions.includes(action)) {
+        return false;
+    }
+
+    return true;
+}
+
 // Actualizar dashboard completo
 async function refreshDashboard() {
     await loadDashboardData();
-    await loadTasas();
+    await loadTasas?.();
 }
 
-// Inicializar dashboard
 function initDashboard() {
-    // Eventos de navegación
+
+    const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
+
+    // =========================
+    // FILTRO DE MENÚ POR ROL
+    // =========================
+    const sideMenuItems = document.querySelectorAll('#sideMenu .menu-item');
+
+    sideMenuItems.forEach(item => {
+        const page = item.dataset.page;
+
+        const operadorOnlyPages = [
+            'operaciones',
+            'remesas',
+            'tasas'
+        ];
+
+        if (role === 'usuario' && operadorOnlyPages.includes(page)) {
+            item.style.display = 'none';
+        }
+    });
+
+    // =========================
+    // NAVEGACIÓN
+    // =========================
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', () => {
             const page = item.dataset.page;
             showPage(page);
 
-            // Actualizar clase activa en menú
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             item.classList.add('active');
         });
     });
 
-    // Botón de logout
+    // =========================
+    // LOGOUT
+    // =========================
     const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            showConfirmModal(
-                '¿Cerrar sesión?',
-                () => {
-                    logoutUser();
-                },
-                'Cerrar Sesión'
-            );
-        });
-    }
+    logoutBtn?.addEventListener('click', () => {
+        showConfirmModal(
+            '¿Cerrar sesión?',
+            () => logoutUser(),
+            'Cerrar Sesión'
+        );
+    });
 
-    // Menú hamburguesa
+    // =========================
+    // MENÚ HAMBURGUESA
+    // =========================
     const menuToggle = document.getElementById('menuToggle');
     const sideMenu = document.getElementById('sideMenu');
     const closeMenu = document.getElementById('closeMenu');
 
-    if (menuToggle && sideMenu) {
-        menuToggle.addEventListener('click', () => {
-            sideMenu.classList.add('open');
-        });
+    menuToggle?.addEventListener('click', () => {
+        sideMenu?.classList.add('open');
+    });
 
-        if (closeMenu) {
-            closeMenu.addEventListener('click', () => {
-                sideMenu.classList.remove('open');
-            });
+    closeMenu?.addEventListener('click', () => {
+        sideMenu?.classList.remove('open');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (
+            sideMenu?.classList.contains('open') &&
+            !sideMenu.contains(e.target) &&
+            !menuToggle.contains(e.target)
+        ) {
+            sideMenu.classList.remove('open');
         }
+    });
 
-        // Cerrar menú al hacer clic fuera
-        document.addEventListener('click', (e) => {
-            if (
-                sideMenu.classList.contains('open') &&
-                !sideMenu.contains(e.target) &&
-                !menuToggle.contains(e.target)
-            ) {
-                sideMenu.classList.remove('open');
-            }
-        });
-    }
-
-    // Cerrar sidebar al hacer click en opciones (excepto logout y dark mode)
+    // =========================
+    // CERRAR SIDEBAR EN CLICK
+    // =========================
     const sideMenuLinks = document.querySelectorAll('#sideMenu a, #sideMenu button');
 
     sideMenuLinks.forEach(el => {
-        el.addEventListener('click', (e) => {
+        el.addEventListener('click', () => {
             const isLogout = el.id === 'btnLogout' || el.classList.contains('logout');
             const isDarkMode = el.id === 'toggleDarkMode' || el.classList.contains('dark-mode-toggle');
 
             if (!isLogout && !isDarkMode) {
-                sideMenu.classList.remove('open');
+                sideMenu?.classList.remove('open');
             }
         });
     });
 
-    // Cargar datos del dashboard al iniciar
+    // =========================
+    // DASHBOARD INIT
+    // =========================
     loadDashboardData();
     setupChartExpand();
 
-    // Eventos de filtros del dashboard
-    const btnAplicarDashboard = document.getElementById('btnAplicarFiltroDashboard');
-    const btnLimpiarDashboard = document.getElementById('btnLimpiarFiltroDashboard');
+    document.getElementById('btnAplicarFiltroDashboard')
+        ?.addEventListener('click', aplicarFiltroDashboard);
 
-    if (btnAplicarDashboard) {
-        btnAplicarDashboard.addEventListener('click', aplicarFiltroDashboard);
-    }
+    document.getElementById('btnLimpiarFiltroDashboard')
+        ?.addEventListener('click', limpiarFiltroDashboard);
 
-    if (btnLimpiarDashboard) {
-        btnLimpiarDashboard.addEventListener('click', limpiarFiltroDashboard);
-    }
-
-    // Cargar categorías del select
     actualizarSelectDashboardCategorias();
 
-    // Modal filtros
-    const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltros');
-
-    if (btnAbrirFiltros) {
-        btnAbrirFiltros.addEventListener('click', () => {
-            console.log('CLICK DASHBOARD FILTRO');
-
+    document.getElementById('btnAbrirModalFiltros')
+        ?.addEventListener('click', () => {
             window.filtroActivoPara = 'dashboard';
-
             abrirModalFiltros();
         });
-    }
 
-    const closeModalFiltros = document.getElementById('closeModalFiltros');
+    document.getElementById('closeModalFiltros')
+        ?.addEventListener('click', cerrarModalFiltros);
 
-    if (closeModalFiltros) {
-        closeModalFiltros.addEventListener('click', cerrarModalFiltros);
-    }
-
-    const modalFiltros = document.getElementById('modalFiltros');
-
-    if (modalFiltros) {
-        modalFiltros.addEventListener('click', (e) => {
-            if (e.target === modalFiltros) {
+    document.getElementById('modalFiltros')
+        ?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('modalFiltros')) {
                 cerrarModalFiltros();
             }
         });
-    }
 
-    // Botón limpiar filtro de la reseña
-    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroDashboardReseña');
+    document.getElementById('btnLimpiarFiltroDashboardReseña')
+        ?.addEventListener('click', limpiarFiltroDashboard);
 
-    if (btnLimpiarReseña) {
-        btnLimpiarReseña.addEventListener('click', () => {
-            limpiarFiltroDashboard();
-        });
-    }
+    document.getElementById('closeModalResumenCategorias')
+        ?.addEventListener('click', cerrarModalResumenCategorias);
 
-    const closeResumen = document.getElementById('closeModalResumenCategorias');
-
-    if (closeResumen) {
-        closeResumen.addEventListener('click', cerrarModalResumenCategorias);
-    }
-
-    const modalResumen = document.getElementById('modalResumenCategorias');
-
-    if (modalResumen) {
-        modalResumen.addEventListener('click', (e) => {
-            if (e.target === modalResumen) {
+    document.getElementById('modalResumenCategorias')
+        ?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('modalResumenCategorias')) {
                 cerrarModalResumenCategorias();
             }
         });
-    }
 
-    const closeModalResumen = document.getElementById('closeModalResumenCategorias');
-
-    if (closeModalResumen) {
-        closeModalResumen.addEventListener('click', cerrarModalResumenCategorias);
-    }
-
-    // Acordeón categorías
-    const toggleCategoriasGastos = document.getElementById('toggleCategoriasGastos');
-    const accordionCategoriasGastos = document.getElementById('accordionCategoriasGastos');
-
-    if (toggleCategoriasGastos && accordionCategoriasGastos) {
-
-        toggleCategoriasGastos.addEventListener('click', () => {
-
-            accordionCategoriasGastos.classList.toggle('hidden');
-
-            const icon =
-                toggleCategoriasGastos.querySelector('.accordion-icon');
-
-            if (icon) {
-                icon.classList.toggle('rotated');
-            }
+    document.getElementById('toggleCategoriasGastos')
+        ?.addEventListener('click', () => {
+            document.getElementById('accordionCategoriasGastos')?.classList.toggle('hidden');
         });
-    }
 
-    const toggleCategoriasIngresos = document.getElementById('toggleCategoriasIngresos');
-    const accordionCategoriasIngresos = document.getElementById('accordionCategoriasIngresos');
-
-    // En móvil iniciar acordeones cerrados
-    if (window.innerWidth <= 768) {
-
-        accordionCategoriasGastos?.classList.add('hidden');
-        accordionCategoriasIngresos?.classList.add('hidden');
-
-        const iconGastos =
-            toggleCategoriasGastos?.querySelector('.accordion-icon');
-
-        const iconIngresos =
-            toggleCategoriasIngresos?.querySelector('.accordion-icon');
-
-        iconGastos?.classList.add('rotated');
-        iconIngresos?.classList.add('rotated');
-    }
-
-    if (toggleCategoriasIngresos && accordionCategoriasIngresos) {
-
-        toggleCategoriasIngresos.addEventListener('click', () => {
-
-            accordionCategoriasIngresos.classList.toggle('hidden');
-
-            const icon =
-                toggleCategoriasIngresos.querySelector('.accordion-icon');
-
-            if (icon) {
-                icon.classList.toggle('rotated');
-            }
+    document.getElementById('toggleCategoriasIngresos')
+        ?.addEventListener('click', () => {
+            document.getElementById('accordionCategoriasIngresos')?.classList.toggle('hidden');
         });
-    }
 
-    // Nuevo gasto desde dashboard
-    const btnNuevoGastoDashboard =
-        document.getElementById('btnNuevoGastoDashboard');
-
-    if (btnNuevoGastoDashboard) {
-
-        btnNuevoGastoDashboard.addEventListener('click', async () => {
-
+    document.getElementById('btnNuevoGastoDashboard')
+        ?.addEventListener('click', async () => {
             await getCategoriasCache('gastos');
-
             showGastoModal();
         });
-    }
 
-    // Nuevo ingreso desde dashboard
-    const btnNuevoIngresoDashboard =
-        document.getElementById('btnNuevoIngresoDashboard');
-
-    if (btnNuevoIngresoDashboard) {
-
-        btnNuevoIngresoDashboard.addEventListener('click', async () => {
-
+    document.getElementById('btnNuevoIngresoDashboard')
+        ?.addEventListener('click', async () => {
             await getCategoriasCache('ingresos');
-
             showIngresoModal();
         });
+
+    // =========================
+    // REMESAS INIT
+    // =========================
+    if (typeof initRemesas === 'function') {
+        initRemesas();
     }
 }
 
 // Mostrar página seleccionada
 function showPage(page) {
+
+    // 🔥 PROTECCIÓN DE RUTA POR ROL
+    if (!canAccessPage(page)) {
+        console.warn('Acceso denegado a:', page);
+        showError('No tienes permisos para acceder a esta sección');
+        return;
+    }
+
     // Ocultar todas las páginas
     document.querySelectorAll('.page').forEach(p => {
         p.classList.remove('active');
     });
-    
+
     // Mostrar página seleccionada
-    const selectedPage = document.getElementById(`page${page.charAt(0).toUpperCase() + page.slice(1)}`);
+    const selectedPage = document.getElementById(
+        `page${page.charAt(0).toUpperCase() + page.slice(1)}`
+    );
+
     if (selectedPage) {
         selectedPage.classList.add('active');
     }
-    
-    // Actualizar el filtro activo para el modal central
+
+    // actualizar filtro activo
     window.filtroActivoPara = page;
-    
-    // Limpiar filtros según la página (se limpia TODO al cambiar)
+
+    // reset filtros
     if (page === 'gastos') {
         resetearFiltrosGastos();
     } else if (page === 'ingresos') {
@@ -803,8 +838,8 @@ function showPage(page) {
     } else if (page === 'dashboard') {
         resetearFiltrosDashboard();
     }
-    
-    // Cargar datos según la página
+
+    // cargar datos
     switch(page) {
         case 'dashboard':
             loadDashboardData();
@@ -815,32 +850,24 @@ function showPage(page) {
         case 'ingresos':
             loadIngresos();
             break;
-        case 'operaciones':
-            loadOperaciones();
+        case 'remesas':
+            loadRemesas?.();
             break;
         case 'tasas':
-            loadTasas();
+            loadTasas?.();
             break;
         case 'categorias':
-            if (typeof loadAdminCategorias === 'function') {
-                loadAdminCategorias();
-            }
+            loadAdminCategorias?.();
             break;
         case 'presupuestos':
-            if (typeof initPresupuestosEvents === 'function') {
-                initPresupuestosEvents();
-            }
+            initPresupuestosEvents?.();
             break;
         case 'historial':
-            if (typeof initHistorialEvents === 'function') {
-                initHistorialEvents();
-            } else if (typeof cargarHistorial === 'function') {
-                cargarHistorial();
-            }
+            cargarHistorial?.();
             break;
     }
-    
-    // Cerrar menú en móvil
+
+    // cerrar sidebar móvil
     const sideMenu = document.getElementById('sideMenu');
     if (sideMenu && window.innerWidth < 768) {
         sideMenu.classList.remove('open');
@@ -1033,7 +1060,7 @@ async function aplicarFiltroDashboard() {
                         clearInterval(intervaloParpadeoGastos);
                         intervaloParpadeoGastos = null;
                     }
-                }, 2000);
+                }, 1000);
             }
             if (btnLimpiar) btnLimpiar.style.display = 'flex';
         } else {
@@ -1588,6 +1615,16 @@ function cerrarModalResumenCategorias() {
     if (modal) {
         modal.classList.remove('active');
     }
+}
+
+function hasPermission(roleNeeded) {
+    const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
+
+    if (roleNeeded === 'operador') {
+        return role === 'operador';
+    }
+
+    return true;
 }
 
 console.log('✅ Módulo de dashboard cargado');

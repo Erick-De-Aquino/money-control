@@ -11,57 +11,65 @@ let isRecoveringPassword = false;
 async function initAuth() {
     try {
         const supabase = getSupabase();
-        
-        // Verificar sesión actual
+
+        // =========================
+        // SESSION ACTUAL
+        // =========================
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
             console.error('Error al obtener sesión:', error);
+            showLoginScreen();
             return false;
         }
-        
-        if (session) {
+
+        if (session?.user) {
+
             currentUser = session.user;
+            window.currentUser = session.user;
 
             console.log('✅ Usuario autenticado:', currentUser.email);
 
+            // 🔥 IMPORTANTE: sincronizar antes del dashboard
+            showDashboard();
+
         } else {
+            currentUser = null;
             showLoginScreen();
         }
-        
-        // Escuchar cambios en la autenticación
+
+        // =========================
+        // AUTH LISTENER
+        // =========================
         supabase.auth.onAuthStateChange((event, session) => {
 
-            console.log('🔥 EVENTO AUTH:', event);
-            console.log('🔥 SESSION:', session);
+            console.log('🔥 AUTH EVENT:', event);
 
-            if (event === 'PASSWORD_RECOVERY') {
-
-                console.log('PASSWORD_RECOVERY detectado');
-
-                isRecoveringPassword = true;
-
-                showResetPasswordScreen();
-
-                return;
-            }
-
-            if (event === 'SIGNED_IN' && session) {
-
-                if (isRecoveringPassword) {
-                    return;
-                }
+            if (event === 'SIGNED_IN' && session?.user) {
 
                 currentUser = session.user;
+                window.currentUser = session.user;
+
+                console.log('✅ LOGIN EVENT:', currentUser.email);
+
                 showDashboard();
-            } else if (event === 'SIGNED_OUT') {
+            }
+
+            if (event === 'SIGNED_OUT') {
                 currentUser = null;
+                window.currentUser = null;
                 showLoginScreen();
             }
+
+            if (event === 'PASSWORD_RECOVERY') {
+                isRecoveringPassword = true;
+                showResetPasswordScreen();
+            }
         });
-        
+
         authInitialized = true;
         return true;
+
     } catch (error) {
         console.error('Error en initAuth:', error);
         showLoginScreen();
@@ -148,23 +156,23 @@ async function loginUser(email, password) {
         showError('Correo y contraseña son obligatorios', 'loginMessage');
         return false;
     }
-    
+
     if (!isValidEmail(email)) {
         showError('Correo electrónico inválido', 'loginMessage');
         return false;
     }
-    
+
     try {
         const supabase = getSupabase();
-        
+
         const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
+            email,
+            password
         });
-        
+
         if (error) {
             console.error('Error de login:', error);
-            
+
             if (error.message.includes('Invalid login credentials')) {
                 showError('Correo o contraseña incorrectos', 'loginMessage');
             } else if (error.message.includes('Email not confirmed')) {
@@ -174,24 +182,48 @@ async function loginUser(email, password) {
             }
             return false;
         }
-        
-        if (data.user) {
-            currentUser = data.user;
-            showSuccess('¡Inicio de sesión exitoso!', 'loginMessage');
-            
-            // Limpiar formulario
-            document.getElementById('loginForm').reset();
-            
-            // Mostrar dashboard
-            showDashboard();
-            
-            // Cargar datos iniciales
-            loadDashboardData();
-            
-            return true;
+
+        if (!data?.user) return false;
+
+        currentUser = data.user;
+
+        // =========================
+        // 🔥 FIX CRÍTICO: persistencia usuario
+        // =========================
+        localStorage.setItem('user_id', currentUser.id);
+        localStorage.setItem('user_email', currentUser.email);
+
+        // 🔥 OBTENER ROLE DESDE SUPABASE
+        let role = 'usuario';
+
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+        if (profileError) {
+            console.warn('No se pudo obtener role, usando default:', profileError.message);
         }
-        
-        return false;
+
+        if (profile?.role) {
+            role = profile.role;
+        }
+
+        window.currentUserRole = role;
+        localStorage.setItem('user_role', role);
+
+        console.log('👤 Usuario logueado con role:', role);
+
+        showSuccess('¡Inicio de sesión exitoso!', 'loginMessage');
+
+        document.getElementById('loginForm')?.reset();
+
+        showDashboard();
+        loadDashboardData();
+
+        return true;
+
     } catch (error) {
         console.error('Error en loginUser:', error);
         showError(ERROR_MESSAGES.serverError, 'loginMessage');
@@ -365,11 +397,11 @@ function showDashboard() {
 
     // Cargar tasas al entrar
     if (typeof loadTasas === 'function') {
-        loadTasas();
+        loadTasas?.();
     }
     
     // Iniciar actualización periódica de tasas
-    startTasaInterval();
+    
 }
 
 // Mostrar pantalla de login
@@ -383,8 +415,8 @@ function showLoginScreen() {
         loginScreen.classList.add('active');
     }
     
-    // Detener actualización de tasas
-    stopTasaInterval();
+    // Detener actua?.lización de tasas
+    
 }
 
 function showResetPasswordScreen() {
@@ -406,7 +438,34 @@ function isAuthenticated() {
     return currentUser !== null;
 }
 
-// Obtener usuario actual
+// Obtener usuario actual (ROBUSTO + FALLBACK)
 function getCurrentUser() {
-    return currentUser;
+    try {
+        // 1. memoria global (login normal)
+        if (window.currentUser) return window.currentUser;
+
+        // 2. Supabase auth session
+        const supabase = getSupabase();
+        const user = supabase?.auth?.getUser?.()?.data?.user;
+
+        if (user) {
+            window.currentUser = user;
+            return user;
+        }
+
+        // 3. fallback localStorage (si existe sesión vieja)
+        const storedUser = localStorage.getItem('supabase_user');
+
+        if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            window.currentUser = parsed;
+            return parsed;
+        }
+
+        return null;
+
+    } catch (error) {
+        console.error('Error en getCurrentUser:', error);
+        return null;
+    }
 }

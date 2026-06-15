@@ -213,8 +213,7 @@
                     <li><button data-page="dashboard" class="menu-item active">Dashboard</button></li>
                     <li><button data-page="gastos" class="menu-item">Gastos</button></li>
                     <li><button data-page="ingresos" class="menu-item">Ingresos</button></li>
-                    <li><button data-page="operaciones" class="menu-item">Operaciones</button></li>
-                    <li><button data-page="tasas" class="menu-item">Tasas de Cambio</button></li>
+                    <li><button data-page="remesas" class="menu-item">Remesas</button></li>
                     <li><button data-page="categorias" class="menu-item">Admin de Categorías</button></li>
                     <li><button data-page="presupuestos" class="menu-item">Presupuestos</button></li>
                     <li><button data-page="historial" class="menu-item">Historial de Presupuestos</button></li>
@@ -374,11 +373,11 @@
                 <!-- Página Ingresos -->
                 <div id="pageIngresos" class="page">
                     <div class="page-header">
-                    <h2>Ingresos</h2>
-                </div>
+                        <h2>Ingresos</h2>
+                    </div>
 
-                <!-- Controles de Ingresos -->
-                <div class="filtros-movil-container" style="margin-bottom: 1rem;">
+                    <!-- Controles de Ingresos -->
+                    <div class="filtros-movil-container" style="margin-bottom: 1rem;">
 
                     <div class="filtro-reseña-wrapper">
                         <span id="filtroReseñaIngresos" class="filtro-reseña-normal" style="display: none;">
@@ -406,7 +405,7 @@
 
                     </div>
 
-                </div>
+                    </div>
                     
                     <!-- Total de ingresos filtrados -->
                     <div class="total-filtrado" style="background: var(--primary); padding: 0.75rem; border-radius: var(--border-radius-md); margin-bottom: 1rem; text-align: center;">
@@ -418,41 +417,34 @@
                     </div>
                 </div>
                 
-                <!-- Página Operaciones -->
-                <div id="pageOperaciones" class="page">
+                <!-- Página Remesas -->
+                <div id="pageRemesas" class="page">
                     <div class="page-header">
-                        <h2>Intercambios</h2>
-                        <button id="btnAddOperacion" class="btn btn-primary btn-small">+ Nueva Operación</button>
+                        <h2>Remesas</h2>
+                        <button id="btnAddRemesa" class="btn btn-primary btn-small">
+                            + Nueva Remesa
+                        </button>
                     </div>
-                    <div id="operacionesList" class="items-list">
-                        <p class="empty-message">No hay operaciones registradas</p>
+
+                    <!-- PANEL DE TASA EN VIVO -->
+                    <div class="remesas-rate-panel">
+                        <div class="rate-card">
+                            <span>USDT → BS</span>
+                            <span id="rateUSDT_BS">--</span>
+                        </div>
+
+                        <div class="rate-card">
+                            <span>EUR → USDT</span>
+                            <span id="rateEUR_USDT">--</span>
+                        </div>
+                    </div>
+
+                    <!-- LISTA DE REMESAS -->
+                    <div id="remesasList" class="items-list">
+                        <p class="empty-message">No hay remesas registradas</p>
                     </div>
                 </div>
                 
-                <!-- Página Tasas -->
-                <div id="pageTasas" class="page">
-                    <div class="page-header">
-                        <h2>Tasas de Cambio</h2>
-                        <button id="btnRefreshTasas" class="btn btn-secondary btn-small">🔄 Actualizar</button>
-                    </div>
-                    <div id="tasasInfo" class="tasas-container">
-                        <div class="tasa-card">
-                            <span class="tasa-label">USDT → EUR</span>
-                            <span class="tasa-value" id="tasaUSDT_EUR">--</span>
-                        </div>
-                        <div class="tasa-card">
-                            <span class="tasa-label">BS → EUR</span>
-                            <span class="tasa-value" id="tasaBS_EUR">--</span>
-                        </div>
-                    </div>
-                    <div id="tasasHistory" class="tasas-history">
-                        <h3>Historial de tasas guardadas</h3>
-                        <div id="tasasList" class="items-list">
-                            <p class="empty-message">No hay tasas guardadas</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Página Categorías -->
                 <div id="pageCategorias" class="page">
                     <div class="page-header">
@@ -578,6 +570,7 @@
                         <p class="empty-message">No hay presupuestos para este período</p>
                     </div>
                 </div>
+                
                 <!-- Página Historial de Presupuestos -->
                 <div id="pageHistorial" class="page">
                     <div class="page-header">
@@ -623,6 +616,7 @@
                     <div id="historialList" class="historial-container">
                         <p class="empty-message">No hay historial de presupuestos</p>
                     </div>
+                </div>
             </main>
         </div>
     </div>
@@ -717,6 +711,76 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Remesas -->
+    <div id="modalRemesas" class="modal">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h3>Nueva Remesa</h3>
+                <button class="modal-close" id="btnCancelRemesa">&times;</button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label>Monto enviado (EUR)</label>
+                    <input type="number" id="remesaMontoEUR">
+                </div>
+
+                <div class="form-group">
+                    <label>Tasa USDT → BS (Binance)</label>
+                    <input type="number" id="remesaTasa" step="0.01" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Comisión (%)</label>
+                    <input type="number" id="remesaComision" value="12">
+                </div>
+
+                <hr>
+
+                <div id="contenidoResumenCategorias">
+
+                    <p>BS a entregar: <strong id="resBS">0</strong></p>
+
+                    <p>USDT necesarios: <strong id="resUSDT">0</strong></p>
+
+                    <p>EUR Cost: <strong id="resEURCost">0</strong></p>
+
+                    <p>Ganancia: <strong id="resGananciaCalc">0</strong></p>
+
+                </div>
+
+                <div class="form-group">
+                    <label>Ganancia real (opcional)</label>
+                    <input
+                        type="number"
+                        id="remesaGananciaReal"
+                        step="0.01"
+                    >
+                </div>
+
+                <div class="form-actions">
+
+                    <button
+                        id="btnCerrarRemesa"
+                        class="btn btn-secondary">
+                        Cancelar
+                    </button>
+
+                    <button
+                        id="btnExecuteRemesa"
+                        class="btn btn-primary">
+                        Ejecutar
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    </div>
     
     <!-- JavaScript -->
     <script src="js/categorias.js"></script>
@@ -727,8 +791,8 @@
     <script src="js/gastos.js"></script>
     <script src="js/ingresos.js"></script>
     <script src="js/operaciones.js"></script>
-    <script src="js/tasas.js"></script>
     <script src="js/dashboard.js"></script>
+    <script src="js/remesas.js"></script>
     <script src="js/presupuesto.js"></script>
     <script src="js/historial.js"></script>
     <script src="js/app.js"></script>

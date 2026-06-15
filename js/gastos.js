@@ -17,33 +17,45 @@ let filtroGastos = {
 async function loadGastos() {
     try {
         const supabase = getSupabase();
-        let query = supabase.from(TABLES.gastos).select('*');
-        
+
+        const userId = getCurrentUser()?.id;
+
+        if (!userId || userId === 'undefined') {
+            console.error('No user ID en gastos');
+            return [];
+        }
+
+        let query = supabase
+            .from(TABLES.gastos)
+            .select('*')
+            .eq('user_id', userId);
+
         if (filtroGastos.desde) {
             query = query.gte('fecha', filtroGastos.desde);
         }
+
         if (filtroGastos.hasta) {
             query = query.lte('fecha', filtroGastos.hasta);
         }
+
         if (filtroGastos.categoria) {
             query = query.eq('categoria', filtroGastos.categoria);
         }
-        
+
         const { data, error } = await query.order('fecha', { ascending: false });
-        
+
         if (error) {
             console.error('Error al cargar gastos:', error);
-            showError('Error al cargar los gastos');
+            showError?.('Error al cargar los gastos');
             return [];
         }
-        
+
         gastosList = data || [];
-        displayGastos();
-        
-        // Calcular total solo si hay filtros activos
+        displayGastos?.();
+
         const hayFiltros = filtroGastos.desde || filtroGastos.hasta || filtroGastos.categoria;
         const totalElement = document.getElementById('totalGastosFiltrados');
-        
+
         if (totalElement) {
             if (hayFiltros) {
                 const total = gastosList.reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
@@ -52,15 +64,14 @@ async function loadGastos() {
                 totalElement.textContent = formatCurrency(0, 'EUR');
             }
         }
-        
+
         return gastosList;
-        
+
     } catch (error) {
         console.error('Error en loadGastos:', error);
         return [];
     }
 }
-
 // Cargar categorías de gastos desde Supabase (CACHE OPTIMIZADO)
 async function getGastosCategoriasCached() {
 
