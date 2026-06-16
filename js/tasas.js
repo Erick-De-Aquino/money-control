@@ -9,6 +9,7 @@ let currentTasas = {
     BS_EUR: null
 };
 
+/*
 // Cargar tasas desde Supabase (caché)
 async function loadTasasFromCache() {
     try {
@@ -43,6 +44,7 @@ async function loadTasasFromCache() {
         return null;
     }
 }
+*/
 
 // Obtener tasa de Binance
 async function getTasaBinance(symbol) {
@@ -101,6 +103,7 @@ async function getTasaBS_EUR() {
     }
 }
 
+/*
 // Actualizar todas las tasas
 async function updateAllTasas() {
     console.log('🔄 Actualizando tasas de cambio...');
@@ -206,6 +209,7 @@ async function displayTasasHistory(tasas) {
         </div>
     `).join('');
 }
+*/
 
 // Convertir monto a EUR
 async function convertToEUR(monto, moneda) {
@@ -234,6 +238,7 @@ async function convertToEUR(monto, moneda) {
     return monto * tasa;
 }
 
+/*
 // Iniciar actualización periódica de tasas (cada 5 minutos)
 function startTasaInterval() {
     if (tasaInterval) {
@@ -256,7 +261,9 @@ function stopTasaInterval() {
         tasaInterval = null;
     }
 }
+*/
 
+/*
 // Cargar tasas (función principal)
 async function loadTasas() {
     // Primero cargar desde caché
@@ -265,6 +272,7 @@ async function loadTasas() {
     // Luego actualizar desde APIs
     await updateAllTasas?.();
 }
+*/
 
 /*console.log('✅ Módulo de tasas cargado');*/
 

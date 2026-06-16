@@ -395,11 +395,13 @@ function showDashboard() {
         loadIngresosCategorias();
     }
 
+    /*
     // Cargar tasas al entrar
     if (typeof loadTasas === 'function') {
         loadTasas?.();
     }
-    
+    */
+
     // Iniciar actualización periódica de tasas
     
 }
