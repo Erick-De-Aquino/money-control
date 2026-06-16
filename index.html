@@ -729,49 +729,118 @@
                 </div>
 
                 <div class="form-group">
+
                     <label>Tasa USDT → BS (Binance)</label>
-                    <input type="number" id="remesaTasa" step="0.01" readonly>
+
+                    <div class="input-with-button">
+
+                        <input
+                            type="number"
+                            id="remesaTasa"
+                            step="0.01"
+                            readonly
+                        >
+
+                        <button
+                            type="button"
+                            id="btnRefreshRemesaRate"
+                            class="btn btn-secondary"
+                        >
+                            ↻
+                        </button>
+
+                    </div>
+
+                    <small id="remesaRateTime"></small>
+
+                    <div class="rate-extra-info">
+
+                        <small id="remesaBancoInfo">
+                            Banco: --
+                        </small>
+
+                        <small id="remesaVendedorInfo">
+                            Proveedor: --
+                        </small>
+
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>Oferta Binance</label>
+
+                    <select id="remesaOfferSelect">
+
+                        <option value="">
+                            Mejor oferta disponible
+                        </option>
+
+                    </select>
+
                 </div>
 
                 <div class="form-group">
                     <label>Comisión (%)</label>
-                    <input type="number" id="remesaComision" value="12">
+                    <input
+                        type="number"
+                        id="remesaComision"
+                        value="12"
+                    >
                 </div>
 
                 <hr>
 
                 <div id="contenidoResumenCategorias">
 
-                    <p>BS a entregar: <strong id="resBS">0</strong></p>
+                    <p>
+                        BS a entregar:
+                        <strong id="resBS">0</strong>
+                    </p>
 
-                    <p>USDT necesarios: <strong id="resUSDT">0</strong></p>
+                    <p>
+                        USDT necesarios:
+                        <strong id="resUSDT">0</strong>
+                    </p>
 
-                    <p>EUR Cost: <strong id="resEURCost">0</strong></p>
+                    <p>
+                        EUR Cost:
+                        <strong id="resEURCost">0</strong>
+                    </p>
 
-                    <p>Ganancia: <strong id="resGananciaCalc">0</strong></p>
+                    <p>
+                        Ganancia:
+                        <strong id="resGananciaCalc">0</strong>
+                    </p>
 
                 </div>
 
                 <div class="form-group">
+
                     <label>Ganancia real (opcional)</label>
+
                     <input
                         type="number"
                         id="remesaGananciaReal"
                         step="0.01"
                     >
+
                 </div>
 
                 <div class="form-actions">
 
                     <button
                         id="btnCerrarRemesa"
-                        class="btn btn-secondary">
+                        class="btn btn-secondary"
+                    >
                         Cancelar
                     </button>
 
                     <button
                         id="btnExecuteRemesa"
-                        class="btn btn-primary">
+                        class="btn btn-primary"
+                    >
                         Ejecutar
                     </button>
 
