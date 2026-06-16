@@ -25,6 +25,11 @@ async function calculateRemesa() {
 
     const rates = await getBinanceRates();
 
+    const tasaInput = document.getElementById('remesaTasa');
+    if (tasaInput) {
+        tasaInput.value = rates.usdt_bs;
+    }
+
     const bsWithFee = rates.usdt_bs - (rates.usdt_bs * comision / 100);
     const bsTotal = eur * bsWithFee;
     const usdtNeeded = bsTotal / rates.usdt_bs;
@@ -32,12 +37,24 @@ async function calculateRemesa() {
 
     const gananciaCalc = eur - eurCost;
 
-    document.getElementById('resBS').textContent = bsTotal.toFixed(2);
-    document.getElementById('resUSDT').textContent = usdtNeeded.toFixed(2);
-    document.getElementById('resEURCost').textContent = eurCost.toFixed(2);
-    document.getElementById('resGananciaCalc').textContent = gananciaCalc.toFixed(2);
+    document.getElementById('resBS').textContent =
+        `${bsTotal.toFixed(2)} Bs`;
 
-    return { bsTotal, usdtNeeded, eurCost, gananciaCalc };
+    document.getElementById('resUSDT').textContent =
+        `${usdtNeeded.toFixed(2)} USDT`;
+
+    document.getElementById('resEURCost').textContent =
+        `€ ${eurCost.toFixed(2)}`;
+
+    document.getElementById('resGananciaCalc').textContent =
+        `€ ${gananciaCalc.toFixed(2)}`;
+
+    return {
+        bsTotal,
+        usdtNeeded,
+        eurCost,
+        gananciaCalc
+    };
 }
 
 // ============================================
@@ -277,6 +294,22 @@ function closeRemesasModal() {
     if (!modal) return;
 
     modal.classList.remove('active');
+}
+
+async function updateRemesasRatesPanel() {
+
+    const rates = await getBinanceRates();
+
+    const usdtBs = document.getElementById('rateUSDT_BS');
+    const eurUsdt = document.getElementById('rateEUR_USDT');
+
+    if (usdtBs) {
+        usdtBs.textContent = rates.usdt_bs.toFixed(2);
+    }
+
+    if (eurUsdt) {
+        eurUsdt.textContent = rates.eur_usdt.toFixed(2);
+    }
 }
 
 console.log('🚀 REMESAS MODULE READY');

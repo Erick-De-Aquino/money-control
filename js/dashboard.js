@@ -97,6 +97,7 @@ async function loadDashboardData() {
         // REMESAS
         // =========================
         const remesas = (await loadRemesas?.()) || [];
+        await updateRemesasRatesPanel?.();
 
         // =========================
         // CALCULOS
