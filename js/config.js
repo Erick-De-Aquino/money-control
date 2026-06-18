@@ -46,7 +46,8 @@ const TABLES = {
     operaciones: 'operaciones',
     tasas: 'tasas',
     usuario_config: 'usuario_config',
-    remesas: 'remesas'
+    remesas: 'remesas',
+    remesas_config: 'remesas_config'
 };
 
 // Mensajes de error

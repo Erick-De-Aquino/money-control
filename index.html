@@ -419,30 +419,33 @@
                 
                 <!-- Página Remesas -->
                 <div id="pageRemesas" class="page">
+
                     <div class="page-header">
+
                         <h2>Remesas</h2>
-                        <button id="btnAddRemesa" class="btn btn-primary btn-small">
-                            + Nueva Remesa
-                        </button>
-                    </div>
 
-                    <!-- PANEL DE TASA EN VIVO -->
-                    <div class="remesas-rate-panel">
-                        <div class="rate-card">
-                            <span>USDT → BS</span>
-                            <span id="rateUSDT_BS">--</span>
+                        <div class="header-actions">
+
+                            <button
+                                id="btnAddRemesa"
+                                class="btn btn-primary btn-small"
+                            >
+                                + Nueva Remesa
+                            </button>
+
                         </div>
 
-                        <div class="rate-card">
-                            <span>EUR → USDT</span>
-                            <span id="rateEUR_USDT">--</span>
-                        </div>
                     </div>
 
                     <!-- LISTA DE REMESAS -->
                     <div id="remesasList" class="items-list">
-                        <p class="empty-message">No hay remesas registradas</p>
+
+                        <p class="empty-message">
+                            No hay remesas registradas
+                        </p>
+
                     </div>
+
                 </div>
                 
                 <!-- Página Categorías -->
@@ -712,136 +715,84 @@
         </div>
     </div>
 
-    <!-- Modal Remesas -->
-    <div id="modalRemesas" class="modal">
+    <!-- Modal Nueva Remesa -->
+    <div id="modalRemesa" class="modal">
+
         <div class="modal-content">
 
             <div class="modal-header">
+
                 <h3>Nueva Remesa</h3>
-                <button class="modal-close" id="btnCancelRemesa">&times;</button>
+
+                <button class="modal-close" id="btnCloseRemesa">&times;</button>
+
             </div>
 
             <div class="modal-body">
 
-                <div class="form-group">
-                    <label>Monto enviado (EUR)</label>
-                    <input type="number" id="remesaMontoEUR">
+                <h4>Datos de entrada</h4>
+
+                <div class="form-group" id="grupoEuros">
+                    <label>Euros enviados (€)</label>
+                    <input type="number" id="remesaEuros" step="0.01">
                 </div>
 
                 <div class="form-group">
-
-                    <label>Tasa USDT → BS (Binance)</label>
-
-                    <div class="input-with-button">
-
-                        <input
-                            type="number"
-                            id="remesaTasa"
-                            step="0.01"
-                            readonly
-                        >
-
-                        <button
-                            type="button"
-                            id="btnRefreshRemesaRate"
-                            class="btn btn-secondary"
-                        >
-                            ↻
-                        </button>
-
-                    </div>
-
-                    <small id="remesaRateTime"></small>
-
-                    <div class="rate-extra-info">
-
-                        <small id="remesaBancoInfo">
-                            Banco: --
-                        </small>
-
-                        <small id="remesaVendedorInfo">
-                            Proveedor: --
-                        </small>
-
-                    </div>
-
+                    <label>Tasa EUR → USDT</label>
+                    <input type="number" id="remesaTasaEuroUsdt" step="0.0001">
                 </div>
 
                 <div class="form-group">
-
-                    <label>Oferta Binance</label>
-
-                    <select id="remesaOfferSelect">
-
-                        <option value="">
-                            Mejor oferta disponible
-                        </option>
-
-                    </select>
-
+                    <label>Tasa USDT → Bs</label>
+                    <input type="number" id="remesaTasaUsdtBs" step="0.001">
                 </div>
 
                 <div class="form-group">
                     <label>Comisión (%)</label>
-                    <input
-                        type="number"
-                        id="remesaComision"
-                        value="12"
-                    >
+                    <input type="number" id="remesaComision" step="0.1" value="10">
                 </div>
 
                 <hr>
 
-                <div id="contenidoResumenCategorias">
+                <h4>Resumen</h4>
 
-                    <p>
-                        BS a entregar:
-                        <strong id="resBS">0</strong>
-                    </p>
+                <div class="remesa-summary">
 
-                    <p>
-                        USDT necesarios:
-                        <strong id="resUSDT">0</strong>
-                    </p>
+                    <div class="summary-row">
+                        <span>Euros utilizados</span>
+                        <strong id="resEurosUtilizados">0,00 €</strong>
+                    </div>
 
-                    <p>
-                        EUR Cost:
-                        <strong id="resEURCost">0</strong>
-                    </p>
+                    <div class="summary-row">
+                        <span>USDT a comprar</span>
+                        <strong id="resUsdtComprar">0,00</strong>
+                    </div>
 
-                    <p>
-                        Ganancia:
-                        <strong id="resGananciaCalc">0</strong>
-                    </p>
+                    <div class="summary-row">
+                        <span>USDT a vender</span>
+                        <strong id="resUsdtVender">0,00</strong>
+                    </div>
 
-                </div>
+                    <div class="summary-row">
+                        <span>Bolívares a transferir</span>
+                        <strong id="resBsNetos">0,00 Bs</strong>
+                    </div>
 
-                <div class="form-group">
-
-                    <label>Ganancia real (opcional)</label>
-
-                    <input
-                        type="number"
-                        id="remesaGananciaReal"
-                        step="0.01"
-                    >
+                    <div class="summary-row summary-profit">
+                        <span>Ganancia</span>
+                        <strong id="resGananciaEuros">0,00 €</strong>
+                    </div>
 
                 </div>
 
                 <div class="form-actions">
 
-                    <button
-                        id="btnCerrarRemesa"
-                        class="btn btn-secondary"
-                    >
+                    <button id="btnCancelRemesa" class="btn btn-secondary">
                         Cancelar
                     </button>
 
-                    <button
-                        id="btnExecuteRemesa"
-                        class="btn btn-primary"
-                    >
-                        Ejecutar
+                    <button id="btnSaveRemesa" class="btn btn-primary">
+                        Guardar
                     </button>
 
                 </div>
@@ -849,6 +800,82 @@
             </div>
 
         </div>
+
+    </div>
+
+    <div id="modalConfirmRemesa" class="modal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3>Confirmar remesa</h3>
+
+                <button
+                    id="btnCloseConfirmRemesa"
+                    class="modal-close">
+                    &times;
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="summary-row">
+                    <span>Cliente pagó</span>
+                    <strong id="confMontoEur">0 €</strong>
+                </div>
+
+                <div class="summary-row">
+                    <span>USDT utilizados</span>
+                    <strong id="confUsdtComprar">0</strong>
+                </div>
+
+                <div class="summary-row">
+                    <span>Bolívares enviados</span>
+                    <strong id="confBsTotal">0 Bs</strong>
+                </div>
+
+                <div class="summary-row">
+                    <span>Ganancia calculada</span>
+                    <strong id="confGananciaCalculada">0 €</strong>
+                </div>
+
+                <div class="form-group">
+
+                    <label>Ganancia real</label>
+
+                    <input
+                        id="confirmGananciaReal"
+                        type="number"
+                        step="0.01">
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    id="btnCancelConfirmRemesa"
+                    class="btn btn-secondary">
+
+                    Cancelar
+
+                </button>
+
+                <button
+                    id="btnSaveConfirmRemesa"
+                    class="btn btn-primary">
+
+                    Confirmar
+
+                </button>
+
+            </div>
+
+        </div>
+
     </div>
     
     <!-- JavaScript -->

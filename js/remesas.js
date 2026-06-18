@@ -3,436 +3,98 @@ window.remesasModule = window.remesasModule || {};
 window.remesasModule.remesasList = window.remesasModule.remesasList || [];
 window.remesasModule.editingRemesaId = null;
 
+let currentRemesa = null;
 const getState = () => window.remesasModule;
 
-// ============================================
-// BINANCE MOCK
-// ============================================
-async function getBinanceRates() {
-
-    try {
-
-        const response = await fetch(
-            "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    asset: "USDT",
-                    fiat: "VES",
-                    page: 1,
-                    rows: 5,
-                    tradeType: "SELL"
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        const offers = data.data.map(item => ({
-            precio: parseFloat(item.adv.price),
-            banco:
-                item.adv.tradeMethods?.[0]?.tradeMethodName || "N/D",
-            vendedor:
-                item.advertiser?.nickName || "N/D"
-        }));
-
-        offers.sort((a, b) => b.precio - a.precio);
-
-        const bestOffer = offers[0];
-
-        const eur_usdt = await getTasaBinance("EUR");
-
-        return {
-            usdt_bs: bestOffer.precio,
-            eur_usdt,
-            banco: bestOffer.banco,
-            vendedor: bestOffer.vendedor,
-            offers
-        };
-
-    } catch (err) {
-
-        console.error("Error obteniendo Binance P2P:", err);
-
-        return {
-            usdt_bs: 785,
-            eur_usdt: 1.16,
-            banco: "N/D",
-            vendedor: "N/D",
-            offers: []
-        };
-    }
-}
-
-async function refreshRemesaRate() {
-
-    const rates = await getBinanceRates();
-
-    const tasaInput =
-        document.getElementById('remesaTasa');
-
-    if (tasaInput) {
-        tasaInput.value = rates.usdt_bs;
-    }
-
-    const bancoInfo =
-        document.getElementById('remesaBancoInfo');
-
-    if (bancoInfo) {
-        bancoInfo.textContent =
-            `Banco: ${rates.banco}`;
-    }
-
-    const vendedorInfo =
-        document.getElementById('remesaVendedorInfo');
-
-    if (vendedorInfo) {
-        vendedorInfo.textContent =
-            `Proveedor: ${rates.vendedor}`;
-    }
-
-    const rateTime =
-        document.getElementById('remesaRateTime');
-
-    if (rateTime) {
-        rateTime.textContent =
-            `Actualizada: ${new Date().toLocaleTimeString()}`;
-    }
-
-    // Guardar ofertas disponibles
-    window.currentRemesaOffers =
-        rates.offers || [];
-
-    const offerSelect =
-        document.getElementById('remesaOfferSelect');
-
-    if (offerSelect) {
-
-        // guardar selección actual
-        const selectedValue =
-            offerSelect.value;
-
-        offerSelect.innerHTML = `
-            <option value="">
-                Mejor oferta disponible
-            </option>
-        `;
-
-        (rates.offers || []).forEach((offer, index) => {
-
-            offerSelect.innerHTML += `
-                <option value="${index}">
-                    ${offer.banco} | ${offer.vendedor} | ${offer.precio}
-                </option>
-            `;
-
-        });
-
-        // restaurar selección si sigue existiendo
-        if (
-            selectedValue !== '' &&
-            rates.offers?.[selectedValue]
-        ) {
-            offerSelect.value = selectedValue;
-        }
-    }
-
-    await calculateRemesa();
-}
-
-// ============================================
-// CALCULO REMESA
-// ============================================
-async function calculateRemesa() {
-
-    const eur =
-        parseFloat(
-            document.getElementById('remesaMontoEUR')?.value || 0
-        );
-
-    const comision =
-        parseFloat(
-            document.getElementById('remesaComision')?.value || 0
-        );
-
-    const rates = await getBinanceRates();
-
-    // Oferta seleccionada
-    const offerSelect =
-        document.getElementById('remesaOfferSelect');
-
-    let tasaSeleccionada = rates.usdt_bs;
-
-    if (
-        offerSelect &&
-        offerSelect.value !== '' &&
-        window.currentRemesaOffers?.length
-    ) {
-
-        const selectedOffer =
-            window.currentRemesaOffers[
-                parseInt(offerSelect.value)
-            ];
-
-        if (selectedOffer) {
-            tasaSeleccionada = selectedOffer.precio;
-        }
-    }
-
-    const tasaInput =
-        document.getElementById('remesaTasa');
-
-    if (tasaInput) {
-        tasaInput.value = tasaSeleccionada;
-    }
-
-    const bsWithFee =
-        tasaSeleccionada -
-        (tasaSeleccionada * comision / 100);
-
-    const bsTotal =
-        eur * bsWithFee;
-
-    const usdtNeeded =
-        bsTotal / tasaSeleccionada;
-
-    const eurCost =
-        usdtNeeded / rates.eur_usdt;
-
-    const gananciaCalc =
-        eur - eurCost;
-
-    document.getElementById('resBS').textContent =
-        `${bsTotal.toFixed(2)} BS`;
-
-    document.getElementById('resUSDT').textContent =
-        `${usdtNeeded.toFixed(2)} USDT`;
-
-    document.getElementById('resEURCost').textContent =
-        `€ ${eurCost.toFixed(2)}`;
-
-    document.getElementById('resGananciaCalc').textContent =
-        `€ ${gananciaCalc.toFixed(2)}`;
-
-    return {
-        bsTotal,
-        usdtNeeded,
-        eurCost,
-        gananciaCalc
-    };
-}
-
-// ============================================
-// INIT REMESAS (ENTRY POINT)
-// ============================================
 window.initRemesas = function () {
 
     const btn = document.getElementById('btnAddRemesa');
-    const modal = document.getElementById('modalRemesas');
+    const modal = document.getElementById('modalRemesa');
+    const confirmModal = document.getElementById('modalConfirmRemesa');
 
     if (!btn || !modal) return;
 
-    if (btn.dataset.bound === '1') return;
-    btn.dataset.bound = '1';
+    if (!window.remesasModalInit) {
+        initRemesasModal();
+        window.remesasModalInit = true;
+    }
 
-    updateRemesasRatesPanel();
+    if (!window.confirmRemesaModalInit) {
+        initConfirmRemesaModal();
+        window.confirmRemesaModalInit = true;
+    }
 
-    setInterval(updateRemesasRatesPanel, 3000);
+    if (!btn.dataset.bound) {
 
-    btn.addEventListener('click', () => {
+        btn.addEventListener('click', () => {
 
-        modal.classList.add('active');
+            modal.classList.add('active');
 
-        if (!window.remesasModalInit) {
-            initRemesasModal();
-            window.remesasModalInit = true;
-        }
+            if (typeof calculateRemesa === 'function') {
+                calculateRemesa();
+            }
 
-        if (typeof calculateRemesa === 'function') {
-            calculateRemesa();
-        }
-    });
+        });
 
-    // cerrar al hacer click fuera
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeRemesasModal();
-        }
-    });
+        btn.dataset.bound = '1';
+    }
+
+    if (!modal.dataset.bound) {
+
+        modal.addEventListener('click', (e) => {
+
+            if (e.target === modal) {
+                closeRemesasModal();
+            }
+
+        });
+
+        modal.dataset.bound = '1';
+
+    }
+
+    if (confirmModal && !confirmModal.dataset.bound) {
+
+        confirmModal.addEventListener('click', (e) => {
+
+            if (e.target === confirmModal) {
+                closeConfirmRemesaModal();
+            }
+
+        });
+
+        confirmModal.dataset.bound = '1';
+
+    }
+
 };
 
-// ============================================
-// INIT MODAL EVENTS
-// ============================================
 function initRemesasModal() {
 
-    const modal = document.getElementById('modalRemesas');
+    const modal = document.getElementById('modalRemesa');
     if (!modal) return;
 
-    const eurInput = document.getElementById('remesaMontoEUR');
-    const comInput = document.getElementById('remesaComision');
-    const offerSelect = document.getElementById('remesaOfferSelect');
+    bindRemesaEvents();
 
-    if (eurInput && !eurInput.dataset.bound) {
+    [
+        ['btnCancelRemesa', closeRemesasModal],
+        ['btnCloseRemesa', closeRemesasModal],
+        ['btnSaveRemesa', saveRemesa]
+    ].forEach(([id, handler]) => {
 
-        eurInput.addEventListener('input', () => {
+        const btn = document.getElementById(id);
 
-            if (typeof calculateRemesa === 'function') {
-                calculateRemesa();
-            }
+        if (!btn || btn.dataset.bound) return;
 
-        });
+        btn.addEventListener('click', handler);
+        btn.dataset.bound = '1';
 
-        eurInput.dataset.bound = '1';
-    }
+    });
 
-    if (comInput && !comInput.dataset.bound) {
-
-        comInput.addEventListener('input', () => {
-
-            if (typeof calculateRemesa === 'function') {
-                calculateRemesa();
-            }
-
-        });
-
-        comInput.dataset.bound = '1';
-    }
-
-    // NUEVO: recalcular al cambiar oferta
-    if (offerSelect && !offerSelect.dataset.bound) {
-
-        offerSelect.addEventListener('change', () => {
-
-            if (typeof calculateRemesa === 'function') {
-                calculateRemesa();
-            }
-
-        });
-
-        offerSelect.dataset.bound = '1';
-    }
-
-    const btnRefreshRate =
-        document.getElementById('btnRefreshRemesaRate');
-
-    if (btnRefreshRate && !btnRefreshRate.dataset.bound) {
-
-        btnRefreshRate.addEventListener(
-            'click',
-            refreshRemesaRate
-        );
-
-        btnRefreshRate.dataset.bound = '1';
-    }
-
-    const btnExecute =
-        document.getElementById('btnExecuteRemesa');
-
-    if (btnExecute && !btnExecute.dataset.bound) {
-
-        btnExecute.addEventListener(
-            'click',
-            saveRemesa
-        );
-
-        btnExecute.dataset.bound = '1';
-    }
-
-    const btnCancelHeader =
-        document.getElementById('btnCancelRemesa');
-
-    if (btnCancelHeader && !btnCancelHeader.dataset.bound) {
-
-        btnCancelHeader.addEventListener(
-            'click',
-            closeRemesasModal
-        );
-
-        btnCancelHeader.dataset.bound = '1';
-    }
-
-    const btnCancelFooter =
-        document.getElementById('btnCerrarRemesa');
-
-    if (btnCancelFooter && !btnCancelFooter.dataset.bound) {
-
-        btnCancelFooter.addEventListener(
-            'click',
-            closeRemesasModal
-        );
-
-        btnCancelFooter.dataset.bound = '1';
-    }
-
-    if (typeof refreshRemesaRate === 'function') {
-        refreshRemesaRate();
-    }
 }
 
-// ============================================
-// SAVE REMESA
-// ============================================
-async function saveRemesa() {
-
-    try {
-
-        const eur = parseFloat(document.getElementById('remesaMontoEUR')?.value || 0);
-        const gananciaManual = parseFloat(document.getElementById('remesaGananciaReal')?.value);
-
-        if (isNaN(eur) || eur <= 0) {
-            showError?.('Monto inválido');
-            return;
-        }
-
-        const calc = await calculateRemesa();
-
-        const supabase = getSupabase();
-        const userId = getCurrentUser()?.id;
-
-        if (!userId || userId === 'undefined') {
-            showError?.('Usuario no válido');
-            return;
-        }
-
-        const { error } = await supabase
-            .from(TABLES.remesas)
-            .insert([{
-                fecha: new Date().toISOString(),
-                monto_eur: eur,
-                bs_total: calc.bsTotal,
-                usdt_necesarios: calc.usdtNeeded,
-                ganancia_calculada: calc.gananciaCalc,
-                ganancia_real: isNaN(gananciaManual) ? null : gananciaManual,
-                status: 'pending',
-                user_id: userId
-            }]);
-
-        if (error) {
-            console.error('saveRemesa error:', error);
-            showError?.('Error guardando remesa');
-            return;
-        }
-
-        showSuccess?.('Remesa guardada');
-
-        closeRemesasModal();
-        await loadRemesas?.();
-
-    } catch (err) {
-        console.error('saveRemesa exception:', err);
-        showError?.('Error inesperado');
-    }
-}
-
-// ============================================
-// LOAD REMESAS
-// ============================================
 async function loadRemesas() {
-
+    
     try {
 
         const supabase = getSupabase();
@@ -470,9 +132,6 @@ async function loadRemesas() {
     }
 }
 
-// ============================================
-// RENDER
-// ============================================
 function renderRemesas() {
 
     const container = document.getElementById('remesasList');
@@ -491,15 +150,27 @@ function renderRemesas() {
             <div class="item-info">
 
                 <div class="item-title">
-                    EUR: ${r.monto_eur}
+                    EUR: ${Number(r.monto_eur).toFixed(2)}
                 </div>
 
                 <div class="item-subtitle">
-                    BS: ${r.bs_total || 0} | USDT: ${r.usdt_necesarios || 0}
+                    EUR utilizados: ${Number(r.euros_utilizados || 0).toFixed(2)}
                 </div>
 
                 <div class="item-subtitle">
-                    Ganancia: ${r.ganancia_calculada || 0} EUR
+                    USDT comprados: ${Number(r.usdt_comprar || 0).toFixed(2)}
+                </div>
+
+                <div class="item-subtitle">
+                    BS: ${Number(r.bs_total || 0).toFixed(2)}  
+                </div>
+
+                <div class="item-subtitle">
+                    Ganancia: ${Number(r.ganancia_calculada || 0).toFixed(2)} EUR
+                </div>
+
+                <div class="item-subtitle">
+                    Ganancia real: ${Number(r.ganancia_real || 0).toFixed(2)} EUR
                 </div>
 
                 <div class="item-subtitle">
@@ -508,34 +179,439 @@ function renderRemesas() {
 
             </div>
 
+            <div class="item-actions">
+
+                ${r.status === 'pending' ? `
+                    <button
+                        class="btn btn-primary btn-small"
+                        onclick="openConfirmRemesaModalById('${r.id}')">
+                        Confirmar
+                    </button>
+                ` : ''}
+
+            </div>
+
         </div>
     `).join('');
 }
 
-// ============================================
-// CLOSE MODAL (FIX FINAL)
-// ============================================
 function closeRemesasModal() {
-    const modal = document.getElementById('modalRemesas');
+    const modal = document.getElementById('modalRemesa');
     if (!modal) return;
 
     modal.classList.remove('active');
 }
 
-async function updateRemesasRatesPanel() {
-    
-    const rates = await getBinanceRates();
+function bindRemesaEvents() {
 
-    const usdtBs = document.getElementById('rateUSDT_BS');
-    const eurUsdt = document.getElementById('rateEUR_USDT');
+    [
+        'remesaEuros',
+        'remesaTasaEuroUsdt',
+        'remesaTasaUsdtBs',
+        'remesaComision'
+    ].forEach(id => {
 
-    if (usdtBs) {
-        usdtBs.textContent = rates.usdt_bs.toFixed(2);
-    }
+        const input = document.getElementById(id);
 
-    if (eurUsdt) {
-        eurUsdt.textContent = rates.eur_usdt.toFixed(4);
-    }
+        if (!input || input.dataset.bound) return;
+
+        input.addEventListener('input', calculateRemesa);
+        input.dataset.bound = '1';
+
+    });
+
 }
 
-console.log('🚀 REMESAS MODULE READY');
+function calculateRemesa() {
+
+    const eurosCliente = parseFloat(document.getElementById('remesaEuros')?.value) || 0;
+    const tasaEUR = parseFloat(document.getElementById('remesaTasaEuroUsdt')?.value) || 0;
+    const tasaBS = parseFloat(document.getElementById('remesaTasaUsdtBs')?.value) || 0;
+
+    const comisionPorcentaje = parseFloat(document.getElementById('remesaComision')?.value) || 0;
+    const comision = comisionPorcentaje / 100;
+
+    const modo = document.querySelector('input[name="remesaModo"]:checked')?.value || 'euros';
+
+    // Si faltan datos, limpiar resultados
+    if (eurosCliente <= 0 || tasaEUR <= 0 || tasaBS <= 0) {
+
+        currentRemesa = {
+            modo,
+            eurosCliente: 0,
+            eurosUtilizados: 0,
+            usdtComprar: 0,
+            usdtVender: 0,
+            bsBrutos: 0,
+            bsComision: 0,
+            bsNetos: 0,
+            ganancia: 0,
+            tasaEUR,
+            tasaBS,
+            comisionPorcentaje,
+            comision
+        };
+
+        updateRemesaSummary();
+        return;
+    }
+
+    // Cálculos
+    const bsBrutos = eurosCliente * tasaBS;
+
+    const bsComision = bsBrutos * comision;
+
+    const bsNetos = bsBrutos - bsComision;
+
+    const usdtVender = bsNetos / tasaBS;
+
+    const usdtComprar = usdtVender;
+
+    const eurosUtilizados = usdtComprar * tasaEUR;
+
+    const ganancia = eurosCliente - eurosUtilizados;
+
+    currentRemesa = {
+
+        modo,
+
+        eurosCliente,
+
+        eurosUtilizados,
+
+        usdtComprar,
+
+        usdtVender,
+
+        bsBrutos,
+
+        bsComision,
+
+        bsNetos,
+
+        ganancia,
+
+        tasaEUR,
+
+        tasaBS,
+
+        comisionPorcentaje,
+
+        comision
+
+    };
+
+    updateRemesaSummary();
+
+}
+
+function updateRemesaSummary() {
+
+    if (!currentRemesa) {
+        document.getElementById('resEurosUtilizados').textContent = '0.00 €';
+        document.getElementById('resUsdtComprar').textContent = '0.00';
+        document.getElementById('resUsdtVender').textContent = '0.00';
+        document.getElementById('resBsNetos').textContent = '0.00 Bs';
+        document.getElementById('resGananciaEuros').textContent = '0.00 €';
+        return;
+    }
+
+    document.getElementById('resEurosUtilizados').textContent =
+        `${currentRemesa.eurosUtilizados.toFixed(2)} €`;
+
+    document.getElementById('resUsdtComprar').textContent =
+        currentRemesa.usdtComprar.toFixed(2);
+
+    document.getElementById('resUsdtVender').textContent =
+        currentRemesa.usdtVender.toFixed(2);
+
+    document.getElementById('resBsNetos').textContent =
+        `${currentRemesa.bsNetos.toFixed(2)} Bs`;
+
+    document.getElementById('resGananciaEuros').textContent =
+        `${currentRemesa.ganancia.toFixed(2)} €`;
+}
+
+async function saveRemesa() {
+
+    try {
+
+        if (
+            !currentRemesa ||
+            currentRemesa.eurosCliente <= 0
+        ) {
+            alert('No hay una remesa válida para guardar.');
+            return;
+        }
+
+        const supabase = getSupabase();
+
+        if (!supabase) {
+            throw new Error('Supabase no está inicializado.');
+        }
+
+        const userId = getCurrentUser()?.id;
+
+        if (!userId) {
+            throw new Error('No hay un usuario autenticado.');
+        }
+
+        const registro = {
+
+            user_id: userId,
+
+            fecha: new Date().toISOString(),
+
+            modo: currentRemesa.modo,
+
+            monto_eur: currentRemesa.eurosCliente,
+
+            euros_utilizados: currentRemesa.eurosUtilizados,
+
+            usdt_necesarios: currentRemesa.usdtComprar,
+
+            usdt_comprar: currentRemesa.usdtComprar,
+
+            usdt_vender: currentRemesa.usdtVender,
+
+            bs_brutos: currentRemesa.bsBrutos,
+
+            bs_comision: currentRemesa.bsComision,
+
+            bs_total: currentRemesa.bsNetos,
+
+            ganancia_calculada: currentRemesa.ganancia,
+
+            ganancia_real: null,
+
+            tasa_euro_usdt: currentRemesa.tasaEUR,
+
+            tasa_usdt_bs: currentRemesa.tasaBS,
+
+            comision_pct: currentRemesa.comisionPorcentaje,
+
+            status: 'pending'
+
+        };
+
+        const { data, error } = await supabase
+            .from(TABLES.remesas)
+            .insert(registro)
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        console.log('Remesa guardada:', data);
+
+        currentRemesa = null;
+
+        if (typeof resetRemesaForm === 'function') {
+            resetRemesaForm();
+        }
+
+        await loadRemesas();
+
+        closeRemesasModal();
+
+    } catch (err) {
+
+        console.error('saveRemesa:', err);
+
+        alert(
+            'No se pudo guardar la remesa.\n\n' +
+            (err.message || err)
+        );
+
+    }
+
+}
+
+async function saveConfirmRemesa() {
+    console.log('saveConfirmRemesa ejecutada');
+    try {
+
+        const remesa = window.currentConfirmRemesa;
+
+        if (!remesa) return;
+
+        const gananciaReal = parseFloat(
+            document.getElementById('confirmGananciaReal').value
+        );
+
+        if (isNaN(gananciaReal) || gananciaReal < 0) {
+
+            alert('Ingrese una ganancia válida.');
+
+            return;
+
+        }
+
+        const supabase = getSupabase();
+
+        const { error: updateError } = await supabase
+            .from(TABLES.remesas)
+            .update({
+
+                status: 'completed',
+
+                ganancia_real: gananciaReal
+
+            })
+            .eq('id', remesa.id);
+
+        if (updateError) throw updateError;
+
+        const { error: ingresoError } = await supabase
+            .from(TABLES.ingresos)
+            .insert({
+
+                user_id: remesa.user_id,
+
+                fecha: new Date().toISOString().slice(0,10),
+
+                origen: 'Remesas',
+
+                monto: gananciaReal,
+
+                monto_eur: gananciaReal,
+
+                moneda: 'EUR',
+
+                descripcion: `Remesa #${remesa.id}`,
+
+                remesa_id: remesa.id
+
+            });
+
+        if (ingresoError) throw ingresoError;
+
+        closeConfirmRemesaModal();
+
+        window.currentConfirmRemesa = null;
+
+        await loadRemesas();
+
+        if (typeof loadIngresos === 'function') {
+
+            await loadIngresos();
+
+        }
+
+        alert('Remesa confirmada correctamente.');
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message || err);
+
+    }
+
+}
+
+function initConfirmRemesaModal() {
+
+    [
+        ['btnCancelConfirmRemesa', closeConfirmRemesaModal],
+        ['btnCloseConfirmRemesa', closeConfirmRemesaModal],
+        ['btnSaveConfirmRemesa', saveConfirmRemesa]
+    ].forEach(([id, handler]) => {
+
+        const btn = document.getElementById(id);
+
+        if (!btn || btn.dataset.bound) return;
+
+        btn.addEventListener('click', handler);
+
+        btn.dataset.bound = '1';
+
+    });
+
+}
+
+function openConfirmRemesaModal(remesa) {
+    console.log('openConfirmRemesaModal', remesa);
+    window.currentConfirmRemesa = remesa;
+
+    document.getElementById('confMontoEur').textContent =
+        Number(remesa.monto_eur).toFixed(2) + ' €';
+
+    document.getElementById('confUsdtComprar').textContent =
+        Number(remesa.usdt_necesarios).toFixed(2);
+
+    document.getElementById('confBsTotal').textContent =
+        Number(remesa.bs_total).toFixed(2) + ' Bs';
+
+    document.getElementById('confGananciaCalculada').textContent =
+        Number(remesa.ganancia_calculada).toFixed(2) + ' €';
+
+    document.getElementById('confirmGananciaReal').value =
+        Number(remesa.ganancia_calculada).toFixed(2);
+
+    initConfirmRemesaModal();
+
+    document
+        .getElementById('modalConfirmRemesa')
+        .classList.add('active');
+
+}
+
+function closeConfirmRemesaModal() {
+
+    window.currentConfirmRemesa = null;
+
+    document
+        .getElementById('modalConfirmRemesa')
+        .classList.remove('active');
+
+}
+
+function resetRemesaForm() {
+
+    [
+        'remesaEuros',
+        'remesaTasaEuroUsdt',
+        'remesaTasaUsdtBs',
+        'remesaComision'
+    ].forEach(id => {
+
+        const input = document.getElementById(id);
+
+        if (input) {
+            input.value = '';
+        }
+
+    });
+
+    const radio = document.querySelector(
+        'input[name="remesaModo"][value="euros"]'
+    );
+
+    if (radio) {
+        radio.checked = true;
+    }
+
+    currentRemesa = null;
+
+    updateRemesaSummary();
+
+}
+
+function openConfirmRemesaModalById(id) {
+    console.log('openConfirmRemesaModalById', id);
+    const remesa = getState().remesasList.find(r => r.id == id);
+
+    if (!remesa) return;
+
+    openConfirmRemesaModal(remesa);
+
+}
+
+window.openConfirmRemesaModalById = openConfirmRemesaModalById;
+
+window.openConfirmRemesaModal = openConfirmRemesaModal;
+
