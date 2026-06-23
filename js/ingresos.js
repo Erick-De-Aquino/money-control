@@ -551,34 +551,6 @@ async function initIngresosEvents() {
     const btnAddIngreso = document.getElementById('btnAddIngreso');
     if (btnAddIngreso) {
         btnAddIngreso.addEventListener('click', async () => {
-            await getCategoriasCache('ingresos');
-            showIngresoModal();
-        });
-    }
-
-    const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosIngresos');
-    if (btnAbrirFiltros) {
-        btnAbrirFiltros.addEventListener('click', () => {
-            window.filtroActivoPara = 'ingresos';
-            abrirModalFiltros();
-        });
-    }
-
-    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroIngresosReseña');
-    if (btnLimpiarReseña) {
-        btnLimpiarReseña.addEventListener('click', limpiarFiltroIngresos);
-    }
-
-    // precarga segura
-    await getCategoriasCache('ingresos');
-
-    resetearFiltrosIngresos?.();
-}
-
-async function initIngresosEvents() {
-    const btnAddIngreso = document.getElementById('btnAddIngreso');
-    if (btnAddIngreso) {
-        btnAddIngreso.addEventListener('click', async () => {
             showIngresoModal();
         });
     }
@@ -595,6 +567,11 @@ async function initIngresosEvents() {
     if (btnLimpiarReseña) {
         btnLimpiarReseña.addEventListener('click', limpiarFiltroIngresos);
     }
+
+    initExportMenu('btnExportIngresos', {
+        onCSV: () => exportarIngresosCSV(),
+        onPDF: () => exportarIngresosPDF()
+    });
 
     resetearFiltrosIngresos?.();
 }

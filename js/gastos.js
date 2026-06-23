@@ -532,6 +532,11 @@ async function initGastosEvents() {
         btnLimpiarReseña.addEventListener('click', limpiarFiltroGastos);
     }
 
+    initExportMenu('btnExportGastos', {
+        onCSV: () => exportarGastosCSV(),
+        onPDF: () => exportarGastosPDF()
+    });
+
     resetearFiltrosGastos?.();
 }
 

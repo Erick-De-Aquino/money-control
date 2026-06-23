@@ -121,30 +121,39 @@ let filtroActual = '';
 
 async function loadCategoriasAdmin(filtro = '') {
     filtroActual = filtro;
+
     try {
         const supabase = getSupabase();
-        
+
         // Cargar gastos
         const { data: gastos, error: errorGastos } = await supabase
             .from('categorias')
             .select('*')
             .eq('tipo', 'gasto')
             .order('nombre');
-        
+
         if (errorGastos) console.error('Error cargando categorías de gastos:', errorGastos);
-        
+
         // Cargar ingresos
         const { data: ingresos, error: errorIngresos } = await supabase
             .from('categorias')
             .select('*')
             .eq('tipo', 'ingreso')
             .order('nombre');
-        
+
         if (errorIngresos) console.error('Error cargando categorías de ingresos:', errorIngresos);
-        
+
+        // Guardar los datos actuales para exportación
+        window.categoriasGastos = gastos || [];
+        window.categoriasIngresos = ingresos || [];
+
         // Mostrar en UI con filtro
-        displayCategoriasAdmin(gastos || [], ingresos || [], filtro);
-        
+        displayCategoriasAdmin(
+            window.categoriasGastos,
+            window.categoriasIngresos,
+            filtro
+        );
+
     } catch (error) {
         console.error('Error en loadCategoriasAdmin:', error);
     }
@@ -411,12 +420,12 @@ function initCategoriasAdminEvents() {
     if (btnAddGasto) {
         btnAddGasto.onclick = () => showAddCategoriaModal('gasto');
     }
-    
+
     const btnAddIngreso = document.getElementById('btnAddCategoriaIngreso');
     if (btnAddIngreso) {
         btnAddIngreso.onclick = () => showAddCategoriaModal('ingreso');
     }
-    
+
     // Barra de búsqueda
     const searchInput = document.getElementById('searchCategorias');
     if (searchInput) {
@@ -425,15 +434,10 @@ function initCategoriasAdminEvents() {
         });
     }
 
-    const btnExportCategorias = document.getElementById('btnExportCategorias');
-    if (btnExportCategorias) {
-        btnExportCategorias.addEventListener('click', async () => {
-            const supabase = getSupabase();
-            const { data: gastos } = await supabase.from('categorias').select('*').eq('tipo', 'gasto');
-            const { data: ingresos } = await supabase.from('categorias').select('*').eq('tipo', 'ingreso');
-            exportCategoriasToCSV(gastos || [], ingresos || []);
-        });
-    }
+    initExportMenu('btnExportCategorias', {
+        onCSV: exportarCategoriasCSV,
+        onPDF: exportarCategoriasPDF
+    });
 }
 
 console.log('✅ Módulo de categorías cargado');

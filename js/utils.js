@@ -225,6 +225,121 @@ function exportToCSV(data, filename, columns) {
     showSuccess('Exportación completada');
 }
 
+/**
+ * Exporta datos a PDF.
+ *
+ * @param {Array} data
+ * @param {string} filename
+ * @param {Array} headers
+ * @param {Array} columns
+ * @param {string} title
+ * @param {Object|null} summary
+ */
+function exportToPDF(
+    data,
+    filename,
+    headers,
+    columns,
+    title,
+    summary = null
+) {
+
+    if (!data || data.length === 0) {
+        showError('No hay datos para exportar');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+
+    const doc = new jsPDF();
+
+    // Título
+    doc.setFontSize(18);
+    doc.text(title, 14, 18);
+
+    // Fecha
+    doc.setFontSize(10);
+    doc.text(
+        `Generado: ${new Date().toLocaleString()}`,
+        14,
+        26
+    );
+
+    // Tabla principal
+    doc.autoTable({
+        head: [headers],
+        body: data.map(row => columns.map(col => row[col] ?? '')),
+        startY: 34,
+        styles: {
+            fontSize: 9
+        },
+        headStyles: {
+            fillColor: [88, 93, 174]
+        }
+    });
+
+    // Resumen (opcional)
+    if (summary) {
+
+        let y = doc.lastAutoTable.finalY + 12;
+
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Resumen', 14, y);
+
+        y += 6;
+
+        doc.autoTable({
+            startY: y,
+            head: [[
+                summary.groupTitle,
+                'Transacciones',
+                'Total',
+                '%'
+            ]],
+            body: summary.items.map(item => [
+                item.nombre,
+                item.cantidad,
+                item.total.toFixed(2),
+                item.porcentaje.toFixed(1) + ' %'
+            ]),
+            styles: {
+                fontSize: 9
+            },
+            headStyles: {
+                fillColor: [88, 93, 174]
+            },
+            columnStyles: {
+                1: { halign: 'right' },
+                2: { halign: 'right' },
+                3: { halign: 'right' }
+            }
+        });
+
+        y = doc.lastAutoTable.finalY + 8;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+
+        doc.text(
+            `Total de transacciones: ${summary.totalTransacciones}`,
+            14,
+            y
+        );
+
+        y += 6;
+
+        doc.text(
+            `Monto total: ${summary.totalMonto.toFixed(2)}`,
+            14,
+            y
+        );
+
+    }
+
+    doc.save(`${filename}.pdf`);
+}
+
 // Modal de confirmación personalizado
 function showConfirmModal(message, onConfirm, title = 'Confirmar') {
     const modal = document.getElementById('confirmModal');
@@ -278,6 +393,96 @@ function exportGastosToCSV(gastos) {
     exportToCSV(data, 'gastos', headers, columns);
 }
 
+// Exportar gastos mostrados en pantalla
+function exportarGastosCSV() {
+    exportGastosToCSV(gastosList || []);
+}
+
+// Exportar gastos mostrados en pantalla a PDF
+function exportarGastosPDF() {
+
+    if (!gastosList || gastosList.length === 0) {
+        showError('No hay gastos para exportar');
+        return;
+    }
+
+    const headers = [
+        '#',
+        'Fecha',
+        'Categoría',
+        'Monto',
+        'Moneda',
+        'Descripción'
+    ];
+
+    const columns = [
+        'numero',
+        'fecha',
+        'categoria',
+        'monto',
+        'moneda',
+        'descripcion'
+    ];
+
+    const data = gastosList.map((g, index) => ({
+        numero: index + 1,
+        fecha: formatDate(g.fecha, 'short'),
+        categoria: g.categoria || 'Sin categoría',
+        monto: g.monto,
+        moneda: g.moneda,
+        descripcion: g.descripcion || ''
+    }));
+
+    // Construir resumen
+    const totalMonto = gastosList.reduce(
+        (sum, g) => sum + Number(g.monto),
+        0
+    );
+
+    const categorias = {};
+
+    gastosList.forEach(g => {
+
+        const categoria = g.categoria || 'Sin categoría';
+
+        if (!categorias[categoria]) {
+            categorias[categoria] = {
+                nombre: categoria,
+                cantidad: 0,
+                total: 0
+            };
+        }
+
+        categorias[categoria].cantidad++;
+        categorias[categoria].total += Number(g.monto);
+
+    });
+
+    const summary = {
+        groupTitle: 'Categoría',
+        totalTransacciones: gastosList.length,
+        totalMonto,
+        items: Object.values(categorias)
+            .map(item => ({
+                ...item,
+                porcentaje: totalMonto > 0
+                    ? item.total * 100 / totalMonto
+                    : 0
+            }))
+            .sort((a, b) => b.total - a.total)
+    };
+
+    exportToPDF(
+        data,
+        'gastos',
+        headers,
+        columns,
+        'Listado de Gastos',
+        summary
+    );
+
+}
+
 // Exportar ingresos a CSV
 function exportIngresosToCSV(ingresos) {
     if (!ingresos || ingresos.length === 0) {
@@ -300,7 +505,96 @@ function exportIngresosToCSV(ingresos) {
     exportToCSV(data, 'ingresos', headers, columns);
 }
 
-// Exportar ingresos a CSV
+// Exportar ingresos mostrados en pantalla
+function exportarIngresosCSV() {
+    exportIngresosToCSV(ingresosList || []);
+}
+
+// Exportar ingresos mostrados en pantalla a PDF
+function exportarIngresosPDF() {
+
+    if (!ingresosList || ingresosList.length === 0) {
+        showError('No hay ingresos para exportar');
+        return;
+    }
+
+    const headers = [
+        '#',
+        'Fecha',
+        'Origen',
+        'Monto',
+        'Moneda',
+        'Descripción'
+    ];
+
+    const columns = [
+        'numero',
+        'fecha',
+        'origen',
+        'monto',
+        'moneda',
+        'descripcion'
+    ];
+
+    const data = ingresosList.map((i, index) => ({
+        numero: index + 1,
+        fecha: formatDate(i.fecha, 'short'),
+        origen: i.origen || 'Sin origen',
+        monto: i.monto,
+        moneda: i.moneda,
+        descripcion: i.descripcion || ''
+    }));
+
+    // Construir resumen
+    const totalMonto = ingresosList.reduce(
+        (sum, i) => sum + Number(i.monto),
+        0
+    );
+
+    const origenes = {};
+
+    ingresosList.forEach(i => {
+
+        const origen = i.origen || 'Sin origen';
+
+        if (!origenes[origen]) {
+            origenes[origen] = {
+                nombre: origen,
+                cantidad: 0,
+                total: 0
+            };
+        }
+
+        origenes[origen].cantidad++;
+        origenes[origen].total += Number(i.monto);
+
+    });
+
+    const summary = {
+        groupTitle: 'Origen',
+        totalTransacciones: ingresosList.length,
+        totalMonto,
+        items: Object.values(origenes)
+            .map(item => ({
+                ...item,
+                porcentaje: totalMonto > 0
+                    ? item.total * 100 / totalMonto
+                    : 0
+            }))
+            .sort((a, b) => b.total - a.total)
+    };
+
+    exportToPDF(
+        data,
+        'ingresos',
+        headers,
+        columns,
+        'Listado de Ingresos',
+        summary
+    );
+
+}
+
 // Exportar datos a CSV
 function exportToCSV(data, filename, headers, columns) {
     if (!data || data.length === 0) {
@@ -349,6 +643,56 @@ function exportCategoriasToCSV(categoriasGastos, categoriasIngresos) {
     const headers = ['Nombre', 'Tipo'];
     
     exportToCSV(todas, 'categorias', headers, columns);
+}
+
+// Exportar categorías mostradas en pantalla
+function exportarCategoriasCSV() {
+    exportCategoriasToCSV(
+        window.categoriasGastos || [],
+        window.categoriasIngresos || []
+    );
+}
+
+// Exportar categorías mostradas en pantalla a PDF
+function exportarCategoriasPDF() {
+
+    const categoriasGastos = window.categoriasGastos || [];
+    const categoriasIngresos = window.categoriasIngresos || [];
+
+    const todas = [
+        ...categoriasGastos.map(c => ({
+            nombre: c.nombre,
+            tipo: 'Gasto'
+        })),
+        ...categoriasIngresos.map(c => ({
+            nombre: c.nombre,
+            tipo: 'Ingreso'
+        }))
+    ];
+
+    if (todas.length === 0) {
+        showError('No hay categorías para exportar');
+        return;
+    }
+
+    const headers = [
+        'Nombre',
+        'Tipo'
+    ];
+
+    const columns = [
+        'nombre',
+        'tipo'
+    ];
+
+    exportToPDF(
+        todas,
+        'categorias',
+        headers,
+        columns,
+        'Listado de Categorías'
+    );
+
 }
 
 // ===== MODO OSCURO =====
@@ -430,6 +774,141 @@ function initPasswordToggles() {
             }
         });
     });
+}
+
+/**
+ * Inicializa un menú desplegable para exportar datos.
+ *
+ * @param {string} buttonId - ID del botón que abrirá el menú.
+ * @param {Object} options
+ * @param {Function} options.onCSV - Función que se ejecutará al seleccionar CSV.
+ * @param {Function} options.onPDF - Función que se ejecutará al seleccionar PDF.
+ */
+function initExportMenu(buttonId, { onCSV, onPDF }) {
+
+    const button = document.getElementById(buttonId);
+
+    if (!button) return;
+
+    // Evita inicializar dos veces el mismo botón
+    if (button.dataset.exportMenuInitialized === 'true') return;
+    button.dataset.exportMenuInitialized = 'true';
+
+    const css = getComputedStyle(document.documentElement);
+
+    const bgCard = css.getPropertyValue('--bg-card').trim();
+    const bgHover = css.getPropertyValue('--bg-hover').trim();
+    const text = css.getPropertyValue('--text-primary').trim();
+    const border = css.getPropertyValue('--border-light').trim();
+
+    // Crear menú
+    const menu = document.createElement('div');
+    menu.className = 'export-menu-dropdown';
+
+    menu.innerHTML = `
+        <button type="button" class="export-menu-item export-csv">
+            <i class="fas fa-file-csv"></i>
+            CSV
+        </button>
+
+        <button type="button" class="export-menu-item export-pdf">
+            <i class="fas fa-file-pdf"></i>
+            PDF
+        </button>
+    `;
+
+    Object.assign(menu.style, {
+        position: 'absolute',
+        display: 'none',
+        minWidth: '170px',
+        backgroundColor: bgCard,
+        color: text,
+        border: `1px solid ${border}`,
+        borderRadius: '8px',
+        boxShadow: '0 6px 18px rgba(0,0,0,.15)',
+        overflow: 'hidden',
+        zIndex: '99999'
+    });
+
+    document.body.appendChild(menu);
+
+    // Estilo de los botones
+    menu.querySelectorAll('.export-menu-item').forEach(item => {
+
+        Object.assign(item.style, {
+            width: '100%',
+            padding: '10px 14px',
+            border: 'none',
+            backgroundColor: bgCard,
+            color: text,
+            cursor: 'pointer',
+            textAlign: 'left',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+        });
+
+        item.addEventListener('mouseenter', () => {
+            item.style.backgroundColor = bgHover;
+        });
+
+        item.addEventListener('mouseleave', () => {
+            item.style.backgroundColor = bgCard;
+        });
+
+    });
+
+    // Abrir/Cerrar menú
+    button.addEventListener('click', function (e) {
+
+        e.stopPropagation();
+
+        const rect = button.getBoundingClientRect();
+
+        menu.style.left = `${rect.left + window.scrollX}px`;
+        menu.style.top = `${rect.bottom + window.scrollY + 5}px`;
+
+        menu.style.display =
+            menu.style.display === 'block'
+                ? 'none'
+                : 'block';
+
+    });
+
+    // Exportar CSV
+    menu.querySelector('.export-csv').addEventListener('click', function (e) {
+
+        e.stopPropagation();
+
+        menu.style.display = 'none';
+
+        if (typeof onCSV === 'function') {
+            onCSV();
+        }
+
+    });
+
+    // Exportar PDF
+    menu.querySelector('.export-pdf').addEventListener('click', function (e) {
+
+        e.stopPropagation();
+
+        menu.style.display = 'none';
+
+        if (typeof onPDF === 'function') {
+            onPDF();
+        }
+
+    });
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', function () {
+
+        menu.style.display = 'none';
+
+    });
+
 }
 
 console.log('✅ Utilidades cargadas correctamente');
