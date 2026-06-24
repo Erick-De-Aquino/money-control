@@ -1,8 +1,8 @@
 {
-  "name": "Elara finanzas nuevo",
-  "short_name": "Elara finanzas",
+  "name": "Elara finanzas",
+  "short_name": "Elara",
   "description": "Gestión financiera personal",
-  "start_url": "/",
+  "start_url": "/money-control/",
   "display": "standalone",
   "background_color": "#5A5F69",
   "theme_color": "#5A5F69",
