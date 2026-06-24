@@ -4,8 +4,8 @@
   "description": "Gestión financiera personal",
   "start_url": "/money-control/",
   "display": "standalone",
-  "background_color": "#5A5F69",
-  "theme_color": "#5A5F69",
+  "background_color": "#6B4E7E",
+  "theme_color": "#6B4E7E",
   "icons": [
     {
       "src": "/money-control/icons/icon/icon-192.png",
