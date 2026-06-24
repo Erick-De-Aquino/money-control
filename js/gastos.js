@@ -10,7 +10,7 @@ let editingGastoId = null;
 let filtroGastos = {
     desde: '',
     hasta: '',
-    categoria: ''
+    categoria: []
 };
 
 // Cargar gastos desde Supabase
@@ -38,10 +38,6 @@ async function loadGastos() {
             query = query.lte('fecha', filtroGastos.hasta);
         }
 
-        if (filtroGastos.categoria) {
-            query = query.eq('categoria', filtroGastos.categoria);
-        }
-
         const { data, error } = await query.order('fecha', { ascending: false });
 
         if (error) {
@@ -51,17 +47,44 @@ async function loadGastos() {
         }
 
         gastosList = data || [];
+
+        // FILTRO MULTICATEGORÍA
+        if (
+            Array.isArray(filtroGastos.categoria) &&
+            filtroGastos.categoria.length > 0
+        ) {
+            gastosList = gastosList.filter(g =>
+                filtroGastos.categoria.includes(g.categoria)
+            );
+        }
+
         displayGastos?.();
 
-        const hayFiltros = filtroGastos.desde || filtroGastos.hasta || filtroGastos.categoria;
+        const hayFiltros =
+            filtroGastos.desde ||
+            filtroGastos.hasta ||
+            (
+                Array.isArray(filtroGastos.categoria) &&
+                filtroGastos.categoria.length > 0
+            );
+
         const totalElement = document.getElementById('totalGastosFiltrados');
 
         if (totalElement) {
             if (hayFiltros) {
-                const total = gastosList.reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
-                totalElement.textContent = formatCurrency(total, 'EUR');
+
+                const total = gastosList.reduce(
+                    (sum, g) => sum + (g.monto_eur || g.monto),
+                    0
+                );
+
+                totalElement.textContent =
+                    formatCurrency(total, 'EUR');
+
             } else {
-                totalElement.textContent = formatCurrency(0, 'EUR');
+
+                totalElement.textContent =
+                    formatCurrency(0, 'EUR');
             }
         }
 
@@ -157,6 +180,7 @@ function displayGastos() {
 
 // Mostrar modal para agregar/editar gasto
 async function showGastoModal(gasto = null) {
+    console.log("aqui esta el fitro de gastos")
     editingGastoId = gasto ? gasto.id : null;
 
     const categorias = await getCategoriasCache('gastos');
@@ -393,66 +417,124 @@ async function loadCategoriasGastosConDatos() {
         return [];
     }
 }
-
+/*
 async function aplicarFiltroGastos() {
-    // Tomar valores del modal
-    filtroGastos.desde = document.getElementById('filtroGastosDesdeModal')?.value || '';
-    filtroGastos.hasta = document.getElementById('filtroGastosHastaModal')?.value || '';
-    filtroGastos.categoria = document.getElementById('filtroGastosCategoriaModal')?.value || '';
-    
+
+    filtroGastos.desde =
+        document.getElementById('filtroGastosDesdeModal')?.value || '';
+
+    filtroGastos.hasta =
+        document.getElementById('filtroGastosHastaModal')?.value || '';
+
+    const selectCategorias =
+        document.getElementById('filtroGastosCategoriaModal');
+
+    filtroGastos.categoria =
+        selectCategorias
+            ? Array.from(selectCategorias.selectedOptions)
+                .map(o => o.value)
+            : [];
+
     await loadGastos();
-    
-    // Cerrar modal
+
     cerrarModalFiltros();
-    
-    // Mostrar reseña del filtro aplicado
-    const reseña = document.getElementById('filtroReseñaGastos');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
-    
-    if (filtroGastos.desde || filtroGastos.hasta || filtroGastos.categoria) {
+
+    const reseña =
+        document.getElementById('filtroReseñaGastos');
+
+    const btnLimpiar =
+        document.getElementById('btnLimpiarFiltroGastosReseña');
+
+    const hayCategorias =
+        filtroGastos.categoria &&
+        filtroGastos.categoria.length > 0;
+
+    if (
+        filtroGastos.desde ||
+        filtroGastos.hasta ||
+        hayCategorias
+    ) {
+
         if (reseña) {
+
             let texto = '⚠️ Filtro aplicado';
-            if (filtroGastos.desde && filtroGastos.hasta) {
-                texto = `⚠️ Filtro aplicado con rango ${filtroGastos.desde} - ${filtroGastos.hasta}`;
-            } else if (filtroGastos.desde) {
-                texto = `⚠️ Filtro aplicado desde ${filtroGastos.desde}`;
-            } else if (filtroGastos.hasta) {
-                texto = `⚠️ Filtro aplicado hasta ${filtroGastos.hasta}`;
+
+            if (
+                filtroGastos.desde &&
+                filtroGastos.hasta
+            ) {
+                texto =
+                    `⚠️ Filtro aplicado con rango ${filtroGastos.desde} - ${filtroGastos.hasta}`;
             }
-            if (filtroGastos.categoria) {
-                texto += ` | Categoría: ${filtroGastos.categoria}`;
+            else if (filtroGastos.desde) {
+                texto =
+                    `⚠️ Filtro aplicado desde ${filtroGastos.desde}`;
             }
+            else if (filtroGastos.hasta) {
+                texto =
+                    `⚠️ Filtro aplicado hasta ${filtroGastos.hasta}`;
+            }
+
+            if (hayCategorias) {
+                texto +=
+                    ` | Categorías: ${filtroGastos.categoria.join(', ')}`;
+            }
+
             reseña.textContent = texto;
             reseña.style.display = 'block';
             reseña.className = 'filtro-reseña-normal';
-            
-            if (intervaloParpadeoGastos) clearInterval(intervaloParpadeoGastos);
-            
+
+            if (intervaloParpadeoGastos) {
+                clearInterval(intervaloParpadeoGastos);
+            }
+
             let estado = true;
-            intervaloParpadeoGastos = setInterval(() => {
-                if (reseña && reseña.style.display !== 'none') {
-                    reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
-                    estado = !estado;
-                } else {
-                    clearInterval(intervaloParpadeoGastos);
-                    intervaloParpadeoGastos = null;
-                }
-            }, 500);
+
+            intervaloParpadeoGastos =
+                setInterval(() => {
+
+                    if (
+                        reseña &&
+                        reseña.style.display !== 'none'
+                    ) {
+
+                        reseña.className =
+                            estado
+                                ? 'filtro-reseña-normal'
+                                : 'filtro-reseña-alerta';
+
+                        estado = !estado;
+
+                    } else {
+
+                        clearInterval(intervaloParpadeoGastos);
+                        intervaloParpadeoGastos = null;
+                    }
+
+                }, 500);
         }
+
         if (btnLimpiar) {
             btnLimpiar.style.display = 'flex';
         }
+
     } else {
+
         if (reseña) {
+
             reseña.style.display = 'none';
+
             if (intervaloParpadeoGastos) {
                 clearInterval(intervaloParpadeoGastos);
                 intervaloParpadeoGastos = null;
             }
         }
-        if (btnLimpiar) btnLimpiar.style.display = 'none';
+
+        if (btnLimpiar) {
+            btnLimpiar.style.display = 'none';
+        }
     }
-    
+
     showSuccess('Filtro aplicado');
 }
 
@@ -492,7 +574,7 @@ async function limpiarFiltroGastos() {
     
     showSuccess('Filtros limpiados');
 }
-
+*/
 async function actualizarSelectCategoriasGastos() {
     const categorias = await loadCategoriasGastosConDatos();
     const select = document.getElementById('filtroGastosCategoria');
@@ -511,25 +593,53 @@ async function initGastosEvents() {
         });
     }
 
-    const btnAplicar = document.getElementById('btnAplicarFiltroGastos');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroGastos');
+    //const btnAplicar = document.getElementById('btnAplicarFiltroGastos');
+    //const btnLimpiar = document.getElementById('btnLimpiarFiltroGastos');
 
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroGastos);
-    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroGastos);
+    //if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroGastos);
+    //if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroGastos);
 
     const btnAbrirFiltros = document.getElementById('btnAbrirModalFiltrosGastos');
 
     if (btnAbrirFiltros) {
         btnAbrirFiltros.addEventListener('click', async () => {
-            console.log('CLICK GASTOS FILTRO');
             window.filtroActivoPara = 'gastos';
             await abrirModalFiltros();
         });
     }
-
+    /*
     const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroGastosReseña');
     if (btnLimpiarReseña) {
         btnLimpiarReseña.addEventListener('click', limpiarFiltroGastos);
+    }
+    */
+
+    const btnLimpiarReseña = document.getElementById('btnLimpiarFiltroGastosReseña');
+
+    if (btnLimpiarReseña) {
+
+        btnLimpiarReseña.addEventListener('click', async () => {
+
+            filtroGastos = {
+                desde: '',
+                hasta: '',
+                categoria: []
+            };
+
+            const reseña = document.getElementById('filtroReseñaGastos');
+
+            if (reseña) {
+                reseña.style.display = 'none';
+            }
+
+            btnLimpiarReseña.style.display = 'none';
+
+            await loadGastos();
+
+            showSuccess('Filtros limpiados');
+
+        });
+
     }
 
     initExportMenu('btnExportGastos', {
@@ -537,7 +647,7 @@ async function initGastosEvents() {
         onPDF: () => exportarGastosPDF()
     });
 
-    resetearFiltrosGastos?.();
+    //resetearFiltrosGastos?.();
 }
 
 // Actualizar total de gastos filtrados
@@ -548,7 +658,7 @@ function actualizarTotalGastosFiltrados() {
         totalElement.textContent = formatCurrency(total, 'EUR');
     }
 }
-
+/*
 // Limpiar filtros y UI de gastos
 async function resetearFiltrosGastos() {
     filtroGastos = { desde: '', hasta: '', categoria: '' };
@@ -579,7 +689,5 @@ async function resetearFiltrosGastos() {
     
     await loadGastos();
 }
-
-
-
+*/
 console.log('✅ Módulo de gastos cargado');

@@ -10,7 +10,7 @@ let editingIngresoId = null;
 let filtroIngresos = {
     desde: '',
     hasta: '',
-    categoria: ''
+    categoria: []
 };
 let limpiandoFiltros = false;
 let ultimaCarga = 0;
@@ -40,10 +40,6 @@ async function loadIngresos() {
             query = query.lte('fecha', filtroIngresos.hasta);
         }
 
-        if (filtroIngresos.categoria) {
-            query = query.eq('origen', filtroIngresos.categoria);
-        }
-
         const { data, error } = await query.order('fecha', { ascending: false });
 
         if (error) {
@@ -53,17 +49,41 @@ async function loadIngresos() {
         }
 
         ingresosList = data || [];
+
+        // FILTRO MULTICATEGORÍA
+        if (
+            Array.isArray(filtroIngresos.categoria) &&
+            filtroIngresos.categoria.length > 0
+        ) {
+            ingresosList = ingresosList.filter(i =>
+                filtroIngresos.categoria.includes(i.origen)
+            );
+        }
+
         displayIngresos?.();
 
-        const hayFiltros = filtroIngresos.desde || filtroIngresos.hasta || filtroIngresos.categoria;
+        const hayFiltros =
+            filtroIngresos.desde ||
+            filtroIngresos.hasta ||
+            (
+                Array.isArray(filtroIngresos.categoria) &&
+                filtroIngresos.categoria.length > 0
+            );
+
         const totalElement = document.getElementById('totalIngresosFiltrados');
 
         if (totalElement) {
             if (hayFiltros) {
-                const total = ingresosList.reduce((sum, i) => sum + (i.monto_eur || i.monto), 0);
-                totalElement.textContent = formatCurrency(total, 'EUR');
+                const total = ingresosList.reduce(
+                    (sum, i) => sum + (i.monto_eur || i.monto),
+                    0
+                );
+
+                totalElement.textContent =
+                    formatCurrency(total, 'EUR');
             } else {
-                totalElement.textContent = formatCurrency(0, 'EUR');
+                totalElement.textContent =
+                    formatCurrency(0, 'EUR');
             }
         }
 
@@ -396,66 +416,91 @@ async function loadCategoriasIngresosConDatos() {
     }
 }
 
-async function aplicarFiltroIngresos() {
-    // Tomar valores del modal
-    filtroIngresos.desde = document.getElementById('filtroDashboardDesde')?.value || '';
-    filtroIngresos.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
-    filtroIngresos.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
-    
-    await loadIngresos();
-    
-    // Cerrar modal
-    cerrarModalFiltros();
-    
-    // Mostrar reseña del filtro aplicado
-    const reseña = document.getElementById('filtroReseñaIngresos');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresosReseña');
-    
-    if (filtroIngresos.desde || filtroIngresos.hasta || filtroIngresos.categoria) {
-        if (reseña) {
-            let texto = '⚠️ Filtro aplicado';
-            if (filtroIngresos.desde && filtroIngresos.hasta) {
-                texto = `⚠️ Filtro aplicado con rango ${filtroIngresos.desde} - ${filtroIngresos.hasta}`;
-            } else if (filtroIngresos.desde) {
-                texto = `⚠️ Filtro aplicado desde ${filtroIngresos.desde}`;
-            } else if (filtroIngresos.hasta) {
-                texto = `⚠️ Filtro aplicado hasta ${filtroIngresos.hasta}`;
-            }
-            if (filtroIngresos.categoria) {
-                texto += ` | Categoría: ${filtroIngresos.categoria}`;
-            }
-            reseña.textContent = texto;
-            reseña.style.display = 'block';
-            reseña.className = 'filtro-reseña-normal';
-            
-            if (intervaloParpadeoIngresos) clearInterval(intervaloParpadeoIngresos);
-            
-            let estado = true;
-            intervaloParpadeoIngresos = setInterval(() => {
-                if (reseña && reseña.style.display !== 'none') {
-                    reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
-                    estado = !estado;
-                } else {
-                    clearInterval(intervaloParpadeoIngresos);
-                    intervaloParpadeoIngresos = null;
-                }
-            }, 500);
-        }
-        if (btnLimpiar) {
-            btnLimpiar.style.display = 'flex';
-        }
-    } else {
-        if (reseña) {
-            reseña.style.display = 'none';
-            if (intervaloParpadeoIngresos) {
-                clearInterval(intervaloParpadeoIngresos);
-                intervaloParpadeoIngresos = null;
-            }
-        }
-        if (btnLimpiar) btnLimpiar.style.display = 'none';
+// Abrir modal de filtros (cargando valores según página activa)
+async function abrirModalFiltros() {
+
+    if (!window.filtroActivoPara) {
+        window.filtroActivoPara = 'dashboard';
     }
-    
-    showSuccess('Filtro aplicado a ingresos');
+
+    const desdeInput = document.getElementById('filtroDashboardDesde');
+    const hastaInput = document.getElementById('filtroDashboardHasta');
+
+    const catSelect = document.getElementById('filtroDashboardCategoria');
+
+    let categorias = [];
+    let seleccionadas = [];
+
+    // DASHBOARD
+    if (window.filtroActivoPara === 'dashboard') {
+
+        if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
+        if (hastaInput) hastaInput.value = filtroDashboard.hasta || '';
+
+        categorias = await getCategoriasCache('gastos');
+        seleccionadas = filtroDashboard.categoria || [];
+    }
+
+    // GASTOS
+    else if (window.filtroActivoPara === 'gastos') {
+
+        if (desdeInput) desdeInput.value = filtroGastos.desde || '';
+        if (hastaInput) hastaInput.value = filtroGastos.hasta || '';
+
+        categorias = await getCategoriasCache('gastos');
+        seleccionadas = filtroGastos.categoria || [];
+    }
+
+    // INGRESOS
+    else if (window.filtroActivoPara === 'ingresos') {
+
+        if (desdeInput) desdeInput.value = filtroIngresos.desde || '';
+        if (hastaInput) hastaInput.value = filtroIngresos.hasta || '';
+
+        categorias = await getCategoriasCache('ingresos');
+        seleccionadas = filtroIngresos.categoria || [];
+    }
+
+    // Crear contenedor de checkboxes
+    if (catSelect) {
+
+        let container = document.getElementById('contenedorCategoriasCheckbox');
+
+        if (!container) {
+
+            container = document.createElement('div');
+            container.id = 'contenedorCategoriasCheckbox';
+
+            container.style.maxHeight = '220px';
+            container.style.overflowY = 'auto';
+            container.style.border = '1px solid #ccc';
+            container.style.borderRadius = '8px';
+            container.style.padding = '10px';
+            container.style.marginTop = '8px';
+
+            catSelect.parentNode.appendChild(container);
+        }
+
+        container.innerHTML = categorias.map(cat => `
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <input
+                    type="checkbox"
+                    class="checkboxCategoriaFiltro"
+                    value="${cat.nombre}"
+                    ${seleccionadas.includes(cat.nombre) ? 'checked' : ''}
+                >
+                ${cat.nombre}
+            </label>
+        `).join('');
+
+        catSelect.style.display = 'none';
+    }
+
+    const modal = document.getElementById('modalFiltros');
+
+    if (modal) {
+        modal.classList.add('active');
+    }
 }
 
 // Limpiar filtros de ingresos

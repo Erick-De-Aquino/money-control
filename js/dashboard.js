@@ -10,7 +10,8 @@ let intervaloParpadeo = null;
 let filtroDashboard = {
     desde: '',
     hasta: '',
-    categoria: ''
+    categoriasGastos: [],
+    categoriasIngresos: []
 };
 
 // Cargar datos para el dashboard
@@ -53,6 +54,7 @@ async function loadDashboardData() {
         const desde = filtroDashboard?.desde || fechaInicioDefault;
         const hasta = filtroDashboard?.hasta || fechaFinDefault;
 
+        
         // =========================
         // GASTOS
         // =========================
@@ -63,8 +65,29 @@ async function loadDashboardData() {
             .gte('fecha', desde)
             .lte('fecha', hasta);
 
-        if (filtroDashboard?.categoria) {
-            gastosQuery = gastosQuery.eq('categoria', filtroDashboard.categoria);
+        if (
+            filtroDashboard.categoriasGastos &&
+            filtroDashboard.categoriasGastos.length > 0
+        ) {
+
+            gastosQuery = gastosQuery.in(
+                'categoria',
+                filtroDashboard.categoriasGastos
+            );
+
+        }
+        else if (
+            filtroDashboard.categoriasIngresos &&
+            filtroDashboard.categoriasIngresos.length > 0
+        ) {
+
+            // Si eligió ingresos pero ningún gasto,
+            // no mostrar gastos
+            gastosQuery = gastosQuery.in(
+                'categoria',
+                ['__SIN_RESULTADOS__']
+            );
+
         }
 
         const { data: gastos, error: errorGastos } = await gastosQuery;
@@ -76,12 +99,42 @@ async function loadDashboardData() {
         // =========================
         // INGRESOS
         // =========================
-        const { data: ingresos, error: errorIngresos } = await supabase
+        let ingresosQuery = supabase
             .from(TABLES.ingresos)
             .select('*')
             .eq('user_id', userId)
             .gte('fecha', desde)
             .lte('fecha', hasta);
+
+        if (
+            filtroDashboard.categoriasIngresos &&
+            filtroDashboard.categoriasIngresos.length > 0
+        ) {
+
+            ingresosQuery = ingresosQuery.in(
+                'origen',
+                filtroDashboard.categoriasIngresos
+            );
+
+        }
+        else if (
+            filtroDashboard.categoriasGastos &&
+            filtroDashboard.categoriasGastos.length > 0
+        ) {
+
+            // Si eligió gastos pero ningún ingreso,
+            // no mostrar ingresos
+            ingresosQuery = ingresosQuery.in(
+                'origen',
+                ['__SIN_RESULTADOS__']
+            );
+
+        }
+
+        const {
+            data: ingresos,
+            error: errorIngresos
+        } = await ingresosQuery;
 
         if (errorIngresos) {
             console.error('Error cargando ingresos:', errorIngresos);
@@ -833,7 +886,7 @@ function showPage(page) {
 
     // reset filtros
     if (page === 'gastos') {
-        resetearFiltrosGastos();
+        //resetearFiltrosGastos();
     } else if (page === 'ingresos') {
         resetearFiltrosIngresos();
     } else if (page === 'dashboard') {
@@ -986,56 +1039,142 @@ function setupChartExpand() {
     }
 }
 
-// Cargar categorías de gastos que tienen datos
+// Cargar categorías disponibles para filtros del dashboard
 async function loadDashboardCategoriasConDatos() {
+
     try {
+
         const supabase = getSupabase();
-        let query = supabase.from('gastos').select('categoria').not('categoria', 'is', null);
-        
+
+        // ==========================
+        // GASTOS
+        // ==========================
+        let queryGastos = supabase
+            .from('gastos')
+            .select('categoria')
+            .not('categoria', 'is', null);
+
         if (filtroDashboard.desde) {
-            query = query.gte('fecha', filtroDashboard.desde);
+            queryGastos = queryGastos.gte('fecha', filtroDashboard.desde);
         }
+
         if (filtroDashboard.hasta) {
-            query = query.lte('fecha', filtroDashboard.hasta);
+            queryGastos = queryGastos.lte('fecha', filtroDashboard.hasta);
         }
-        
-        const { data, error } = await query;
-        
-        if (error) throw error;
-        
-        const categoriasUnicas = [...new Set(data.map(g => g.categoria).filter(c => c))];
-        return categoriasUnicas.sort();
+
+        const {
+            data: gastosData,
+            error: gastosError
+        } = await queryGastos;
+
+        if (gastosError) throw gastosError;
+
+        // ==========================
+        // INGRESOS
+        // ==========================
+        let queryIngresos = supabase
+            .from('ingresos')
+            .select('origen')
+            .not('origen', 'is', null);
+
+        if (filtroDashboard.desde) {
+            queryIngresos = queryIngresos.gte('fecha', filtroDashboard.desde);
+        }
+
+        if (filtroDashboard.hasta) {
+            queryIngresos = queryIngresos.lte('fecha', filtroDashboard.hasta);
+        }
+
+        const {
+            data: ingresosData,
+            error: ingresosError
+        } = await queryIngresos;
+
+        if (ingresosError) throw ingresosError;
+
+        // ==========================
+        // FORMATEAR
+        // ==========================
+        const categorias = [];
+
+        (gastosData || []).forEach(item => {
+
+            if (!item.categoria) return;
+
+            categorias.push({
+                nombre: item.categoria,
+                tipo: 'gasto'
+            });
+
+        });
+
+        (ingresosData || []).forEach(item => {
+
+            if (!item.origen) return;
+
+            categorias.push({
+                nombre: item.origen,
+                tipo: 'ingreso'
+            });
+
+        });
+
+        // eliminar duplicados
+        const categoriasUnicas = categorias.filter(
+            (item, index, self) =>
+                index === self.findIndex(
+                    c =>
+                        c.nombre === item.nombre &&
+                        c.tipo === item.tipo
+                )
+        );
+
+        return categoriasUnicas;
+
     } catch (error) {
-        console.error('Error cargando categorías del dashboard:', error);
+
+        console.error(
+            'Error cargando categorías del dashboard:',
+            error
+        );
+
         return [];
+
     }
 }
 
-// Actualizar select de categorías del dashboard
+// Actualizar categorías disponibles para filtros del dashboard
 async function actualizarSelectDashboardCategorias() {
+
     const categorias = await loadDashboardCategoriasConDatos();
-    const select = document.getElementById('filtroDashboardCategoria');
-    if (select) {
-        select.innerHTML = '<option value="">Todas las categorías</option>' +
-            categorias.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-    }
+
+    window.dashboardCategoriasDisponibles = categorias || [];
+
+    return categorias;
+
 }
 
 async function aplicarFiltroDashboard() {
+
     if (window.filtroActivoPara === 'gastos') {
-        // Ejecutar filtro de gastos
+
         filtroGastos.desde = document.getElementById('filtroDashboardDesde')?.value || '';
         filtroGastos.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
-        filtroGastos.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
-        
+        filtroGastos.categoria = Array.from(
+            document.querySelectorAll('.checkboxCategoriaFiltro:checked')
+        ).map(cb => cb.value);
+
         await loadGastos();
-        
+
         const reseña = document.getElementById('filtroReseñaGastos');
         const btnLimpiar = document.getElementById('btnLimpiarFiltroGastosReseña');
-        
+
         if (filtroGastos.desde || filtroGastos.hasta || filtroGastos.categoria) {
+
             if (reseña) {
+
                 let texto = '⚠️ Filtro aplicado';
+
                 if (filtroGastos.desde && filtroGastos.hasta) {
                     texto = `⚠️ Filtro aplicado con rango ${filtroGastos.desde} - ${filtroGastos.hasta}`;
                 } else if (filtroGastos.desde) {
@@ -1043,55 +1182,83 @@ async function aplicarFiltroDashboard() {
                 } else if (filtroGastos.hasta) {
                     texto = `⚠️ Filtro aplicado hasta ${filtroGastos.hasta}`;
                 }
+
                 if (filtroGastos.categoria) {
                     texto += ` | Categoría: ${filtroGastos.categoria}`;
                 }
+
                 reseña.textContent = texto;
                 reseña.style.display = 'flex';
                 reseña.className = 'filtro-reseña-normal';
-                
-                if (intervaloParpadeoGastos) clearInterval(intervaloParpadeoGastos);
-                
+
+                if (intervaloParpadeoGastos) {
+                    clearInterval(intervaloParpadeoGastos);
+                }
+
                 let estado = true;
+
                 intervaloParpadeoGastos = setInterval(() => {
+
                     if (reseña && reseña.style.display !== 'none') {
-                        reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+
+                        reseña.className =
+                            estado
+                                ? 'filtro-reseña-normal'
+                                : 'filtro-reseña-alerta';
+
                         estado = !estado;
+
                     } else {
+
                         clearInterval(intervaloParpadeoGastos);
                         intervaloParpadeoGastos = null;
+
                     }
+
                 }, 1000);
+
             }
+
             if (btnLimpiar) btnLimpiar.style.display = 'flex';
+
         } else {
+
             if (reseña) {
+
                 reseña.style.display = 'none';
+
                 if (intervaloParpadeoGastos) {
                     clearInterval(intervaloParpadeoGastos);
                     intervaloParpadeoGastos = null;
                 }
+
             }
+
             if (btnLimpiar) btnLimpiar.style.display = 'none';
         }
-        
+
         cerrarModalFiltros();
         showSuccess('Filtro aplicado a gastos');
-        
+
     } else if (window.filtroActivoPara === 'ingresos') {
-        // Ejecutar filtro de ingresos
+
         filtroIngresos.desde = document.getElementById('filtroDashboardDesde')?.value || '';
         filtroIngresos.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
-        filtroIngresos.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
-        
+        filtroIngresos.categoria = Array.from(
+            document.querySelectorAll('.checkboxCategoriaFiltro:checked')
+        ).map(cb => cb.value);
+
         await loadIngresos();
-        
+
         const reseña = document.getElementById('filtroReseñaIngresos');
         const btnLimpiar = document.getElementById('btnLimpiarFiltroIngresosReseña');
-        
+
         if (filtroIngresos.desde || filtroIngresos.hasta || filtroIngresos.categoria) {
+
             if (reseña) {
+
                 let texto = '⚠️ Filtro aplicado';
+
                 if (filtroIngresos.desde && filtroIngresos.hasta) {
                     texto = `⚠️ Filtro aplicado con rango ${filtroIngresos.desde} - ${filtroIngresos.hasta}`;
                 } else if (filtroIngresos.desde) {
@@ -1099,56 +1266,111 @@ async function aplicarFiltroDashboard() {
                 } else if (filtroIngresos.hasta) {
                     texto = `⚠️ Filtro aplicado hasta ${filtroIngresos.hasta}`;
                 }
+
                 if (filtroIngresos.categoria) {
                     texto += ` | Categoría: ${filtroIngresos.categoria}`;
                 }
+
                 reseña.textContent = texto;
                 reseña.style.display = 'flex';
                 reseña.className = 'filtro-reseña-normal';
-                
-                if (intervaloParpadeoIngresos) clearInterval(intervaloParpadeoIngresos);
-                
+
+                if (intervaloParpadeoIngresos) {
+                    clearInterval(intervaloParpadeoIngresos);
+                }
+
                 let estado = true;
+
                 intervaloParpadeoIngresos = setInterval(() => {
+
                     if (reseña && reseña.style.display !== 'none') {
-                        reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+
+                        reseña.className =
+                            estado
+                                ? 'filtro-reseña-normal'
+                                : 'filtro-reseña-alerta';
+
                         estado = !estado;
+
                     } else {
+
                         clearInterval(intervaloParpadeoIngresos);
                         intervaloParpadeoIngresos = null;
+
                     }
+
                 }, 500);
+
             }
+
             if (btnLimpiar) btnLimpiar.style.display = 'flex';
+
         } else {
+
             if (reseña) {
+
                 reseña.style.display = 'none';
+
                 if (intervaloParpadeoIngresos) {
                     clearInterval(intervaloParpadeoIngresos);
                     intervaloParpadeoIngresos = null;
                 }
+
             }
+
             if (btnLimpiar) btnLimpiar.style.display = 'none';
         }
-        
+
         cerrarModalFiltros();
         showSuccess('Filtro aplicado a ingresos');
-        
+
     } else {
-        // Dashboard (default)
-        filtroDashboard.desde = document.getElementById('filtroDashboardDesde')?.value || '';
-        filtroDashboard.hasta = document.getElementById('filtroDashboardHasta')?.value || '';
-        filtroDashboard.categoria = document.getElementById('filtroDashboardCategoria')?.value || '';
-        
+
+        filtroDashboard.desde =
+            document.getElementById('filtroDashboardDesde')?.value || '';
+
+        filtroDashboard.hasta =
+            document.getElementById('filtroDashboardHasta')?.value || '';
+
+        const checkboxesSeleccionados = Array.from(
+            document.querySelectorAll('.checkboxCategoriaFiltro:checked')
+        );
+
+        filtroDashboard.categoriasGastos = [];
+        filtroDashboard.categoriasIngresos = [];
+
+        checkboxesSeleccionados.forEach(cb => {
+
+            const tipo = cb.dataset.tipo;
+
+            if (tipo === 'gasto') {
+                filtroDashboard.categoriasGastos.push(cb.value);
+            }
+
+            if (tipo === 'ingreso') {
+                filtroDashboard.categoriasIngresos.push(cb.value);
+            }
+
+        });
+
         await actualizarSelectDashboardCategorias();
         await loadDashboardData();
-        
+
         const reseña = document.getElementById('filtroReseña');
         const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
-        
-        if (filtroDashboard.desde || filtroDashboard.hasta || filtroDashboard.categoria) {
+
+        const hayFiltroDashboard =
+            filtroDashboard.desde ||
+            filtroDashboard.hasta ||
+            filtroDashboard.categoriasGastos.length > 0 ||
+            filtroDashboard.categoriasIngresos.length > 0;
+
+        if (hayFiltroDashboard) {
+
             if (reseña) {
+
                 let texto = '⚠️ Filtro aplicado';
+
                 if (filtroDashboard.desde && filtroDashboard.hasta) {
                     texto = `⚠️ Filtro aplicado con rango ${filtroDashboard.desde} - ${filtroDashboard.hasta}`;
                 } else if (filtroDashboard.desde) {
@@ -1156,42 +1378,77 @@ async function aplicarFiltroDashboard() {
                 } else if (filtroDashboard.hasta) {
                     texto = `⚠️ Filtro aplicado hasta ${filtroDashboard.hasta}`;
                 }
-                if (filtroDashboard.categoria) {
-                    texto += ` | Categoría: ${filtroDashboard.categoria}`;
+
+                if (filtroDashboard.categoriasGastos.length > 0) {
+                    texto += ` | Gastos: ${filtroDashboard.categoriasGastos.join(', ')}`;
                 }
+
+                if (filtroDashboard.categoriasIngresos.length > 0) {
+                    texto += ` | Ingresos: ${filtroDashboard.categoriasIngresos.join(', ')}`;
+                }
+
                 reseña.textContent = texto;
                 reseña.style.display = 'flex';
                 reseña.className = 'filtro-reseña-normal';
-                
-                if (intervaloParpadeo) clearInterval(intervaloParpadeo);
-                
+
+                if (intervaloParpadeo) {
+                    clearInterval(intervaloParpadeo);
+                }
+
                 let estado = true;
+
                 intervaloParpadeo = setInterval(() => {
+
                     if (reseña && reseña.style.display !== 'none') {
-                        reseña.className = estado ? 'filtro-reseña-normal' : 'filtro-reseña-alerta';
+
+                        reseña.className =
+                            estado
+                                ? 'filtro-reseña-normal'
+                                : 'filtro-reseña-alerta';
+
                         estado = !estado;
+
                     } else {
+
                         clearInterval(intervaloParpadeo);
                         intervaloParpadeo = null;
+
                     }
+
                 }, 500);
+
             }
-            if (btnLimpiar) btnLimpiar.style.display = 'flex';
+
+            if (btnLimpiar) {
+                btnLimpiar.style.display = 'flex';
+            }
+
         } else {
+
             if (reseña) {
+
                 reseña.style.display = 'none';
+
                 if (intervaloParpadeo) {
                     clearInterval(intervaloParpadeo);
                     intervaloParpadeo = null;
                 }
+
             }
-            if (btnLimpiar) btnLimpiar.style.display = 'none';
+
+            if (btnLimpiar) {
+                btnLimpiar.style.display = 'none';
+            }
+
         }
-        
+
         cerrarModalFiltros();
         showSuccess('Filtros aplicados al dashboard');
     }
+
+
 }
+
 
 // Limpiar filtros del dashboard (genérico)
 function limpiarFiltroDashboard() {
@@ -1260,29 +1517,43 @@ function limpiarFiltroDashboard() {
 
 // Limpiar filtros del dashboard
 function resetearFiltrosDashboard() {
-    filtroDashboard = { desde: '', hasta: '', categoria: '' };
+
+    filtroDashboard = {
+        desde: '',
+        hasta: '',
+        categoriasGastos: [],
+        categoriasIngresos: []
+    };
+
     const desdeInput = document.getElementById('filtroDashboardDesde');
     const hastaInput = document.getElementById('filtroDashboardHasta');
-    const catSelect = document.getElementById('filtroDashboardCategoria');
-    
+
     if (desdeInput) desdeInput.value = '';
     if (hastaInput) hastaInput.value = '';
-    if (catSelect) catSelect.value = '';
-    
+
+    document
+        .querySelectorAll('.checkboxCategoriaFiltro')
+        .forEach(cb => cb.checked = false);
+
     loadDashboardData();
-    
-    // Ocultar reseña y botón de limpiar
+
     const reseña = document.getElementById('filtroReseña');
     const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
+
     if (reseña) {
+
         reseña.style.display = 'none';
-        // Detener el intervalo de parpadeo
+
         if (intervaloParpadeo) {
             clearInterval(intervaloParpadeo);
             intervaloParpadeo = null;
         }
+
     }
-    if (btnLimpiar) btnLimpiar.style.display = 'none';
+
+    if (btnLimpiar) {
+        btnLimpiar.style.display = 'none';
+    }
 }
 
 // Verificar presupuestos y mostrar alertas
@@ -1338,60 +1609,149 @@ async function verificarAlertasPresupuesto() {
 
 // Abrir modal de filtros (cargando valores según página activa)
 async function abrirModalFiltros() {
+
     if (!window.filtroActivoPara) {
-        console.warn('filtroActivoPara no definido, default dashboard');
         window.filtroActivoPara = 'dashboard';
     }
 
-    console.log('abrirModalFiltros');
-    console.log('filtroActivoPara =', window.filtroActivoPara);
-
     const desdeInput = document.getElementById('filtroDashboardDesde');
     const hastaInput = document.getElementById('filtroDashboardHasta');
+
     const catSelect = document.getElementById('filtroDashboardCategoria');
+
+    let categorias = [];
+    let seleccionadas = [];
 
     // DASHBOARD
     if (window.filtroActivoPara === 'dashboard') {
+
         if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
-        if (hastaInput) desdeInput.value = filtroDashboard.hasta || '';
-        if (catSelect) {
-            const cats = await getCategoriasCache('gastos');
-            catSelect.innerHTML = '<option value="">Todas las categorías</option>' +
-                cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
-            catSelect.value = filtroDashboard.categoria || '';
-        }
+        if (hastaInput) hastaInput.value = filtroDashboard.hasta || '';
+
+        categorias = await loadDashboardCategoriasConDatos();
+        seleccionadas = filtroDashboard.categoria || [];
     }
 
     // GASTOS
     else if (window.filtroActivoPara === 'gastos') {
 
         if (desdeInput) desdeInput.value = filtroGastos.desde || '';
-        if (hastaInput) desdeInput.value = filtroGastos.hasta || '';
+        if (hastaInput) hastaInput.value = filtroGastos.hasta || '';
 
-        if (catSelect) {
-            const cats = await getCategoriasCache('gastos');
-            catSelect.innerHTML = '<option value="">Todas las categorías</option>' +
-                cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
-            catSelect.value = filtroGastos.categoria || '';
-        }
+        categorias = await getCategoriasCache('gastos');
+        seleccionadas = filtroGastos.categoria || [];
     }
 
     // INGRESOS
     else if (window.filtroActivoPara === 'ingresos') {
 
         if (desdeInput) desdeInput.value = filtroIngresos.desde || '';
-        if (hastaInput) desdeInput.value = filtroIngresos.hasta || '';
+        if (hastaInput) hastaInput.value = filtroIngresos.hasta || '';
 
-        if (catSelect) {
-            const cats = await getCategoriasCache('ingresos');
-            catSelect.innerHTML = '<option value="">Todas las categorías</option>' +
-                cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
-            catSelect.value = filtroIngresos.categoria || '';
+        categorias = await getCategoriasCache('ingresos');
+        seleccionadas = filtroIngresos.categoria || [];
+    }
+
+    // Crear contenedor de checkboxes
+    if (catSelect) {
+
+        let container = document.getElementById('contenedorCategoriasCheckbox');
+
+        if (!container) {
+
+            container = document.createElement('div');
+            container.id = 'contenedorCategoriasCheckbox';
+
+            container.style.maxHeight = '220px';
+            container.style.overflowY = 'auto';
+            container.style.border = '1px solid #ccc';
+            container.style.borderRadius = '8px';
+            container.style.padding = '10px';
+            container.style.marginTop = '8px';
+
+            catSelect.parentNode.appendChild(container);
         }
+
+        const categoriasGastos = categorias.filter(
+            c => c.tipo === 'gasto'
+        );
+
+        const categoriasIngresos = categorias.filter(
+            c => c.tipo === 'ingreso'
+        );
+
+        container.innerHTML = `
+
+            <div style="
+                font-weight:bold;
+                color:#dc3545;
+                margin-bottom:10px;
+                margin-top:4px;
+            ">
+                🔴 GASTOS
+            </div>
+
+            ${categoriasGastos.map(cat => `
+                <label style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-bottom:6px;
+                    margin-left:10px;
+                ">
+                    <input
+                        type="checkbox"
+                        class="checkboxCategoriaFiltro"
+                        data-tipo="gasto"
+                        value="${cat.nombre}"
+                        ${seleccionadas.includes(cat.nombre) ? 'checked' : ''}
+                    >
+                    ${cat.nombre}
+                </label>
+            `).join('')}
+
+            <hr style="
+                margin:12px 0;
+                border:none;
+                border-top:1px solid #ddd;
+            ">
+
+            <div style="
+                font-weight:bold;
+                color:#198754;
+                margin-bottom:10px;
+            ">
+                🟢 INGRESOS
+            </div>
+
+            ${categoriasIngresos.map(cat => `
+                <label style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    margin-bottom:6px;
+                    margin-left:10px;
+                ">
+                    <input
+                        type="checkbox"
+                        class="checkboxCategoriaFiltro"
+                        data-tipo="ingreso"
+                        value="${cat.nombre}"
+                        ${seleccionadas.includes(cat.nombre) ? 'checked' : ''}
+                    >
+                    ${cat.nombre}
+                </label>
+            `).join('')}
+        `;
+
+        catSelect.style.display = 'none';
     }
 
     const modal = document.getElementById('modalFiltros');
-    if (modal) modal.classList.add('active');
+
+    if (modal) {
+        modal.classList.add('active');
+    }
 }
 
 // Función auxiliar para cargar categorías de gastos en el select
