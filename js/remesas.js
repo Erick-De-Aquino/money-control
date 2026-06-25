@@ -187,12 +187,91 @@ function renderRemesas() {
                         onclick="openConfirmRemesaModalById('${r.id}')">
                         Confirmar
                     </button>
+
+                    <button
+                        class="btn btn-danger btn-small"
+                        onclick="eliminarRemesa('${r.id}')">
+                        Eliminar
+                    </button>
                 ` : ''}
 
             </div>
 
         </div>
     `).join('');
+}
+
+async function eliminarRemesa(remesaId) {
+
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmTitle = document.getElementById('confirmTitle');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+
+    if (
+        !confirmModal ||
+        !confirmTitle ||
+        !confirmMessage ||
+        !confirmOkBtn ||
+        !confirmCancelBtn
+    ) {
+        console.error('Modal de confirmación no encontrado');
+        return;
+    }
+
+    confirmTitle.textContent = 'Eliminar remesa';
+    confirmMessage.textContent =
+        '¿Eliminar esta remesa pendiente? Esta acción no se puede deshacer.';
+
+    confirmModal.style.display = 'flex';
+
+    const cerrarModal = () => {
+        confirmModal.style.display = 'none';
+        confirmOkBtn.onclick = null;
+        confirmCancelBtn.onclick = null;
+    };
+
+    confirmCancelBtn.onclick = () => {
+        cerrarModal();
+    };
+
+    confirmOkBtn.onclick = async () => {
+
+        cerrarModal();
+
+        try {
+
+            const supabase = getSupabase();
+
+            const { error } = await supabase
+                .from(TABLES.remesas)
+                .delete()
+                .eq('id', remesaId);
+
+            if (error) throw error;
+
+            await loadRemesas();
+
+            showSuccess(
+                'Remesa eliminada correctamente'
+            );
+
+        } catch (error) {
+
+            console.error(
+                'Error eliminando remesa:',
+                error
+            );
+
+            showError(
+                'No se pudo eliminar la remesa'
+            );
+
+        }
+
+    };
+
 }
 
 function closeRemesasModal() {
