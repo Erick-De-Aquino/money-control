@@ -699,6 +699,17 @@ function initDashboard() {
 
     const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
 
+    if (role === 'admin') {
+
+        const adminMenuItem =
+            document.getElementById('adminMenuItem');
+
+        if (adminMenuItem) {
+            adminMenuItem.style.display = 'block';
+        }
+
+    }
+
     // =========================
     // FILTRO DE MENÚ POR ROL
     // =========================
@@ -879,6 +890,10 @@ function showPage(page) {
 
     if (selectedPage) {
         selectedPage.classList.add('active');
+    }
+
+    if (page === 'administracion') {
+        loadAdminUsers();
     }
 
     // actualizar filtro activo

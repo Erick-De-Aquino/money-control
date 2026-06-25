@@ -11,8 +11,8 @@
     <meta name="theme-color" content="#6B4E7E">
 
     <!-- Favicons -->
-    <link rel="icon" type="image/png" href="/money-control/icons/icon/favicon-finanzas.png?v=99">
-    <link rel="shortcut icon" href="/money-control/icons/icon/favicon-finanzas.png?v=3">
+    <link rel="icon" type="image/png" href="/money-control/icons/icon/favicon-finanzas-v2.png">
+    <link rel="shortcut icon" href="/money-control/icons/icon/favicon-finanzas-v2.png">
     <link rel="apple-touch-icon" href="/money-control/icons/icon/icon-192.png">
 
     <!-- CSS Base -->
@@ -233,6 +233,7 @@
                     <li><button data-page="categorias" class="menu-item">Admin de Categorías</button></li>
                     <li><button data-page="presupuestos" class="menu-item">Presupuestos</button></li>
                     <li><button data-page="historial" class="menu-item">Historial de Presupuestos</button></li>
+                    <li id="adminMenuItem" style="display:none;"><button data-page="administracion" class="menu-item">Administración</button></li>
                 </ul>
                 <div class="user-info">
                     <button id="themeToggle" class="theme-toggle">Modo Oscuro</button>
@@ -635,6 +636,23 @@
                     <div id="historialList" class="historial-container">
                         <p class="empty-message">No hay historial de presupuestos</p>
                     </div>
+                </div>
+
+                <!-- Página Administración -->
+                <div id="pageAdministracion" class="page">
+
+                    <div class="page-header">
+                        <h2>Administración de Usuarios</h2>
+                    </div>
+
+                    <div id="adminUsersList" class="items-list">
+
+                        <p class="empty-message">
+                            Cargando usuarios...
+                        </p>
+
+                    </div>
+
                 </div>
             </main>
         </div>

@@ -28,6 +28,24 @@ async function initAuth() {
             currentUser = session.user;
             window.currentUser = session.user;
 
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+
+            window.currentUserRole = profile?.role || 'usuario';
+
+            localStorage.setItem(
+                'user_role',
+                window.currentUserRole
+            );
+
+            console.log(
+                'Rol cargado:',
+                window.currentUserRole
+            );
+
             console.log('✅ Usuario autenticado:', currentUser.email);
 
             // 🔥 IMPORTANTE: sincronizar antes del dashboard
@@ -470,4 +488,153 @@ function getCurrentUser() {
         console.error('Error en getCurrentUser:', error);
         return null;
     }
+}
+
+async function loadAdminUsers() {
+
+    try {
+
+        const supabase = getSupabase();
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from('users_with_roles')
+            .select('*')
+            .order('created_at', {
+                ascending: false
+            });
+
+        console.log('USUARIOS:', data);
+        console.log('ERROR:', error);
+
+        if (error) throw error;
+
+        const container =
+            document.getElementById('adminUsersList');
+
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+
+            container.innerHTML =
+                '<p class="empty-message">No hay usuarios</p>';
+
+            return;
+
+        }
+
+        container.innerHTML = data.map(user => `
+
+            <div class="list-item-card">
+
+                <div class="item-info">
+
+                    <div class="item-title">
+                        ${user.email}
+                    </div>
+
+                    <div class="admin-user-row">
+
+                        <span>
+                            Rol:
+                            <span class="role-badge role-${user.role}">
+                                ${user.role}
+                            </span>
+                        </span>
+
+                        <span>
+                            Alta:
+                            ${new Date(user.created_at).toLocaleDateString()}
+                        </span>
+
+                        <select
+                            id="role-${user.id}"
+                            class="form-control admin-role-select"
+                        >
+
+                            <option value="usuario"
+                                ${user.role === 'usuario' ? 'selected' : ''}>
+                                Usuario
+                            </option>
+
+                            <option value="operador"
+                                ${user.role === 'operador' ? 'selected' : ''}>
+                                Operador
+                            </option>
+
+                            <option value="admin"
+                                ${user.role === 'admin' ? 'selected' : ''}>
+                                Admin
+                            </option>
+
+                        </select>
+
+                        <button
+                            class="btn btn-primary btn-small"
+                            onclick="actualizarRolUsuario('${user.id}')">
+
+                            Actualizar
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        `).join('');
+
+    } catch (error) {
+
+        console.error(
+            'Error cargando usuarios:',
+            error
+        );
+
+    }
+
+}
+
+async function actualizarRolUsuario(userId) {
+
+    try {
+
+        const nuevoRol =
+            document.getElementById(
+                `role-${userId}`
+            ).value;
+
+        const supabase = getSupabase();
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                role: nuevoRol
+            })
+            .eq('id', userId);
+
+        if (error) throw error;
+
+        showSuccess(
+            'Rol actualizado correctamente'
+        );
+
+        await loadAdminUsers();
+
+    } catch (error) {
+
+        console.error(
+            'Error actualizando rol:',
+            error
+        );
+
+        showError(
+            'No se pudo actualizar el rol'
+        );
+
+    }
+
 }
