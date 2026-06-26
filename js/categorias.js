@@ -37,7 +37,7 @@ async function createCategoria(nombre, tipo) {
 
     const nombreFormateado =
         nombre.charAt(0).toUpperCase() +
-        nombre.slice(1).toLowerCase();
+        nombre.slice(1);
 
     try {
 
