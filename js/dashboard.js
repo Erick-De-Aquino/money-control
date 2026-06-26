@@ -17,8 +17,6 @@ let filtroDashboard = {
 // Cargar datos para el dashboard
 async function loadDashboardData() {
 
-    console.trace("loadDashboardData");
-
     try {
 
         const supabase = getSupabase();
@@ -700,8 +698,6 @@ async function refreshDashboard() {
 
 function initDashboard() {
 
-    console.count("initDashboard");
-
     const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
 
     if (role === 'admin') {
@@ -875,8 +871,6 @@ function initDashboard() {
 
 // Mostrar página seleccionada
 function showPage(page) {
-
-    console.count("showPage");
 
     // 🔥 PROTECCIÓN DE RUTA POR ROL
     if (!canAccessPage(page)) {

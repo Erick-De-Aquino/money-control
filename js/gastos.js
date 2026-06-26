@@ -95,6 +95,7 @@ async function loadGastos() {
         return [];
     }
 }
+
 // Cargar categorías de gastos desde Supabase (CACHE OPTIMIZADO)
 async function getGastosCategoriasCached() {
 

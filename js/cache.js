@@ -66,6 +66,7 @@ async function getCategoriasCache(tipo) {
 
             cache.data = categorias;
             cache.loaded = true;
+            cache.promise = null;
 
             return categorias;
 

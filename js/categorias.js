@@ -29,35 +29,57 @@ async function loadCategorias(tipo = null) {
 
 // Crear nueva categoría
 async function createCategoria(nombre, tipo) {
+
     if (!nombre || !tipo) {
         showError('Nombre y tipo son requeridos');
         return false;
     }
-    
-    // Formatear nombre: primera letra mayúscula, el resto minúsculas
-    const nombreFormateado = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-    
+
+    const nombreFormateado =
+        nombre.charAt(0).toUpperCase() +
+        nombre.slice(1).toLowerCase();
+
     try {
+
         const supabase = getSupabase();
-        
+
         const { data, error } = await supabase
             .from('categorias')
-            .insert([{ nombre: nombreFormateado, tipo, user_id: getCurrentUser()?.id }])
+            .insert([{
+                nombre: nombreFormateado,
+                tipo,
+                user_id: getCurrentUser()?.id
+            }])
             .select();
-        
+
         if (error) {
-            console.error('Error al crear categoría:', error);
+            console.error(error);
             showError('Error al crear la categoría');
             return false;
         }
-        
+
+        // 🔥 Invalidar caché según el tipo creado
+        if (tipo === 'gasto') {
+            if (window.appCache?.categorias?.gastos) {
+                window.appCache.categorias.gastos.loaded = false;
+                window.appCache.categorias.gastos.promise = null;  // ✅ agregado
+            }
+        } else if (tipo === 'ingreso') {
+            if (window.appCache?.categorias?.ingresos) {
+                window.appCache.categorias.ingresos.loaded = false;
+                window.appCache.categorias.ingresos.promise = null;  // ✅ agregado
+            }
+        }
+
         showSuccess(`Categoría "${nombreFormateado}" creada`);
+
         return data[0];
-        
+
     } catch (error) {
-        console.error('Error en createCategoria:', error);
+        console.error(error);
         return false;
     }
+
 }
 
 // Mostrar modal para agregar categoría
@@ -89,20 +111,40 @@ function showAddCategoriaModal(tipo) {
     const form = document.getElementById('categoriaForm');
     if (form) {
         form.onsubmit = async (e) => {
+
             e.preventDefault();
-            const nombre = document.getElementById('categoriaNombre')?.value.trim();
-            if (nombre) {
-                const result = await createCategoria(nombre, tipo);
-                if (result) {
-                    closeModal();
-                    // Recargar el selector de categorías según corresponda
-                    if (tipo === 'gasto' && typeof loadGastosCategorias === 'function') {
-                        await loadGastosCategorias();
-                    } else if (tipo === 'ingreso' && typeof loadIngresosCategorias === 'function') {
-                        await loadIngresosCategorias();
-                    }
+
+            const nombre =
+                document.getElementById('categoriaNombre')
+                ?.value
+                .trim();
+
+            if (!nombre) return;
+
+            const categoria = await createCategoria(nombre, tipo);
+
+            if (!categoria) return;
+
+            closeModal();
+
+            if (tipo === 'gasto') {
+
+                await actualizarSelectCategoriasGastos();
+
+                if (typeof showGastoModal === 'function') {
+                    showGastoModal();
                 }
+
+            } else {
+
+                await actualizarSelectCategoriasIngresos();
+
+                if (typeof showIngresoModal === 'function') {
+                    showIngresoModal();
+                }
+
             }
+
         };
     }
     
@@ -396,14 +438,22 @@ async function deleteCategoria(id, nombre, tipo) {
                 showSuccess(`Categoría "${nombre}" eliminada`);
                 await loadCategoriasAdmin(filtroActual || '');
                 
+                // ✅ Recargar usando getCategoriasCache
                 if (tipo === 'gasto') {
-                    await loadGastosCategorias();
-                    await loadGastos();
+                    await getCategoriasCache('gastos', true);
+                    if (typeof loadGastos === 'function') {
+                        await loadGastos();
+                    }
                 } else {
-                    await loadIngresosCategorias();
-                    await loadIngresos();
+                    await getCategoriasCache('ingresos', true);
+                    if (typeof loadIngresos === 'function') {
+                        await loadIngresos();
+                    }
                 }
-                await loadDashboardData();
+                
+                if (typeof loadDashboardData === 'function') {
+                    await loadDashboardData();
+                }
                 
             } catch (error) {
                 console.error('Error en deleteCategoria:', error);
