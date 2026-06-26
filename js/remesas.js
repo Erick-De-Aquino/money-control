@@ -150,27 +150,27 @@ function renderRemesas() {
             <div class="item-info">
 
                 <div class="item-title">
-                    EUR: ${Number(r.monto_eur).toFixed(2)}
+                    EUR: ${formatNumber(r.monto_eur)}
                 </div>
 
                 <div class="item-subtitle">
-                    EUR utilizados: ${Number(r.euros_utilizados || 0).toFixed(2)}
+                    EUR utilizados: ${formatNumber(r.euros_utilizados || 0)}
                 </div>
 
                 <div class="item-subtitle">
-                    USDT comprados: ${Number(r.usdt_comprar || 0).toFixed(2)}
+                    USDT comprados: ${formatNumber(r.usdt_comprar || 0)}
                 </div>
 
                 <div class="item-subtitle">
-                    BS: ${Number(r.bs_total || 0).toFixed(2)}  
+                    BS: ${formatNumber(r.bs_total || 0)}
                 </div>
 
                 <div class="item-subtitle">
-                    Ganancia: ${Number(r.ganancia_calculada || 0).toFixed(2)} EUR
+                    Ganancia: ${formatNumber(r.ganancia_calculada || 0)} EUR
                 </div>
 
                 <div class="item-subtitle">
-                    Ganancia real: ${Number(r.ganancia_real || 0).toFixed(2)} EUR
+                    Ganancia real: ${formatNumber(r.ganancia_real || 0)} EUR
                 </div>
 
                 <div class="item-subtitle">
@@ -387,28 +387,28 @@ function calculateRemesa() {
 function updateRemesaSummary() {
 
     if (!currentRemesa) {
-        document.getElementById('resEurosUtilizados').textContent = '0.00 €';
-        document.getElementById('resUsdtComprar').textContent = '0.00';
-        document.getElementById('resUsdtVender').textContent = '0.00';
-        document.getElementById('resBsNetos').textContent = '0.00 Bs';
-        document.getElementById('resGananciaEuros').textContent = '0.00 €';
+        document.getElementById('resEurosUtilizados').textContent = `${formatNumber(0)} €`;
+        document.getElementById('resUsdtComprar').textContent = formatNumber(0);
+        document.getElementById('resUsdtVender').textContent = formatNumber(0);
+        document.getElementById('resBsNetos').textContent = `${formatNumber(0)} Bs`;
+        document.getElementById('resGananciaEuros').textContent = `${formatNumber(0)} €`;
         return;
     }
 
     document.getElementById('resEurosUtilizados').textContent =
-        `${currentRemesa.eurosUtilizados.toFixed(2)} €`;
+        `${formatNumber(currentRemesa.eurosUtilizados)} €`;
 
     document.getElementById('resUsdtComprar').textContent =
-        currentRemesa.usdtComprar.toFixed(2);
+        formatNumber(currentRemesa.usdtComprar);
 
     document.getElementById('resUsdtVender').textContent =
-        currentRemesa.usdtVender.toFixed(2);
+        formatNumber(currentRemesa.usdtVender);
 
     document.getElementById('resBsNetos').textContent =
-        `${currentRemesa.bsNetos.toFixed(2)} Bs`;
+        `${formatNumber(currentRemesa.bsNetos)} Bs`;
 
     document.getElementById('resGananciaEuros').textContent =
-        `${currentRemesa.ganancia.toFixed(2)} €`;
+        `${formatNumber(currentRemesa.ganancia)} €`;
 }
 
 async function saveRemesa() {
@@ -439,7 +439,7 @@ async function saveRemesa() {
 
             user_id: userId,
 
-            fecha: new Date().toISOString(),
+            fecha: new Date(),
 
             modo: currentRemesa.modo,
 
@@ -549,7 +549,7 @@ async function saveConfirmRemesa() {
 
                 user_id: remesa.user_id,
 
-                fecha: new Date().toISOString().slice(0,10),
+                fecha: getTodayDate(),
 
                 origen: 'Remesas',
 
@@ -617,16 +617,16 @@ function openConfirmRemesaModal(remesa) {
     window.currentConfirmRemesa = remesa;
 
     document.getElementById('confMontoEur').textContent =
-        Number(remesa.monto_eur).toFixed(2) + ' €';
+        formatNumber(remesa.monto_eur) + ' €';
 
     document.getElementById('confUsdtComprar').textContent =
-        Number(remesa.usdt_necesarios).toFixed(2);
+        formatNumber(remesa.usdt_necesarios);
 
     document.getElementById('confBsTotal').textContent =
-        Number(remesa.bs_total).toFixed(2) + ' Bs';
+        formatNumber(remesa.bs_total) + ' Bs';
 
     document.getElementById('confGananciaCalculada').textContent =
-        Number(remesa.ganancia_calculada).toFixed(2) + ' €';
+        formatNumber(remesa.ganancia_calculada) + ' €';
 
     document.getElementById('confirmGananciaReal').value =
         Number(remesa.ganancia_calculada).toFixed(2);

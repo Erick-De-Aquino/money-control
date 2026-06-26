@@ -16,6 +16,9 @@ let filtroDashboard = {
 
 // Cargar datos para el dashboard
 async function loadDashboardData() {
+
+    console.trace("loadDashboardData");
+
     try {
 
         const supabase = getSupabase();
@@ -697,6 +700,8 @@ async function refreshDashboard() {
 
 function initDashboard() {
 
+    console.count("initDashboard");
+
     const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
 
     if (role === 'admin') {
@@ -870,6 +875,8 @@ function initDashboard() {
 
 // Mostrar página seleccionada
 function showPage(page) {
+
+    console.count("showPage");
 
     // 🔥 PROTECCIÓN DE RUTA POR ROL
     if (!canAccessPage(page)) {
@@ -1464,7 +1471,6 @@ async function aplicarFiltroDashboard() {
 
 }
 
-
 // Limpiar filtros del dashboard (genérico)
 function limpiarFiltroDashboard() {
     if (window.filtroActivoPara === 'gastos') {
@@ -1550,7 +1556,7 @@ function resetearFiltrosDashboard() {
         .querySelectorAll('.checkboxCategoriaFiltro')
         .forEach(cb => cb.checked = false);
 
-    loadDashboardData();
+    //loadDashboardData();
 
     const reseña = document.getElementById('filtroReseña');
     const btnLimpiar = document.getElementById('btnLimpiarFiltroDashboardReseña');
@@ -1959,7 +1965,7 @@ function mostrarResumenCategorias(tipo) {
             font-size:1.1rem;
         ">
             <span>TOTAL</span>
-            <span>${totalGeneral.toFixed(2)} €</span>
+            <span>${formatNumber(totalGeneral)} €</span>
         </div>
 
         <div style="

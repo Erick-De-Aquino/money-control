@@ -13,7 +13,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!connected) {
         console.warn('⚠️ No se pudo conectar a Supabase. Verifica tu conexión.');
-        showError('Error de conexión con la base de datos. Verifica tu internet.', 'loginMessage');
+        showError(
+            'Error de conexión con la base de datos. Verifica tu internet.',
+            'loginMessage'
+        );
     }
 
     window.appCache = window.appCache || {};
@@ -25,14 +28,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         window.appCache = {
             categorias: {
-                gastos: { loaded: false, promise: null, data: [] },
-                ingresos: { loaded: false, promise: null, data: [] }
+                gastos: {
+                    loaded: false,
+                    promise: null,
+                    data: []
+                },
+                ingresos: {
+                    loaded: false,
+                    promise: null,
+                    data: []
+                }
             }
         };
     }
 
-    // 🔥 ESPERAR AUTH COMPLETAMENTE
-    await initAuth();
+    // Esperar autenticación
+    const authOk = await initAuth();
+
+    if (!authOk) {
+        console.error('No se pudo inicializar la autenticación');
+        return;
+    }
+
+    console.log('El DOM está listo, voy a ejecutar setupAuthEvents');
+
+    setupAuthEvents();
 
     initDashboard();
     initModalEvents();
@@ -40,12 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initIngresosEvents();
     initOperacionesEvents?.();
     initCategoriasAdminEvents();
-
-    console.log('El DOM está listo, voy a ejecutar setupAuthEvents');
-
-    setupAuthEvents();
-
-    setTimeout(setupAuthEvents, 100);
 
     const refreshTasasBtn = document.getElementById('btnRefreshTasas');
 

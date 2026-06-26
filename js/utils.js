@@ -2,18 +2,42 @@
 // UTILIDADES - Funciones de ayuda generales
 // ============================================
 
+function formatNumber(value, decimals = 2) {
+
+    const number = Number(value) || 0;
+
+    return number.toLocaleString('de-ES', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+
+}
+
 // Formatear número como moneda
 function formatCurrency(amount, currency = 'EUR') {
-    const symbols = {
-        EUR: '€',
-        USDT: '₿',
-        BS: 'Bs.'
+
+    const currencies = {
+
+        EUR: { symbol: '€' },
+        USD: { symbol: '$' },
+        USDT:{ symbol: '₮' },
+        BS:  { symbol: 'Bs.' },
+        COP: { symbol: 'COL$' },
+        VES: { symbol: 'Bs.' },
+        MXN: { symbol: 'MX$' },
+        ARS: { symbol: 'AR$' },
+        CLP: { symbol: 'CLP$' },
+        PEN: { symbol: 'S/' },
+        BRL: { symbol: 'R$' }
+
     };
-    
-    const symbol = symbols[currency] || currency;
-    const formattedAmount = typeof amount === 'number' ? amount.toFixed(2) : '0.00';
-    
-    return `${symbol} ${formattedAmount}`;
+
+    const symbol = currencies[currency]?.symbol || currency;
+
+    const value = Number(amount) || 0;
+
+    return `${symbol} ${formatNumber(value)}`;
+
 }
 
 // Formatear fecha
@@ -28,12 +52,34 @@ function formatDate(date, format = 'short') {
         return d.toLocaleString('es-ES');
     }
     
-    return d.toISOString().split('T')[0];
+        return formatLocalDate(d);
+}
+
+function formatLocalDate(date) {
+
+    const d = new Date(date);
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+
 }
 
 // Obtener fecha actual en formato YYYY-MM-DD
 function getTodayDate() {
-    return new Date().toISOString().split('T')[0];
+
+    const hoy = new Date();
+
+    const year = hoy.getFullYear();
+
+    const month = String(hoy.getMonth() + 1).padStart(2, '0');
+
+    const day = String(hoy.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+
 }
 
 // Mostrar mensaje de error
@@ -300,7 +346,7 @@ function exportToPDF(
             body: summary.items.map(item => [
                 item.nombre,
                 item.cantidad,
-                item.total.toFixed(2),
+                formatNumber(item.total),
                 item.porcentaje.toFixed(1) + ' %'
             ]),
             styles: {
@@ -330,7 +376,7 @@ function exportToPDF(
         y += 6;
 
         doc.text(
-            `Monto total: ${summary.totalMonto.toFixed(2)}`,
+            `Monto total: ${formatNumber(summary.totalMonto)}`,
             14,
             y
         );
