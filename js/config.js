@@ -33,9 +33,28 @@ const APP_CONFIG = {
     version: '1.0.0',
     baseCurrency: 'EUR',
     categories: {
-        gastos: ['Alimentación', 'Transporte', 'Vivienda', 'Servicios', 'Entretenimiento', 'Salud', 'Educación', 'Otros'],
-        ingresos: ['Trabajo', 'Remesa', 'Inversión', 'Regalo', 'Otros'],
-        plataformas: ['Bybit', 'Binance', 'Otra']
+        gastos: [
+            'Alimentación',
+            'Transporte',
+            'Vivienda',
+            'Servicios',
+            'Entretenimiento',
+            'Salud',
+            'Educación',
+            'Otros'
+        ],
+        ingresos: [
+            'Trabajo',
+            'Remesa',
+            'Inversión',
+            'Regalo',
+            'Otros'
+        ],
+        plataformas: [
+            'Bybit',
+            'Binance',
+            'Otra'
+        ]
     }
 };
 
@@ -44,8 +63,6 @@ const TABLES = {
     gastos: 'gastos',
     ingresos: 'ingresos',
     operaciones: 'operaciones',
-    tasas: 'tasas',
-    usuario_config: 'usuario_config',
     remesas: 'remesas',
     remesas_config: 'remesas_config'
 };
@@ -64,7 +81,7 @@ const ERROR_MESSAGES = {
 };
 
 // ============================================
-// 🧠 NIVEL 2 - CACHE GLOBAL (NUEVO)
+// CACHE GLOBAL
 // ============================================
 
 window.appCache = {
@@ -102,6 +119,7 @@ function initSupabase() {
             }
         );
     }
+
     return supabaseClient;
 }
 
@@ -109,6 +127,7 @@ function getSupabase() {
     if (!supabaseClient) {
         return initSupabase();
     }
+
     return supabaseClient;
 }
 
@@ -116,6 +135,7 @@ function getSupabase() {
 async function checkSupabaseConnection() {
     try {
         const supabase = getSupabase();
+
         const { error } = await supabase
             .from(TABLES.gastos)
             .select('count', { count: 'exact', head: true });
