@@ -14,17 +14,62 @@ let filtroDashboard = {
     categoriasIngresos: []
 };
 
+async function getDashboardAuthUser() {
+    const supabase = getSupabase();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error('No se pudo obtener el usuario actual:', userError);
+        showError?.('No hay una sesion activa');
+        return null;
+    }
+
+    return user;
+}
+
+function resetDashboardUserView() {
+    window.dashboardGastosFiltrados = [];
+    window.dashboardIngresosFiltrados = [];
+
+    updateStatsDisplay?.(0, 0, 0, 0);
+
+    const leyendaGastos = document.getElementById('leyendaCategoriasGastos');
+    const leyendaIngresos = document.getElementById('leyendaCategoriasIngresos');
+
+    if (leyendaGastos) leyendaGastos.innerHTML = '';
+    if (leyendaIngresos) leyendaIngresos.innerHTML = '';
+
+    if (monthlyChart) {
+        monthlyChart.destroy();
+        monthlyChart = null;
+    }
+
+    if (categoryChart) {
+        categoryChart.destroy();
+        categoryChart = null;
+    }
+
+    if (
+        window.incomeCategoryChart &&
+        typeof window.incomeCategoryChart.destroy === 'function'
+    ) {
+        window.incomeCategoryChart.destroy();
+        window.incomeCategoryChart = null;
+    }
+}
+
 // Cargar datos para el dashboard
 async function loadDashboardData() {
 
     try {
 
         const supabase = getSupabase();
+        resetDashboardUserView();
 
         // =========================
         // ESPERAR AUTH LISTA
         // =========================
-        const user = getCurrentUser();
+        let user = await getDashboardAuthUser();
 
         if (!user || !user.id) {
             console.warn('⏳ Esperando sesión de usuario...');
@@ -32,15 +77,17 @@ async function loadDashboardData() {
             // reintento corto (evita race condition)
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            const retryUser = getCurrentUser();
+            const retryUser = await getDashboardAuthUser();
 
             if (!retryUser?.id) {
                 console.error('No user ID válido');
                 return null;
             }
+
+            user = retryUser;
         }
 
-        const userId = getCurrentUser().id;
+        const userId = user.id;
 
         // =========================
         // FECHAS
@@ -652,23 +699,44 @@ function getUserRole() {
 }
 
 function isOperador() {
-    return getUserRole() === 'operador';
+    return ['operador', 'admin'].includes(getUserRole());
 }
+
+const PAGE_PERMISSIONS = {
+    usuario: [
+        'dashboard',
+        'gastos',
+        'ingresos',
+        'categorias',
+        'presupuestos',
+        'historial'
+    ],
+    operador: [
+        'dashboard',
+        'gastos',
+        'ingresos',
+        'remesas',
+        'categorias',
+        'presupuestos',
+        'historial'
+    ],
+    admin: [
+        'dashboard',
+        'gastos',
+        'ingresos',
+        'remesas',
+        'categorias',
+        'presupuestos',
+        'historial',
+        'administracion'
+    ]
+};
 
 function canAccessPage(page) {
     const role = getUserRole();
+    const allowedPages = PAGE_PERMISSIONS[role] || PAGE_PERMISSIONS.usuario;
 
-    const operadorOnlyPages = [
-        'operaciones',
-        'remesas',
-        'tasas'
-    ];
-
-    if (role === 'usuario' && operadorOnlyPages.includes(page)) {
-        return false;
-    }
-
-    return true;
+    return allowedPages.includes(page);
 }
 
 function canExecuteAction(action) {
@@ -696,7 +764,45 @@ async function refreshDashboard() {
     await loadTasas?.();
 }
 
+function updateSidebarVisibility() {
+    const sideMenuItems = document.querySelectorAll('#sideMenu .menu-item');
+
+    sideMenuItems.forEach(item => {
+        const page = item.dataset.page;
+        const menuEntry = item.closest('li') || item;
+        const hasAccess = canAccessPage(page);
+
+        menuEntry.style.display = hasAccess ? '' : 'none';
+        item.style.display = hasAccess ? '' : 'none';
+
+        if (!hasAccess) {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function setActiveMenuItem(page) {
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === page);
+    });
+}
+
+function activatePage(page) {
+    document.querySelectorAll('.page').forEach(p => {
+        p.classList.remove('active');
+    });
+
+    const selectedPage = document.getElementById(
+        `page${page.charAt(0).toUpperCase() + page.slice(1)}`
+    );
+
+    if (selectedPage) {
+        selectedPage.classList.add('active');
+    }
+}
+
 function initDashboard() {
+    updateSidebarVisibility();
 
     const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
 
@@ -736,10 +842,11 @@ function initDashboard() {
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', () => {
             const page = item.dataset.page;
-            showPage(page);
+            const opened = showPage(page);
 
-            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-            item.classList.add('active');
+            if (opened) {
+                setActiveMenuItem(page);
+            }
         });
     });
 
@@ -876,22 +983,15 @@ function showPage(page) {
     if (!canAccessPage(page)) {
         console.warn('Acceso denegado a:', page);
         showError('No tienes permisos para acceder a esta sección');
-        return;
+        activatePage('dashboard');
+        setActiveMenuItem('dashboard');
+        window.filtroActivoPara = 'dashboard';
+        return false;
     }
 
     // Ocultar todas las páginas
-    document.querySelectorAll('.page').forEach(p => {
-        p.classList.remove('active');
-    });
-
-    // Mostrar página seleccionada
-    const selectedPage = document.getElementById(
-        `page${page.charAt(0).toUpperCase() + page.slice(1)}`
-    );
-
-    if (selectedPage) {
-        selectedPage.classList.add('active');
-    }
+    activatePage(page);
+    setActiveMenuItem(page);
 
     if (page === 'administracion') {
         loadAdminUsers();
@@ -933,7 +1033,7 @@ function showPage(page) {
             initPresupuestosEvents?.();
             break;
         case 'historial':
-            cargarHistorial?.();
+            initHistorialEvents?.();
             break;
     }
 
@@ -942,6 +1042,8 @@ function showPage(page) {
     if (sideMenu && window.innerWidth < 768) {
         sideMenu.classList.remove('open');
     }
+
+    return true;
 }
 
 // Cerrar modal
@@ -1061,6 +1163,9 @@ async function loadDashboardCategoriasConDatos() {
     try {
 
         const supabase = getSupabase();
+        const user = await getDashboardAuthUser();
+
+        if (!user) return [];
 
         // ==========================
         // GASTOS
@@ -1068,6 +1173,7 @@ async function loadDashboardCategoriasConDatos() {
         let queryGastos = supabase
             .from('gastos')
             .select('categoria')
+            .eq('user_id', user.id)
             .not('categoria', 'is', null);
 
         if (filtroDashboard.desde) {
@@ -1091,6 +1197,7 @@ async function loadDashboardCategoriasConDatos() {
         let queryIngresos = supabase
             .from('ingresos')
             .select('origen')
+            .eq('user_id', user.id)
             .not('origen', 'is', null);
 
         if (filtroDashboard.desde) {
@@ -1574,6 +1681,10 @@ function resetearFiltrosDashboard() {
 // Verificar presupuestos y mostrar alertas
 async function verificarAlertasPresupuesto() {
     const supabase = getSupabase();
+    const user = await getDashboardAuthUser();
+
+    if (!user) return;
+
     const hoy = new Date();
     const mesActual = hoy.getMonth() + 1;
     const añoActual = hoy.getFullYear();
@@ -1582,6 +1693,7 @@ async function verificarAlertasPresupuesto() {
     const { data: presupuestos, error } = await supabase
         .from('presupuestos')
         .select('*')
+        .eq('user_id', user.id)
         .eq('mes', mesActual)
         .eq('año', añoActual);
     
@@ -1594,6 +1706,7 @@ async function verificarAlertasPresupuesto() {
     const { data: gastos } = await supabase
         .from(TABLES.gastos)
         .select('*')
+        .eq('user_id', user.id)
         .gte('fecha', fechaInicio)
         .lte('fecha', fechaFin);
     
@@ -1997,10 +2110,16 @@ function hasPermission(roleNeeded) {
     const role = window.currentUserRole || localStorage.getItem('user_role') || 'usuario';
 
     if (roleNeeded === 'operador') {
-        return role === 'operador';
+        return role === 'operador' || role === 'admin';
+    }
+
+    if (roleNeeded === 'admin') {
+        return role === 'admin';
     }
 
     return true;
 }
 
 console.log('✅ Módulo de dashboard cargado');
+
+

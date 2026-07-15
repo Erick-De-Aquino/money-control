@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn('⚠️ Cache aún no disponible, se inicializará vacío');
 
         window.appCache = {
+            userId: null,
             categorias: {
                 gastos: {
                     loaded: false,

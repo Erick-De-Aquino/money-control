@@ -13,12 +13,38 @@ let filtroGastos = {
     categoria: []
 };
 
+async function getGastosAuthUser() {
+    const supabase = getSupabase();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error('No se pudo obtener el usuario actual:', userError);
+        showError?.('No hay una sesion activa');
+        return null;
+    }
+
+    return user;
+}
+
 // Cargar gastos desde Supabase
 async function loadGastos() {
     try {
         const supabase = getSupabase();
+        const container = document.getElementById('gastosList');
+        const totalElement = document.getElementById('totalGastosFiltrados');
 
-        const userId = getCurrentUser()?.id;
+        gastosList = [];
+
+        if (container) {
+            container.innerHTML = '<p class="empty-message">Cargando gastos...</p>';
+        }
+
+        if (totalElement) {
+            totalElement.textContent = formatCurrency(0, 'EUR');
+        }
+
+        const user = await getGastosAuthUser();
+        const userId = user?.id;
 
         if (!userId || userId === 'undefined') {
             console.error('No user ID en gastos');
@@ -68,8 +94,6 @@ async function loadGastos() {
                 filtroGastos.categoria.length > 0
             );
 
-        const totalElement = document.getElementById('totalGastosFiltrados');
-
         if (totalElement) {
             if (hayFiltros) {
 
@@ -96,50 +120,11 @@ async function loadGastos() {
     }
 }
 
-// Cargar categorías de gastos desde Supabase (CACHE OPTIMIZADO)
-async function getGastosCategoriasCached() {
-
-    // 1. si ya están cargadas → devolverlas
-    if (window.appCache?.gastos?.loaded) {
-        return window.appCache.gastos.categorias;
-    }
-
-    // 2. si ya hay request en curso → esperarla
-    if (window.appCache?.gastos?.promise) {
-        return await window.appCache.gastos.promise;
-    }
-
-    // 3. crear request
-    window.appCache.gastos.promise = (async () => {
-
-        try {
-            const supabase = getSupabase();
-
-            const { data, error } = await supabase
-                .from('categorias')
-                .select('*')
-                .eq('tipo', 'gasto')
-                .order('nombre');
-
-            if (error) {
-                console.error(error);
-                window.appCache.gastos.promise = null;
-                return [];
-            }
-
-            window.appCache.gastos.categorias = data || [];
-            window.appCache.gastos.loaded = true;
-            window.categoriasGastos = data || [];
-
-            return data || [];
-        } catch (err) {
-            console.error('Error en cache gastos:', err);
-            window.appCache.gastos.promise = null;
-            return [];
-        }
-    })();
-
-    return await window.appCache.gastos.promise;
+// Cargar categorías de gastos desde caché central
+async function getGastosCategoriasCached(forceReload = false) {
+    const categorias = await getCategoriasCache('gastos', forceReload);
+    window.categoriasGastos = categorias;
+    return categorias;
 }
 
 // Mostrar gastos en UI
@@ -314,6 +299,10 @@ async function saveGasto(event) {
         return;
     }
     
+    const user = await getGastosAuthUser();
+
+    if (!user) return;
+
     const montoEUR = await convertToEUR(monto, moneda);
     
     const gastoData = {
@@ -323,7 +312,7 @@ async function saveGasto(event) {
         moneda,
         monto_eur: montoEUR,
         descripcion: descripcion || null,
-        user_id: getCurrentUser()?.id
+        user_id: user.id
     };
     
     try {
@@ -334,7 +323,8 @@ async function saveGasto(event) {
             result = await supabase
                 .from(TABLES.gastos)
                 .update(gastoData)
-                .eq('id', editingGastoId);
+                .eq('id', editingGastoId)
+                .eq('user_id', user.id);
         } else {
             result = await supabase
                 .from(TABLES.gastos)
@@ -375,11 +365,15 @@ async function deleteGasto(id) {
         async () => {
             try {
                 const supabase = getSupabase();
+                const user = await getGastosAuthUser();
+
+                if (!user) return;
                 
                 const { error } = await supabase
                     .from(TABLES.gastos)
                     .delete()
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('user_id', user.id);
                 
                 if (error) {
                     console.error('Error al eliminar gasto:', error);
@@ -404,9 +398,14 @@ async function deleteGasto(id) {
 async function loadCategoriasGastosConDatos() {
     try {
         const supabase = getSupabase();
+        const user = await getGastosAuthUser();
+
+        if (!user) return [];
+
         const { data, error } = await supabase
             .from('gastos')
             .select('categoria')
+            .eq('user_id', user.id)
             .not('categoria', 'is', null);
         
         if (error) throw error;

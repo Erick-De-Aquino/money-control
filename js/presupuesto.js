@@ -10,11 +10,39 @@ let filtroPresupuesto = {
     año: new Date().getFullYear()
 };
 
+async function getPresupuestoAuthUser() {
+    const supabase = getSupabase();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error('No se pudo obtener el usuario actual:', userError);
+        showError?.('No hay una sesion activa');
+        return null;
+    }
+
+    return user;
+}
+
 // Cargar presupuestos desde Supabase
 async function loadPresupuestos() {
     try {
         const supabase = getSupabase();
-        let query = supabase.from('presupuestos').select('*');
+        const container = document.getElementById('presupuestosList');
+
+        presupuestosList = [];
+
+        if (container) {
+            container.innerHTML = '<p class="empty-message">Cargando presupuestos...</p>';
+        }
+
+        const user = await getPresupuestoAuthUser();
+
+        if (!user) return [];
+
+        let query = supabase
+            .from('presupuestos')
+            .select('*')
+            .eq('user_id', user.id);
         
         if (filtroPresupuesto.mes) {
             query = query.eq('mes', filtroPresupuesto.mes);
@@ -92,12 +120,16 @@ async function displayPresupuestos() {
 async function getGastosDelMes(año, mes) {
     try {
         const supabase = getSupabase();
+        const user = await getPresupuestoAuthUser();
+
+        if (!user) return [];
         const fechaInicio = `${año}-${String(mes).padStart(2, '0')}-01`;
         const fechaFin = `${año}-${String(mes).padStart(2, '0')}-${new Date(año, mes, 0).getDate()}`;
         
         const { data, error } = await supabase
             .from(TABLES.gastos)
             .select('*')
+            .eq('user_id', user.id)
             .gte('fecha', fechaInicio)
             .lte('fecha', fechaFin);
         
@@ -208,13 +240,17 @@ async function savePresupuesto(event) {
         showError('El límite debe ser mayor a 0');
         return;
     }
+
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return;
     
     const presupuestoData = {
         categoria,
         mes,
         año,
         limite,
-        user_id: getCurrentUser()?.id
+        user_id: user.id
     };
     
     try {
@@ -225,7 +261,8 @@ async function savePresupuesto(event) {
             result = await supabase
                 .from('presupuestos')
                 .update(presupuestoData)
-                .eq('id', editingPresupuestoId);
+                .eq('id', editingPresupuestoId)
+                .eq('user_id', user.id);
         } else {
             result = await supabase
                 .from('presupuestos')
@@ -256,111 +293,29 @@ async function editPresupuesto(id) {
     }
 }
 
-async function deletePresupuesto(id) {
-    const presupuesto = presupuestosList.find(p => p.id === id);
-
-    showConfirmModal(
-        `¿Eliminar presupuesto de ${presupuesto.categoria} para ${presupuesto.mes}/${presupuesto.año}?`,
-        async () => {
-            try {
-                const supabase = getSupabase();
-
-                const { error } = await supabase
-                    .from('presupuestos')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) {
-                    console.error('Error al eliminar presupuesto:', error);
-                    showError('Error al eliminar el presupuesto');
-                    return;
-                }
-
-                showSuccess('Presupuesto eliminado');
-                await loadPresupuestos();
-
-            } catch (error) {
-                console.error('Error en deletePresupuesto:', error);
-                showError('Error al eliminar el presupuesto');
-            }
-        },
-        'Eliminar Presupuesto'
-    );
-}
-
-async function aplicarFiltroPresupuestos() {
-    filtroPresupuesto.mes = parseInt(document.getElementById('filtroMesPresupuesto')?.value);
-    filtroPresupuesto.año = parseInt(document.getElementById('filtroAnoPresupuesto')?.value);
-
-    await loadPresupuestos();
-    showSuccess('Filtro aplicado');
-}
-
-function limpiarFiltroPresupuestos() {
-    const hoy = new Date();
-    filtroPresupuesto = {
-        mes: hoy.getMonth() + 1,
-        año: hoy.getFullYear()
-    };
-
-    const mesSelect = document.getElementById('filtroMesPresupuesto');
-    const añoSelect = document.getElementById('filtroAnoPresupuesto');
-
-    if (mesSelect) mesSelect.value = filtroPresupuesto.mes;
-    if (añoSelect) añoSelect.value = filtroPresupuesto.año;
-
-    loadPresupuestos();
-    showSuccess('Filtros limpiados');
-}
-
-function initAnoSelect() {
-    const añoSelect = document.getElementById('filtroAnoPresupuesto');
-    if (!añoSelect) return;
-
-    const añoActual = new Date().getFullYear();
-    añoSelect.innerHTML = '';
-
-    for (let i = añoActual - 2; i <= añoActual + 2; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i;
-        if (i === añoActual) option.selected = true;
-        añoSelect.appendChild(option);
-    }
-}
-
-function initPresupuestosEvents() {
-    initHistorialCheck();
-
-    const btnAdd = document.getElementById('btnAddPresupuesto');
-    if (btnAdd) {
-        btnAdd.addEventListener('click', () => showPresupuestoModal());
-    }
-
-    const btnAplicar = document.getElementById('btnAplicarFiltroPresupuesto');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroPresupuesto');
-
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroPresupuestos);
-    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroPresupuestos);
-
-    initAnoSelect();
-    loadPresupuestos();
-}
-
 // Eliminar presupuesto
 async function deletePresupuesto(id) {
     const presupuesto = presupuestosList.find(p => p.id === id);
+
+    if (!presupuesto) {
+        showError('No se encontró el presupuesto');
+        return;
+    }
     
     showConfirmModal(
         `¿Eliminar presupuesto de ${presupuesto.categoria} para ${presupuesto.mes}/${presupuesto.año}?`,
         async () => {
             try {
                 const supabase = getSupabase();
+                const user = await getPresupuestoAuthUser();
+
+                if (!user) return;
                 
                 const { error } = await supabase
                     .from('presupuestos')
                     .delete()
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('user_id', user.id);
                 
                 if (error) {
                     console.error('Error al eliminar presupuesto:', error);
@@ -426,17 +381,21 @@ function initAnoSelect() {
 function initPresupuestosEvents() {
     // Verificar cambio de mes al entrar
     initHistorialCheck();
-    
-    const btnAdd = document.getElementById('btnAddPresupuesto');
-    if (btnAdd) {
-        btnAdd.addEventListener('click', () => showPresupuestoModal());
+
+    if (!window.__presupuestosEventsInitialized) {
+        const btnAdd = document.getElementById('btnAddPresupuesto');
+        if (btnAdd) {
+            btnAdd.addEventListener('click', () => showPresupuestoModal());
+        }
+
+        const btnAplicar = document.getElementById('btnAplicarFiltroPresupuesto');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroPresupuesto');
+
+        if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroPresupuestos);
+        if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroPresupuestos);
+
+        window.__presupuestosEventsInitialized = true;
     }
-    
-    const btnAplicar = document.getElementById('btnAplicarFiltroPresupuesto');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroPresupuesto');
-    
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroPresupuestos);
-    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltroPresupuestos);
     
     initAnoSelect();
     loadPresupuestos();
@@ -449,9 +408,13 @@ function initPresupuestosEvents() {
 // Verificar si ya se mostró una alerta
 async function alertaYaMostrada(presupuestoId, tipo, mes, año) {
     const supabase = getSupabase();
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return false;
     const { data, error } = await supabase
         .from('alertas_mostradas')
         .select('id')
+        .eq('user_id', user.id)
         .eq('presupuesto_id', presupuestoId)
         .eq('tipo', tipo)
         .eq('mes', mes)
@@ -464,6 +427,9 @@ async function alertaYaMostrada(presupuestoId, tipo, mes, año) {
 // Guardar que se mostró una alerta
 async function guardarAlertaMostrada(presupuestoId, tipo, mes, año) {
     const supabase = getSupabase();
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return false;
     await supabase
         .from('alertas_mostradas')
         .insert([{
@@ -471,7 +437,7 @@ async function guardarAlertaMostrada(presupuestoId, tipo, mes, año) {
             tipo: tipo,
             mes: mes,
             año: año,
-            user_id: getCurrentUser()?.id
+            user_id: user.id
         }]);
 }
 
@@ -516,9 +482,13 @@ async function verificarTodasAlertas() {
     
     // Obtener presupuestos del mes actual
     const supabase = getSupabase();
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return;
     const { data: presupuestos, error } = await supabase
         .from('presupuestos')
         .select('*')
+        .eq('user_id', user.id)
         .eq('mes', mesActual)
         .eq('año', añoActual);
     
@@ -552,10 +522,13 @@ async function verificarTodasAlertas() {
 // Obtener el último mes con historial guardado
 async function getUltimoMesHistorial() {
     const supabase = getSupabase();
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return null;
     const { data, error } = await supabase
         .from('historial_presupuestos')
         .select('año, mes')
-        .eq('user_id', getCurrentUser()?.id)
+        .eq('user_id', user.id)
         .order('año', { ascending: false })
         .order('mes', { ascending: false })
         .limit(1);
@@ -567,11 +540,15 @@ async function getUltimoMesHistorial() {
 // Guardar presupuestos del mes en el historial
 async function guardarMesEnHistorial(año, mes) {
     const supabase = getSupabase();
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return;
     
     // Obtener presupuestos del mes
     const { data: presupuestos, error: errorPres } = await supabase
         .from('presupuestos')
         .select('*')
+        .eq('user_id', user.id)
         .eq('mes', mes)
         .eq('año', año);
     
@@ -600,7 +577,7 @@ async function guardarMesEnHistorial(año, mes) {
                 gastado: gastado,
                 porcentaje: porcentaje,
                 color: color,
-                user_id: getCurrentUser()?.id
+                user_id: user.id
             }]);
     }
     
@@ -618,13 +595,14 @@ async function guardarMesEnHistorial(año, mes) {
             porcentaje: cumplimientoGeneral,
             color: cumplimientoGeneral >= 100 ? 'verde' : 'rojo',
             cumplimiento_general: cumplimientoGeneral,
-            user_id: getCurrentUser()?.id
+            user_id: user.id
         }]);
     
     // Eliminar presupuestos del mes anterior
     await supabase
         .from('presupuestos')
         .delete()
+        .eq('user_id', user.id)
         .eq('mes', mes)
         .eq('año', año);
     
@@ -632,6 +610,7 @@ async function guardarMesEnHistorial(año, mes) {
     await supabase
         .from('alertas_mostradas')
         .delete()
+        .eq('user_id', user.id)
         .eq('mes', mes)
         .eq('año', año);
     
@@ -641,6 +620,9 @@ async function guardarMesEnHistorial(año, mes) {
 // Verificar si es un nuevo mes y pasar al historial
 async function verificarNuevoMes() {
     const supabase = getSupabase();
+    const user = await getPresupuestoAuthUser();
+
+    if (!user) return;
     const hoy = new Date();
     const mesActual = hoy.getMonth() + 1;
     const añoActual = hoy.getFullYear();
@@ -649,6 +631,7 @@ async function verificarNuevoMes() {
     const { data: presupuestosActuales, error } = await supabase
         .from('presupuestos')
         .select('id')
+        .eq('user_id', user.id)
         .eq('mes', mesActual)
         .eq('año', añoActual)
         .limit(1);
@@ -667,6 +650,7 @@ async function verificarNuevoMes() {
     const { data: presupuestosAnteriores } = await supabase
         .from('presupuestos')
         .select('id')
+        .eq('user_id', user.id)
         .eq('mes', mesAnterior)
         .eq('año', añoAnterior)
         .limit(1);
@@ -682,3 +666,6 @@ async function initHistorialCheck() {
 }
 
 console.log('✅ Módulo de presupuestos cargado');
+
+
+

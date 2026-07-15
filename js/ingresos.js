@@ -15,12 +15,38 @@ let filtroIngresos = {
 let limpiandoFiltros = false;
 let ultimaCarga = 0;
 
+async function getIngresosAuthUser() {
+    const supabase = getSupabase();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error('No se pudo obtener el usuario actual:', userError);
+        showError?.('No hay una sesion activa');
+        return null;
+    }
+
+    return user;
+}
+
 // Cargar ingresos desde Supabase
 async function loadIngresos() {
     try {
         const supabase = getSupabase();
+        const container = document.getElementById('ingresosList');
+        const totalElement = document.getElementById('totalIngresosFiltrados');
 
-        const userId = getCurrentUser()?.id;
+        ingresosList = [];
+
+        if (container) {
+            container.innerHTML = '<p class="empty-message">Cargando ingresos...</p>';
+        }
+
+        if (totalElement) {
+            totalElement.textContent = formatCurrency(0, 'EUR');
+        }
+
+        const user = await getIngresosAuthUser();
+        const userId = user?.id;
 
         if (!userId || userId === 'undefined') {
             console.error('No user ID en ingresos');
@@ -70,8 +96,6 @@ async function loadIngresos() {
                 filtroIngresos.categoria.length > 0
             );
 
-        const totalElement = document.getElementById('totalIngresosFiltrados');
-
         if (totalElement) {
             if (hayFiltros) {
                 const total = ingresosList.reduce(
@@ -93,51 +117,6 @@ async function loadIngresos() {
         console.error('Error en loadIngresos:', error);
         return [];
     }
-}
-
-// Cargar categorías de ingresos desde Supabase
-async function getIngresosCategoriasCached() {
-
-    // 1. devolver cache si ya está listo
-    if (window.appCache.ingresos.loaded) {
-        return window.appCache.ingresos.categorias;
-    }
-
-    // 2. esperar request en curso
-    if (window.appCache.ingresos.promise) {
-        return await window.appCache.ingresos.promise;
-    }
-
-    // 3. crear request único
-    window.appCache.ingresos.promise = (async () => {
-
-        const supabase = getSupabase();
-
-        const { data, error } = await supabase
-            .from('categorias')
-            .select('*')
-            .eq('tipo', 'ingreso')
-            .order('nombre');
-
-        if (error) {
-            console.error('❌ Error cargando ingresos:', error);
-            window.appCache.ingresos.promise = null;
-            return [];
-        }
-
-        const categorias = data || [];
-
-        // 🔥 SOLO CACHE CENTRAL (evita duplicación global)
-        window.appCache.ingresos.categorias = categorias;
-        window.appCache.ingresos.loaded = true;
-
-        // ⚠️ mantener compatibilidad (pero ya NO es fuente principal)
-        window.categoriasIngresos = categorias;
-
-        return categorias;
-    })();
-
-    return await window.appCache.ingresos.promise;
 }
 
 // Mostrar ingresos en UI
@@ -311,6 +290,10 @@ async function saveIngreso(event) {
         return;
     }
     
+    const user = await getIngresosAuthUser();
+
+    if (!user) return;
+
     const montoEUR = await convertToEUR(monto, moneda);
     
     const ingresoData = {
@@ -320,7 +303,7 @@ async function saveIngreso(event) {
         moneda,
         monto_eur: montoEUR,
         descripcion: descripcion || null,
-        user_id: getCurrentUser()?.id
+        user_id: user.id
     };
     
     try {
@@ -331,7 +314,8 @@ async function saveIngreso(event) {
             result = await supabase
                 .from(TABLES.ingresos)
                 .update(ingresoData)
-                .eq('id', editingIngresoId);
+                .eq('id', editingIngresoId)
+                .eq('user_id', user.id);
         } else {
             result = await supabase
                 .from(TABLES.ingresos)
@@ -372,11 +356,15 @@ async function deleteIngreso(id) {
         async () => {
             try {
                 const supabase = getSupabase();
+                const user = await getIngresosAuthUser();
+
+                if (!user) return;
                 
                 const { error } = await supabase
                     .from(TABLES.ingresos)
                     .delete()
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('user_id', user.id);
                 
                 if (error) {
                     console.error('Error al eliminar ingreso:', error);
@@ -401,9 +389,14 @@ async function deleteIngreso(id) {
 async function loadCategoriasIngresosConDatos() {
     try {
         const supabase = getSupabase();
+        const user = await getIngresosAuthUser();
+
+        if (!user) return [];
+
         const { data, error } = await supabase
             .from('ingresos')
             .select('origen')
+            .eq('user_id', user.id)
             .not('origen', 'is', null);
         
         if (error) throw error;
@@ -413,93 +406,6 @@ async function loadCategoriasIngresosConDatos() {
     } catch (error) {
         console.error('Error cargando categorías con datos:', error);
         return [];
-    }
-}
-
-// Abrir modal de filtros (cargando valores según página activa)
-async function abrirModalFiltros() {
-
-    if (!window.filtroActivoPara) {
-        window.filtroActivoPara = 'dashboard';
-    }
-
-    const desdeInput = document.getElementById('filtroDashboardDesde');
-    const hastaInput = document.getElementById('filtroDashboardHasta');
-
-    const catSelect = document.getElementById('filtroDashboardCategoria');
-
-    let categorias = [];
-    let seleccionadas = [];
-
-    // DASHBOARD
-    if (window.filtroActivoPara === 'dashboard') {
-
-        if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
-        if (hastaInput) hastaInput.value = filtroDashboard.hasta || '';
-
-        categorias = await getCategoriasCache('gastos');
-        seleccionadas = filtroDashboard.categoria || [];
-    }
-
-    // GASTOS
-    else if (window.filtroActivoPara === 'gastos') {
-
-        if (desdeInput) desdeInput.value = filtroGastos.desde || '';
-        if (hastaInput) hastaInput.value = filtroGastos.hasta || '';
-
-        categorias = await getCategoriasCache('gastos');
-        seleccionadas = filtroGastos.categoria || [];
-    }
-
-    // INGRESOS
-    else if (window.filtroActivoPara === 'ingresos') {
-
-        if (desdeInput) desdeInput.value = filtroIngresos.desde || '';
-        if (hastaInput) hastaInput.value = filtroIngresos.hasta || '';
-
-        categorias = await getCategoriasCache('ingresos');
-        seleccionadas = filtroIngresos.categoria || [];
-    }
-
-    // Crear contenedor de checkboxes
-    if (catSelect) {
-
-        let container = document.getElementById('contenedorCategoriasCheckbox');
-
-        if (!container) {
-
-            container = document.createElement('div');
-            container.id = 'contenedorCategoriasCheckbox';
-
-            container.style.maxHeight = '220px';
-            container.style.overflowY = 'auto';
-            container.style.border = '1px solid #ccc';
-            container.style.borderRadius = '8px';
-            container.style.padding = '10px';
-            container.style.marginTop = '8px';
-
-            catSelect.parentNode.appendChild(container);
-        }
-
-        container.innerHTML = categorias.map(cat => `
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                <input
-                    type="checkbox"
-                    class="checkboxCategoriaFiltro"
-                    value="${cat.nombre}"
-                    ${seleccionadas.includes(cat.nombre) ? 'checked' : ''}
-                >
-                ${cat.nombre}
-            </label>
-        `).join('');
-
-        catSelect.style.display = 'none';
-    }
-
-    const modal = document.getElementById('modalFiltros');
-
-    if (modal) {
-        modal.classList.add('active');
     }
 }
 
@@ -621,8 +527,10 @@ async function initIngresosEvents() {
     resetearFiltrosIngresos?.();
 }
 
-async function getIngresosCategoriasCached() {
-    return await getCategoriasCache('ingresos');
+async function getIngresosCategoriasCached(forceReload = false) {
+    const categorias = await getCategoriasCache('ingresos', forceReload);
+    window.categoriasIngresos = categorias;
+    return categorias;
 }
 
 console.log('✅ Módulo de ingresos cargado');

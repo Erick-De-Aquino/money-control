@@ -68,15 +68,18 @@ const ERROR_MESSAGES = {
 // ============================================
 
 window.appCache = {
-    gastos: {
-        categorias: null,
-        loaded: false,
-        promise: null
-    },
-    ingresos: {
-        categorias: null,
-        loaded: false,
-        promise: null
+    userId: null,
+    categorias: {
+        gastos: {
+            loaded: false,
+            promise: null,
+            data: []
+        },
+        ingresos: {
+            loaded: false,
+            promise: null,
+            data: []
+        }
     }
 };
 

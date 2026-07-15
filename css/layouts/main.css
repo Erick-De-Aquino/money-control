@@ -287,11 +287,6 @@
     
     .main-content {
         margin-left: 0;
-        transition: margin-left var(--transition-normal, 250ms ease);
-    }
-    
-    .side-menu.open + .main-content {
-        margin-left: 280px;
     }
     
     .stats-grid {
@@ -317,10 +312,6 @@
         margin-left: auto;
         margin-right: auto;
         width: 100%;
-    }
-    
-    .side-menu.open + .main-content {
-        margin-left: auto;
     }
 }
 

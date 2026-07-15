@@ -244,33 +244,6 @@ async function copyToClipboard(text) {
     }
 }
 
-// Exportar datos a CSV
-function exportToCSV(data, filename, columns) {
-    const csvRows = [];
-    csvRows.push(columns.join(','));
-    
-    for (const row of data) {
-        const values = columns.map(col => {
-            let value = row[col] || '';
-            if (typeof value === 'string' && value.includes(',')) {
-                value = `"${value}"`;
-            }
-            return value;
-        });
-        csvRows.push(values.join(','));
-    }
-    
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}_${getTodayDate()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    showSuccess('Exportación completada');
-}
-
 /**
  * Exporta datos a PDF.
  *

@@ -3,10 +3,36 @@
 // ============================================
 
 // Cargar categorías del usuario
+async function getCategoriasAuthUser() {
+    const supabase = getSupabase();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error('No se pudo obtener el usuario actual:', userError);
+        showError?.('No hay una sesion activa');
+        return null;
+    }
+
+    return user;
+}
+
+function invalidateCategoriasCache(tipo) {
+    const cacheKey = tipo === 'gasto' ? 'gastos' : 'ingresos';
+
+    resetCategoriasCache?.(cacheKey);
+}
+
 async function loadCategorias(tipo = null) {
     try {
         const supabase = getSupabase();
-        let query = supabase.from('categorias').select('*');
+        const user = await getCategoriasAuthUser();
+
+        if (!user) return [];
+
+        let query = supabase
+            .from('categorias')
+            .select('*')
+            .eq('user_id', user.id);
         
         if (tipo) {
             query = query.eq('tipo', tipo);
@@ -42,13 +68,16 @@ async function createCategoria(nombre, tipo) {
     try {
 
         const supabase = getSupabase();
+        const user = await getCategoriasAuthUser();
+
+        if (!user) return false;
 
         const { data, error } = await supabase
             .from('categorias')
             .insert([{
                 nombre: nombreFormateado,
                 tipo,
-                user_id: getCurrentUser()?.id
+                user_id: user.id
             }])
             .select();
 
@@ -58,18 +87,7 @@ async function createCategoria(nombre, tipo) {
             return false;
         }
 
-        // 🔥 Invalidar caché según el tipo creado
-        if (tipo === 'gasto') {
-            if (window.appCache?.categorias?.gastos) {
-                window.appCache.categorias.gastos.loaded = false;
-                window.appCache.categorias.gastos.promise = null;  // ✅ agregado
-            }
-        } else if (tipo === 'ingreso') {
-            if (window.appCache?.categorias?.ingresos) {
-                window.appCache.categorias.ingresos.loaded = false;
-                window.appCache.categorias.ingresos.promise = null;  // ✅ agregado
-            }
-        }
+        invalidateCategoriasCache(tipo);
 
         showSuccess(`Categoría "${nombreFormateado}" creada`);
 
@@ -166,11 +184,32 @@ async function loadCategoriasAdmin(filtro = '') {
 
     try {
         const supabase = getSupabase();
+        const gastosContainer = document.getElementById('categoriasGastosList');
+        const ingresosContainer = document.getElementById('categoriasIngresosList');
+
+        window.categoriasGastos = [];
+        window.categoriasIngresos = [];
+
+        if (typeof categoriasGastos !== 'undefined') categoriasGastos = [];
+        if (typeof categoriasIngresos !== 'undefined') categoriasIngresos = [];
+
+        if (gastosContainer) {
+            gastosContainer.innerHTML = '<p class="empty-message">Cargando categorías...</p>';
+        }
+
+        if (ingresosContainer) {
+            ingresosContainer.innerHTML = '<p class="empty-message">Cargando categorías...</p>';
+        }
+
+        const user = await getCategoriasAuthUser();
+
+        if (!user) return;
 
         // Cargar gastos
         const { data: gastos, error: errorGastos } = await supabase
             .from('categorias')
             .select('*')
+            .eq('user_id', user.id)
             .eq('tipo', 'gasto')
             .order('nombre');
 
@@ -180,6 +219,7 @@ async function loadCategoriasAdmin(filtro = '') {
         const { data: ingresos, error: errorIngresos } = await supabase
             .from('categorias')
             .select('*')
+            .eq('user_id', user.id)
             .eq('tipo', 'ingreso')
             .order('nombre');
 
@@ -333,12 +373,16 @@ async function updateCategoria(id, nombreAnterior, nuevoNombre, tipo) {
     
     try {
         const supabase = getSupabase();
+        const user = await getCategoriasAuthUser();
+
+        if (!user) return false;
         
         // Actualizar la categoría
         const { error: errorCategoria } = await supabase
             .from('categorias')
             .update({ nombre: nombreFormateado })
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id);
         
         if (errorCategoria) {
             console.error('Error al actualizar categoría:', errorCategoria);
@@ -351,28 +395,31 @@ async function updateCategoria(id, nombreAnterior, nuevoNombre, tipo) {
             const { error: errorGastos } = await supabase
                 .from('gastos')
                 .update({ categoria: nombreFormateado })
-                .eq('categoria', nombreAnterior);
+                .eq('categoria', nombreAnterior)
+                .eq('user_id', user.id);
             
             if (errorGastos) console.error('Error actualizando gastos:', errorGastos);
         } else {
             const { error: errorIngresos } = await supabase
                 .from('ingresos')
                 .update({ origen: nombreFormateado })
-                .eq('origen', nombreAnterior);
+                .eq('origen', nombreAnterior)
+                .eq('user_id', user.id);
             
             if (errorIngresos) console.error('Error actualizando ingresos:', errorIngresos);
         }
         
         showSuccess(`Categoría actualizada a "${nombreFormateado}"`);
         closeModal();
+        invalidateCategoriasCache(tipo);
         
         // Recargar todo
         await loadCategoriasAdmin();
         if (tipo === 'gasto') {
-            await loadGastosCategorias();
+            await getCategoriasCache?.('gastos');
             await loadGastos();
         } else {
-            await loadIngresosCategorias();
+            await getCategoriasCache?.('ingresos');
             await loadIngresos();
         }
         await loadDashboardData();
@@ -390,6 +437,10 @@ async function updateCategoria(id, nombreAnterior, nuevoNombre, tipo) {
 async function deleteCategoria(id, nombre, tipo) {
     // Verificar si hay gastos/ingresos usando esta categoría
     const supabase = getSupabase();
+    const user = await getCategoriasAuthUser();
+
+    if (!user) return;
+
     let tieneRegistros = false;
     let count = 0;
     
@@ -397,7 +448,8 @@ async function deleteCategoria(id, nombre, tipo) {
         const { count: c, error } = await supabase
             .from('gastos')
             .select('*', { count: 'exact', head: true })
-            .eq('categoria', nombre);
+            .eq('categoria', nombre)
+            .eq('user_id', user.id);
         
         if (!error && c > 0) {
             tieneRegistros = true;
@@ -407,7 +459,8 @@ async function deleteCategoria(id, nombre, tipo) {
         const { count: c, error } = await supabase
             .from('ingresos')
             .select('*', { count: 'exact', head: true })
-            .eq('origen', nombre);
+            .eq('origen', nombre)
+            .eq('user_id', user.id);
         
         if (!error && c > 0) {
             tieneRegistros = true;
@@ -427,7 +480,8 @@ async function deleteCategoria(id, nombre, tipo) {
                 const { error } = await supabase
                     .from('categorias')
                     .delete()
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('user_id', user.id);
                 
                 if (error) {
                     console.error('Error al eliminar categoría:', error);
@@ -436,6 +490,7 @@ async function deleteCategoria(id, nombre, tipo) {
                 }
                 
                 showSuccess(`Categoría "${nombre}" eliminada`);
+                invalidateCategoriasCache(tipo);
                 await loadCategoriasAdmin(filtroActual || '');
                 
                 // ✅ Recargar usando getCategoriasCache
@@ -491,3 +546,4 @@ function initCategoriasAdminEvents() {
 }
 
 console.log('✅ Módulo de categorías cargado');
+

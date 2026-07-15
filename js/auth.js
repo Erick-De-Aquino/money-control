@@ -7,6 +7,221 @@ let currentUser = null;
 let authInitialized = false;
 let isRecoveringPassword = false;
 
+function persistSessionProfile(user, profile = {}) {
+    const role = profile?.role || 'usuario';
+    const monedaPrincipal = profile?.moneda_principal || 'EUR';
+    const previousUserId =
+        window.currentUser?.id ||
+        localStorage.getItem('user_id');
+
+    if (user?.id && previousUserId && previousUserId !== user.id) {
+        clearUserDataState();
+    }
+
+    currentUser = user;
+    window.currentUser = user;
+
+    if (currentUser) {
+        currentUser.moneda_principal = monedaPrincipal;
+        localStorage.setItem('user_id', currentUser.id);
+        localStorage.setItem('user_email', currentUser.email || '');
+    }
+
+    window.currentUserRole = role;
+    window.currentUserCurrency = monedaPrincipal;
+
+    localStorage.setItem('user_role', role);
+    localStorage.setItem('user_currency', monedaPrincipal);
+
+    return {
+        role,
+        moneda_principal: monedaPrincipal
+    };
+}
+
+function setElementHTML(id, html) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.innerHTML = html;
+    }
+}
+
+function setElementText(id, text) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.textContent = text;
+    }
+}
+
+function clearUserDataState() {
+    if (typeof resetUserCache === 'function') {
+        resetUserCache();
+    } else {
+        window.appCache = {
+            userId: null,
+            categorias: {
+                gastos: { loaded: false, promise: null, data: [] },
+                ingresos: { loaded: false, promise: null, data: [] }
+            }
+        };
+    }
+
+    if (typeof gastosList !== 'undefined') gastosList = [];
+    if (typeof ingresosList !== 'undefined') ingresosList = [];
+    if (typeof presupuestosList !== 'undefined') presupuestosList = [];
+    if (typeof historialList !== 'undefined') historialList = [];
+    if (typeof categoriasGastos !== 'undefined') categoriasGastos = [];
+    if (typeof categoriasIngresos !== 'undefined') categoriasIngresos = [];
+
+    window.categoriasGastos = [];
+    window.categoriasIngresos = [];
+    window.dashboardGastosFiltrados = [];
+    window.dashboardIngresosFiltrados = [];
+    window.dashboardCategoriasDisponibles = [];
+
+    if (typeof filtroDashboard !== 'undefined') {
+        filtroDashboard = {
+            desde: '',
+            hasta: '',
+            categoriasGastos: [],
+            categoriasIngresos: []
+        };
+    }
+
+    if (typeof filtroGastos !== 'undefined') {
+        filtroGastos = {
+            desde: '',
+            hasta: '',
+            categoria: []
+        };
+    }
+
+    if (typeof filtroIngresos !== 'undefined') {
+        filtroIngresos = {
+            desde: '',
+            hasta: '',
+            categoria: []
+        };
+    }
+
+    if (typeof filtroPresupuesto !== 'undefined') {
+        filtroPresupuesto = {
+            mes: new Date().getMonth() + 1,
+            año: new Date().getFullYear()
+        };
+    }
+
+    if (typeof filtroHistorial !== 'undefined') {
+        filtroHistorial = {
+            mes: '',
+            año: ''
+        };
+    }
+
+    if (typeof monthlyChart !== 'undefined' && monthlyChart) {
+        monthlyChart.destroy();
+        monthlyChart = null;
+    }
+
+    if (typeof categoryChart !== 'undefined' && categoryChart) {
+        categoryChart.destroy();
+        categoryChart = null;
+    }
+
+    if (
+        window.incomeCategoryChart &&
+        typeof window.incomeCategoryChart.destroy === 'function'
+    ) {
+        window.incomeCategoryChart.destroy();
+        window.incomeCategoryChart = null;
+    }
+
+    clearSensitiveUserUI();
+}
+
+function clearSensitiveUserUI() {
+    setElementText('totalGastos', '0.00 €');
+    setElementText('totalIngresos', '0.00 €');
+    setElementText('balance', '0.00 €');
+    setElementText('gananciaOperaciones', '0.00 €');
+    setElementText('totalGastosFiltrados', '0.00 €');
+    setElementText('totalIngresosFiltrados', '0.00 €');
+
+    setElementHTML('gastosList', '<p class="empty-message">No hay gastos registrados</p>');
+    setElementHTML('ingresosList', '<p class="empty-message">No hay ingresos registrados</p>');
+    setElementHTML('presupuestosList', '<p class="empty-message">No hay presupuestos para este período</p>');
+    setElementHTML('historialList', '<p class="empty-message">No hay historial de presupuestos</p>');
+    setElementHTML('categoriasGastosList', '<p class="empty-message">No hay categorías de gastos. Crea una.</p>');
+    setElementHTML('categoriasIngresosList', '<p class="empty-message">No hay categorías de ingresos. Crea una.</p>');
+    setElementHTML('leyendaCategoriasGastos', '');
+    setElementHTML('leyendaCategoriasIngresos', '');
+    setElementHTML('adminUsersList', '<p class="empty-message">Cargando usuarios...</p>');
+
+    [
+        'filtroReseña',
+        'filtroReseñaGastos',
+        'filtroReseñaIngresos',
+        'btnLimpiarFiltroDashboardReseña',
+        'btnLimpiarFiltroGastosReseña',
+        'btnLimpiarFiltroIngresosReseña'
+    ].forEach(id => {
+        const element = document.getElementById(id);
+
+        if (element) {
+            element.style.display = 'none';
+        }
+    });
+}
+
+async function loadCurrentUserProfile(user) {
+    if (!user?.id) {
+        return persistSessionProfile(user, {
+            role: 'usuario',
+            moneda_principal: 'EUR'
+        });
+    }
+
+    try {
+        const supabase = getSupabase();
+
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role, moneda_principal')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (error) {
+            console.warn('No se pudo cargar el perfil, usando valores por defecto:', error.message);
+        }
+
+        return persistSessionProfile(user, profile || {});
+
+    } catch (error) {
+        console.error('Error en loadCurrentUserProfile:', error);
+        return persistSessionProfile(user, {
+            role: 'usuario',
+            moneda_principal: 'EUR'
+        });
+    }
+}
+
+function clearSessionState() {
+    clearUserDataState();
+
+    currentUser = null;
+    window.currentUser = null;
+    window.currentUserRole = null;
+    window.currentUserCurrency = null;
+
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_currency');
+    localStorage.removeItem('supabase_user');
+}
+
 // Inicializar autenticación
 async function initAuth() {
     try {
@@ -25,57 +240,39 @@ async function initAuth() {
 
         if (session?.user) {
 
-            currentUser = session.user;
-            window.currentUser = session.user;
-
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', session.user.id)
-                .single();
-
-            window.currentUserRole = profile?.role || 'usuario';
-
-            localStorage.setItem(
-                'user_role',
-                window.currentUserRole
-            );
-
-            console.log(
-                'Rol cargado:',
-                window.currentUserRole
-            );
+            await loadCurrentUserProfile(session.user);
 
             console.log('✅ Usuario autenticado:', currentUser.email);
 
             // 🔥 IMPORTANTE: sincronizar antes del dashboard
+            updateSidebarVisibility?.();
             showDashboard();
 
         } else {
-            currentUser = null;
+            clearSessionState();
             showLoginScreen();
         }
 
         // =========================
         // AUTH LISTENER
         // =========================
-        supabase.auth.onAuthStateChange((event, session) => {
+        supabase.auth.onAuthStateChange(async (event, session) => {
 
             console.log('🔥 AUTH EVENT:', event);
 
             if (event === 'SIGNED_IN' && session?.user) {
 
-                currentUser = session.user;
-                window.currentUser = session.user;
+                await loadCurrentUserProfile(session.user);
 
                 console.log('✅ LOGIN EVENT:', currentUser.email);
 
+                updateSidebarVisibility?.();
                 showDashboard();
             }
 
             if (event === 'SIGNED_OUT') {
-                currentUser = null;
-                window.currentUser = null;
+                clearSessionState();
+                updateSidebarVisibility?.();
                 showLoginScreen();
             }
 
@@ -202,41 +399,14 @@ async function loginUser(email, password) {
         }
 
         if (!data?.user) return false;
+        const sessionProfile = await loadCurrentUserProfile(data.user);
 
-        currentUser = data.user;
-
-        // =========================
-        // 🔥 FIX CRÍTICO: persistencia usuario
-        // =========================
-        localStorage.setItem('user_id', currentUser.id);
-        localStorage.setItem('user_email', currentUser.email);
-
-        // 🔥 OBTENER ROLE DESDE SUPABASE
-        let role = 'usuario';
-
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-
-        if (profileError) {
-            console.warn('No se pudo obtener role, usando default:', profileError.message);
-        }
-
-        if (profile?.role) {
-            role = profile.role;
-        }
-
-        window.currentUserRole = role;
-        localStorage.setItem('user_role', role);
-
-        console.log('👤 Usuario logueado con role:', role);
-
+        console.log('👤 Usuario logueado con role:', sessionProfile.role);
         showSuccess('¡Inicio de sesión exitoso!', 'loginMessage');
 
         document.getElementById('loginForm')?.reset();
 
+        updateSidebarVisibility?.();
         showDashboard();
         loadDashboardData();
 
@@ -261,7 +431,8 @@ async function logoutUser() {
             return false;
         }
         
-        currentUser = null;
+        clearSessionState();
+        updateSidebarVisibility?.();
         showLoginScreen();
         console.log('✅ Sesión cerrada correctamente');
         return true;
@@ -389,6 +560,10 @@ async function saveUserConfig(email) {
 
 // Mostrar dashboard (autenticado)
 function showDashboard() {
+    updateSidebarVisibility?.();
+    activatePage?.('dashboard');
+    setActiveMenuItem?.('dashboard');
+
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
     });
@@ -405,13 +580,8 @@ function showDashboard() {
     }
 
     // Cargar categorías para filtros y formularios
-    if (typeof loadGastosCategorias === 'function') {
-        loadGastosCategorias();
-    }
-
-    if (typeof loadIngresosCategorias === 'function') {
-        loadIngresosCategorias();
-    }
+    getCategoriasCache?.('gastos');
+    getCategoriasCache?.('ingresos');
 
     /*
     // Cargar tasas al entrar
@@ -461,28 +631,7 @@ function isAuthenticated() {
 // Obtener usuario actual (ROBUSTO + FALLBACK)
 function getCurrentUser() {
     try {
-        // 1. memoria global (login normal)
-        if (window.currentUser) return window.currentUser;
-
-        // 2. Supabase auth session
-        const supabase = getSupabase();
-        const user = supabase?.auth?.getUser?.()?.data?.user;
-
-        if (user) {
-            window.currentUser = user;
-            return user;
-        }
-
-        // 3. fallback localStorage (si existe sesión vieja)
-        const storedUser = localStorage.getItem('supabase_user');
-
-        if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            window.currentUser = parsed;
-            return parsed;
-        }
-
-        return null;
+        return window.currentUser || currentUser || null;
 
     } catch (error) {
         console.error('Error en getCurrentUser:', error);
@@ -490,124 +639,217 @@ function getCurrentUser() {
     }
 }
 
-async function loadAdminUsers() {
-
+async function getCurrentUserAsync() {
     try {
+        const cachedUser = getCurrentUser();
+
+        if (cachedUser) return cachedUser;
 
         const supabase = getSupabase();
+        const { data, error } = await supabase.auth.getUser();
 
-        const {
-            data,
-            error
-        } = await supabase
-            .from('users_with_roles')
-            .select('*')
-            .order('created_at', {
-                ascending: false
-            });
+        if (error) {
+            console.warn('No se pudo obtener usuario actual:', error.message);
+            return null;
+        }
 
-        console.log('USUARIOS:', data);
-        console.log('ERROR:', error);
+        if (data?.user) {
+            await loadCurrentUserProfile(data.user);
+            return window.currentUser;
+        }
 
-        if (error) throw error;
+        return null;
 
-        const container =
-            document.getElementById('adminUsersList');
+    } catch (error) {
+        console.error('Error en getCurrentUserAsync:', error);
+        return null;
+    }
+}
 
-        if (!container) return;
+async function loadAdminUsers() {
+    const container = document.getElementById('adminUsersList');
+
+    if (!container) return;
+
+    try {
+        const supabase = getSupabase();
+
+        container.innerHTML = '<p class="empty-message">Cargando usuarios...</p>';
+
+        const currentRole =
+            window.currentUserRole ||
+            localStorage.getItem('user_role') ||
+            'usuario';
+
+        if (currentRole !== 'admin') {
+            container.innerHTML =
+                '<p class="empty-message">No tienes permisos para ver usuarios.</p>';
+
+            if (typeof showError === 'function') {
+                showError('No tienes permisos para ver usuarios.');
+            }
+
+            return;
+        }
+
+        const { data, error } = await supabase.rpc('get_users_with_roles_admin');
+
+        if (error) {
+            const message =
+                error.message ||
+                'No se pudieron cargar los usuarios.';
+
+            if (
+                error.code === '42501' ||
+                message.toLowerCase().includes('not authorized')
+            ) {
+                container.innerHTML =
+                    '<p class="empty-message">No tienes permisos para ver usuarios.</p>';
+
+                if (typeof showError === 'function') {
+                    showError('No tienes permisos para ver usuarios.');
+                }
+
+                return;
+            }
+
+            throw error;
+        }
 
         if (!data || data.length === 0) {
-
             container.innerHTML =
                 '<p class="empty-message">No hay usuarios</p>';
 
             return;
-
         }
 
-        container.innerHTML = data.map(user => `
+        const escapeHTML = (value) => {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
 
-            <div class="list-item-card">
+        const formatDate = (value) => {
+            if (!value) return 'Sin fecha';
 
-                <div class="item-info">
+            const date = new Date(value);
 
-                    <div class="item-title">
-                        ${user.email}
-                    </div>
+            if (Number.isNaN(date.getTime())) {
+                return 'Sin fecha';
+            }
 
-                    <div class="admin-user-row">
+            return date.toLocaleDateString();
+        };
 
-                        <span>
-                            Rol:
-                            <span class="role-badge role-${user.role}">
-                                ${user.role}
+        container.innerHTML = data.map(user => {
+            const userId = escapeHTML(user.id);
+            const email = escapeHTML(user.email || 'Sin email');
+            const role = escapeHTML(user.role || 'usuario');
+            const createdAt = escapeHTML(formatDate(user.created_at));
+
+            return `
+                <div class="list-item-card">
+                    <div class="item-info">
+                        <div class="item-title">
+                            ${email}
+                        </div>
+
+                        <div class="admin-user-row">
+                            <span>
+                                Rol:
+                                <span class="role-badge role-${role}">
+                                    ${role}
+                                </span>
                             </span>
-                        </span>
 
-                        <span>
-                            Alta:
-                            ${new Date(user.created_at).toLocaleDateString()}
-                        </span>
+                            <span>
+                                Alta:
+                                ${createdAt}
+                            </span>
 
-                        <select
-                            id="role-${user.id}"
-                            class="form-control admin-role-select"
-                        >
+                            <select
+                                id="role-${userId}"
+                                class="form-control admin-role-select"
+                            >
+                                <option value="usuario"
+                                    ${user.role === 'usuario' ? 'selected' : ''}>
+                                    Usuario
+                                </option>
 
-                            <option value="usuario"
-                                ${user.role === 'usuario' ? 'selected' : ''}>
-                                Usuario
-                            </option>
+                                <option value="operador"
+                                    ${user.role === 'operador' ? 'selected' : ''}>
+                                    Operador
+                                </option>
 
-                            <option value="operador"
-                                ${user.role === 'operador' ? 'selected' : ''}>
-                                Operador
-                            </option>
+                                <option value="admin"
+                                    ${user.role === 'admin' ? 'selected' : ''}>
+                                    Admin
+                                </option>
+                            </select>
 
-                            <option value="admin"
-                                ${user.role === 'admin' ? 'selected' : ''}>
-                                Admin
-                            </option>
-
-                        </select>
-
-                        <button
-                            class="btn btn-primary btn-small"
-                            onclick="actualizarRolUsuario('${user.id}')">
-
-                            Actualizar
-
-                        </button>
-
+                            <button
+                                class="btn btn-primary btn-small"
+                                onclick="actualizarRolUsuario('${userId}')"
+                            >
+                                Actualizar
+                            </button>
+                        </div>
                     </div>
-
                 </div>
-
-            </div>
-
-        `).join('');
+            `;
+        }).join('');
 
     } catch (error) {
+        console.error('Error cargando usuarios:', error);
 
-        console.error(
-            'Error cargando usuarios:',
-            error
-        );
+        container.innerHTML =
+            '<p class="empty-message">Error cargando usuarios.</p>';
 
+        if (typeof showError === 'function') {
+            showError('Error cargando usuarios.');
+        }
     }
-
 }
 
 async function actualizarRolUsuario(userId) {
-
     try {
+        const currentRole =
+            window.currentUserRole ||
+            localStorage.getItem('user_role') ||
+            'usuario';
 
-        const nuevoRol =
-            document.getElementById(
-                `role-${userId}`
-            ).value;
+        if (currentRole !== 'admin') {
+            showError('No tienes permisos para actualizar roles.');
+            return;
+        }
+
+        const roleSelect = document.getElementById(`role-${userId}`);
+
+        if (!roleSelect) {
+            showError('No se encontró el selector de rol.');
+            return;
+        }
+
+        const nuevoRol = roleSelect.value;
+
+        const rolesPermitidos = ['usuario', 'operador', 'admin'];
+
+        if (!rolesPermitidos.includes(nuevoRol)) {
+            showError('Rol no válido.');
+            return;
+        }
 
         const supabase = getSupabase();
+
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+            showError('No se pudo validar la sesión.');
+            return;
+        }
 
         const { error } = await supabase
             .from('profiles')
@@ -618,23 +860,13 @@ async function actualizarRolUsuario(userId) {
 
         if (error) throw error;
 
-        showSuccess(
-            'Rol actualizado correctamente'
-        );
+        showSuccess('Rol actualizado correctamente');
 
         await loadAdminUsers();
 
     } catch (error) {
+        console.error('Error actualizando rol:', error);
 
-        console.error(
-            'Error actualizando rol:',
-            error
-        );
-
-        showError(
-            'No se pudo actualizar el rol'
-        );
-
+        showError('No se pudo actualizar el rol');
     }
-
 }

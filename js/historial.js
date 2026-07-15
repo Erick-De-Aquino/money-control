@@ -8,11 +8,39 @@ let filtroHistorial = {
     año: ''
 };
 
+async function getHistorialAuthUser() {
+    const supabase = getSupabase();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        console.error('No se pudo obtener el usuario actual:', userError);
+        showError?.('No hay una sesion activa');
+        return null;
+    }
+
+    return user;
+}
+
 // Cargar historial desde Supabase
 async function cargarHistorial() {
     try {
         const supabase = getSupabase();
-        let query = supabase.from('historial_presupuestos').select('*');
+        const container = document.getElementById('historialList');
+
+        historialList = [];
+
+        if (container) {
+            container.innerHTML = '<p class="empty-message">Cargando historial...</p>';
+        }
+
+        const user = await getHistorialAuthUser();
+
+        if (!user) return [];
+
+        let query = supabase
+            .from('historial_presupuestos')
+            .select('*')
+            .eq('user_id', user.id);
         
         if (filtroHistorial.mes) {
             query = query.eq('mes', parseInt(filtroHistorial.mes));
@@ -123,10 +151,15 @@ async function eliminarHistorialItem(id) {
         async () => {
             try {
                 const supabase = getSupabase();
+                const user = await getHistorialAuthUser();
+
+                if (!user) return;
+
                 const { error } = await supabase
                     .from('historial_presupuestos')
                     .delete()
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('user_id', user.id);
                 
                 if (error) {
                     console.error('Error al eliminar:', error);
@@ -152,10 +185,14 @@ async function limpiarTodoHistorial() {
         async () => {
             try {
                 const supabase = getSupabase();
+                const user = await getHistorialAuthUser();
+
+                if (!user) return;
+
                 const { error } = await supabase
                     .from('historial_presupuestos')
                     .delete()
-                    .neq('id', 0);
+                    .eq('user_id', user.id);
                 
                 if (error) {
                     console.error('Error al limpiar historial:', error);
@@ -212,20 +249,24 @@ function limpiarFiltroHistorial() {
 
 // Inicializar eventos
 function initHistorialEvents() {
-    const btnLimpiarTodo = document.getElementById('btnLimpiarHistorial');
-    const btnAplicar = document.getElementById('btnAplicarFiltroHistorial');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltroHistorial');
+    if (!window.__historialEventsInitialized) {
+        const btnLimpiarTodo = document.getElementById('btnLimpiarHistorial');
+        const btnAplicar = document.getElementById('btnAplicarFiltroHistorial');
+        const btnLimpiar = document.getElementById('btnLimpiarFiltroHistorial');
 
-    if (btnLimpiarTodo) {
-        btnLimpiarTodo.addEventListener('click', limpiarTodoHistorial);
-    }
+        if (btnLimpiarTodo) {
+            btnLimpiarTodo.addEventListener('click', limpiarTodoHistorial);
+        }
 
-    if (btnAplicar) {
-        btnAplicar.addEventListener('click', aplicarFiltroHistorial);
-    }
+        if (btnAplicar) {
+            btnAplicar.addEventListener('click', aplicarFiltroHistorial);
+        }
 
-    if (btnLimpiar) {
-        btnLimpiar.addEventListener('click', limpiarFiltroHistorial);
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', limpiarFiltroHistorial);
+        }
+
+        window.__historialEventsInitialized = true;
     }
 
     // 🔥 IMPORTANTE: asegurar orden correcto
