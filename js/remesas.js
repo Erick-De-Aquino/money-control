@@ -133,72 +133,99 @@ async function loadRemesas() {
 }
 
 function renderRemesas() {
-
     const container = document.getElementById('remesasList');
     if (!container) return;
 
     const list = getState()?.remesasList || [];
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
 
     if (!list.length) {
         container.innerHTML = '<p class="empty-message">No hay remesas registradas</p>';
         return;
     }
 
-    container.innerHTML = list.map(r => `
-        <div class="list-item-card">
+    container.innerHTML = list.map(r => {
+        const id = escapeHTML(r.id);
+        const status = r.status || 'pending';
 
-            <div class="item-info">
+        return `
+            <div class="list-item-card" data-id="${id}">
+                <div class="item-info">
+                    <div class="item-title">
+                        EUR: ${escapeHTML(formatNumber(r.monto_eur || 0))}
+                    </div>
 
-                <div class="item-title">
-                    EUR: ${formatNumber(r.monto_eur)}
+                    <div class="item-subtitle">
+                        EUR utilizados: ${escapeHTML(formatNumber(r.euros_utilizados || 0))}
+                    </div>
+
+                    <div class="item-subtitle">
+                        USDT comprados: ${escapeHTML(formatNumber(r.usdt_comprar || 0))}
+                    </div>
+
+                    <div class="item-subtitle">
+                        BS: ${escapeHTML(formatNumber(r.bs_total || 0))}
+                    </div>
+
+                    <div class="item-subtitle">
+                        Ganancia: ${escapeHTML(formatNumber(r.ganancia_calculada || 0))} EUR
+                    </div>
+
+                    <div class="item-subtitle">
+                        Ganancia real: ${escapeHTML(formatNumber(r.ganancia_real || 0))} EUR
+                    </div>
+
+                    <div class="item-subtitle">
+                        Estado: ${escapeHTML(status)}
+                    </div>
                 </div>
 
-                <div class="item-subtitle">
-                    EUR utilizados: ${formatNumber(r.euros_utilizados || 0)}
-                </div>
+                <div class="item-actions">
+                    ${status === 'pending' ? `
+                        <button
+                            type="button"
+                            class="btn btn-primary btn-small confirmar-remesa-btn"
+                            data-id="${id}">
+                            Confirmar
+                        </button>
 
-                <div class="item-subtitle">
-                    USDT comprados: ${formatNumber(r.usdt_comprar || 0)}
+                        <button
+                            type="button"
+                            class="btn btn-danger btn-small eliminar-remesa-btn"
+                            data-id="${id}">
+                            Eliminar
+                        </button>
+                    ` : ''}
                 </div>
-
-                <div class="item-subtitle">
-                    BS: ${formatNumber(r.bs_total || 0)}
-                </div>
-
-                <div class="item-subtitle">
-                    Ganancia: ${formatNumber(r.ganancia_calculada || 0)} EUR
-                </div>
-
-                <div class="item-subtitle">
-                    Ganancia real: ${formatNumber(r.ganancia_real || 0)} EUR
-                </div>
-
-                <div class="item-subtitle">
-                    Estado: ${r.status || 'pending'}
-                </div>
-
             </div>
+        `;
+    }).join('');
 
-            <div class="item-actions">
+    container.querySelectorAll('.confirmar-remesa-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (!id) return;
 
-                ${r.status === 'pending' ? `
-                    <button
-                        class="btn btn-primary btn-small"
-                        onclick="openConfirmRemesaModalById('${r.id}')">
-                        Confirmar
-                    </button>
+            openConfirmRemesaModalById(id);
+        });
+    });
 
-                    <button
-                        class="btn btn-danger btn-small"
-                        onclick="eliminarRemesa('${r.id}')">
-                        Eliminar
-                    </button>
-                ` : ''}
+    container.querySelectorAll('.eliminar-remesa-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (!id) return;
 
-            </div>
-
-        </div>
-    `).join('');
+            eliminarRemesa(id);
+        });
+    });
 }
 
 async function eliminarRemesa(remesaId) {
@@ -419,7 +446,10 @@ async function saveRemesa() {
             !currentRemesa ||
             currentRemesa.eurosCliente <= 0
         ) {
-            alert('No hay una remesa válida para guardar.');
+            showInfoModal?.(
+                'No hay una remesa válida para guardar.',
+                'Remesa no válida'
+            );
             return;
         }
 
@@ -499,9 +529,9 @@ async function saveRemesa() {
 
         console.error('saveRemesa:', err);
 
-        alert(
-            'No se pudo guardar la remesa.\n\n' +
-            (err.message || err)
+        showInfoModal?.(
+            'No se pudo guardar la remesa. Revisa los datos e inténtalo de nuevo.',
+            'Error al guardar remesa'
         );
 
     }
@@ -522,7 +552,10 @@ async function saveConfirmRemesa() {
 
         if (isNaN(gananciaReal) || gananciaReal < 0) {
 
-            alert('Ingrese una ganancia válida.');
+            showInfoModal?.(
+                'Ingrese una ganancia válida.',
+                'Ganancia no válida'
+            );
 
             return;
 
@@ -579,14 +612,20 @@ async function saveConfirmRemesa() {
 
         }
 
-        alert('Remesa confirmada correctamente.');
+        showInfoModal?.(
+            'Remesa confirmada correctamente.',
+            'Remesa confirmada'
+        );
 
     }
     catch(err){
 
         console.error(err);
 
-        alert(err.message || err);
+        showInfoModal?.(
+            'No se pudo confirmar la remesa. Revisa los datos e inténtalo de nuevo.',
+            'Error al confirmar remesa'
+        );
 
     }
 
