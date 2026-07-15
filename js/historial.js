@@ -71,76 +71,125 @@ async function cargarHistorial() {
 function displayHistorial() {
     const container = document.getElementById('historialList');
     if (!container) return;
-    
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     if (historialList.length === 0) {
         container.innerHTML = '<p class="empty-message">No hay historial de presupuestos</p>';
         return;
     }
-    
-    // Agrupar por mes/año
+
     const grupos = {};
+
     historialList.forEach(item => {
-        const key = `${item.año}-${item.mes}`;
+        const año = Number(item.año) || '';
+        const mes = Number(item.mes) || '';
+        const key = `${año}-${mes}`;
+
         if (!grupos[key]) {
             grupos[key] = {
-                año: item.año,
-                mes: item.mes,
+                año,
+                mes,
                 items: [],
                 cumplimientoGeneral: null
             };
         }
+
         if (item.categoria === 'GENERAL') {
-            grupos[key].cumplimientoGeneral = item.porcentaje;
+            grupos[key].cumplimientoGeneral = Number(item.porcentaje) || 0;
         } else {
             grupos[key].items.push(item);
         }
     });
-    
-    // Convertir a array ordenado
+
     const gruposArray = Object.values(grupos).sort((a, b) => {
         if (a.año !== b.año) return b.año - a.año;
         return b.mes - a.mes;
     });
-    
-    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    
-    container.innerHTML = gruposArray.map(grupo => `
-        <div class="historial-mes">
-            <div class="mes-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem; background: var(--primary); border-radius: var(--border-radius-md);">
-                <h3>📅 ${meses[grupo.mes - 1]} ${grupo.año}</h3>
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span>Cumplimiento: ${grupo.cumplimientoGeneral ? grupo.cumplimientoGeneral.toFixed(1) : 0}%</span>
-                    <div class="progress-bar-container" style="background: #e0e0e0; border-radius: 10px; height: 10px; width: 150px;">
-                        <div class="progress-bar-fill" style="width: ${grupo.cumplimientoGeneral || 0}%; background-color: ${(grupo.cumplimientoGeneral || 0) >= 100 ? '#4CAF50' : (grupo.cumplimientoGeneral || 0) >= 75 ? '#FF9800' : '#f44336'}; height: 10px; border-radius: 10px;"></div>
+
+    const meses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril',
+        'Mayo', 'Junio', 'Julio', 'Agosto',
+        'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    container.innerHTML = gruposArray.map(grupo => {
+        const mesNombre = escapeHTML(meses[grupo.mes - 1] || 'Mes no válido');
+        const año = escapeHTML(grupo.año);
+        const cumplimiento = Number(grupo.cumplimientoGeneral) || 0;
+        const cumplimientoSeguro = Math.min(Math.max(cumplimiento, 0), 100);
+        const cumplimientoTexto = escapeHTML(cumplimiento.toFixed(1));
+
+        const colorCumplimiento =
+            cumplimiento >= 100
+                ? '#4CAF50'
+                : cumplimiento >= 75
+                    ? '#FF9800'
+                    : '#f44336';
+
+        return `
+            <div class="historial-mes">
+                <div class="mes-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem; background: var(--primary); border-radius: var(--border-radius-md);">
+                    <h3>📅 ${mesNombre} ${año}</h3>
+
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span>Cumplimiento: ${cumplimientoTexto}%</span>
+
+                        <div class="progress-bar-container" style="background: #e0e0e0; border-radius: 10px; height: 10px; width: 150px;">
+                            <div class="progress-bar-fill" style="width: ${cumplimientoSeguro}%; background-color: ${colorCumplimiento}; height: 10px; border-radius: 10px;"></div>
+                        </div>
                     </div>
                 </div>
+
+                <div class="historial-items" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem;">
+                    ${grupo.items.map(item => {
+                        const id = Number(item.id);
+                        const categoria = escapeHTML(item.categoria || 'Sin categoría');
+                        const limite = escapeHTML(formatCurrency(Number(item.limite) || 0, 'EUR'));
+                        const gastado = escapeHTML(formatCurrency(Number(item.gastado) || 0, 'EUR'));
+                        const porcentaje = Number(item.porcentaje) || 0;
+                        const porcentajeDecimal = escapeHTML(porcentaje.toFixed(1));
+                        const porcentajeEntero = escapeHTML(porcentaje.toFixed(0));
+                        const esVerde = item.color === 'verde';
+                        const color = esVerde ? '#4CAF50' : '#f44336';
+                        const icono = esVerde ? '✅' : '⚠️';
+
+                        return `
+                            <div class="list-item-card" data-id="${id}" style="border-left: 4px solid ${color};">
+                                <div class="item-info" style="flex: 2;">
+                                    <div class="item-title">${categoria}</div>
+                                    <div class="item-subtitle">Límite: ${limite}</div>
+                                </div>
+
+                                <div class="item-info" style="flex: 2;">
+                                    <div class="item-subtitle">Gastado: ${gastado}</div>
+                                    <div class="item-subtitle">${porcentajeDecimal}%</div>
+                                </div>
+
+                                <div class="item-amount" style="color: ${color}">
+                                    ${icono} ${porcentajeEntero}%
+                                </div>
+
+                                <div class="item-actions">
+                                    <button class="btn-icon btn-small delete-historial" data-id="${id}" title="Eliminar">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
             </div>
-            <div class="historial-items" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem;">
-                ${grupo.items.map(item => `
-                    <div class="list-item-card" data-id="${item.id}" style="border-left: 4px solid ${item.color === 'verde' ? '#4CAF50' : '#f44336'};">
-                        <div class="item-info" style="flex: 2;">
-                            <div class="item-title">${item.categoria}</div>
-                            <div class="item-subtitle">Límite: ${formatCurrency(item.limite, 'EUR')}</div>
-                        </div>
-                        <div class="item-info" style="flex: 2;">
-                            <div class="item-subtitle">Gastado: ${formatCurrency(item.gastado, 'EUR')}</div>
-                            <div class="item-subtitle">${item.porcentaje.toFixed(1)}%</div>
-                        </div>
-                        <div class="item-amount" style="color: ${item.color === 'verde' ? '#4CAF50' : '#f44336'}">
-                            ${item.color === 'verde' ? '✅' : '⚠️'} ${item.porcentaje.toFixed(0)}%
-                        </div>
-                        <div class="item-actions">
-                            <button class="btn-icon btn-small delete-historial" data-id="${item.id}" title="Eliminar">🗑️</button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
-    
-    // Agregar event listeners para eliminar
+        `;
+    }).join('');
+
     document.querySelectorAll('.delete-historial').forEach(btn => {
-        btn.addEventListener('click', () => eliminarHistorialItem(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => eliminarHistorialItem(Number(btn.dataset.id)));
     });
 }
 

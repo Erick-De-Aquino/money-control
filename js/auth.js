@@ -671,6 +671,32 @@ async function loadAdminUsers() {
 
     if (!container) return;
 
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const formatDate = (value) => {
+        if (!value) return 'Sin fecha';
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return 'Sin fecha';
+        }
+
+        return date.toLocaleDateString();
+    };
+
+    const normalizarRol = (role) => {
+        const rolesPermitidos = ['usuario', 'operador', 'admin'];
+        return rolesPermitidos.includes(role) ? role : 'usuario';
+    };
+
     try {
         const supabase = getSupabase();
 
@@ -695,9 +721,7 @@ async function loadAdminUsers() {
         const { data, error } = await supabase.rpc('get_users_with_roles_admin');
 
         if (error) {
-            const message =
-                error.message ||
-                'No se pudieron cargar los usuarios.';
+            const message = error.message || 'No se pudieron cargar los usuarios.';
 
             if (
                 error.code === '42501' ||
@@ -723,31 +747,11 @@ async function loadAdminUsers() {
             return;
         }
 
-        const escapeHTML = (value) => {
-            return String(value ?? '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        };
-
-        const formatDate = (value) => {
-            if (!value) return 'Sin fecha';
-
-            const date = new Date(value);
-
-            if (Number.isNaN(date.getTime())) {
-                return 'Sin fecha';
-            }
-
-            return date.toLocaleDateString();
-        };
-
         container.innerHTML = data.map(user => {
             const userId = escapeHTML(user.id);
             const email = escapeHTML(user.email || 'Sin email');
-            const role = escapeHTML(user.role || 'usuario');
+            const role = normalizarRol(user.role || 'usuario');
+            const roleSafe = escapeHTML(role);
             const createdAt = escapeHTML(formatDate(user.created_at));
 
             return `
@@ -760,8 +764,8 @@ async function loadAdminUsers() {
                         <div class="admin-user-row">
                             <span>
                                 Rol:
-                                <span class="role-badge role-${role}">
-                                    ${role}
+                                <span class="role-badge role-${roleSafe}">
+                                    ${roleSafe}
                                 </span>
                             </span>
 
@@ -773,26 +777,25 @@ async function loadAdminUsers() {
                             <select
                                 id="role-${userId}"
                                 class="form-control admin-role-select"
+                                data-user-id="${userId}"
                             >
-                                <option value="usuario"
-                                    ${user.role === 'usuario' ? 'selected' : ''}>
+                                <option value="usuario" ${role === 'usuario' ? 'selected' : ''}>
                                     Usuario
                                 </option>
 
-                                <option value="operador"
-                                    ${user.role === 'operador' ? 'selected' : ''}>
+                                <option value="operador" ${role === 'operador' ? 'selected' : ''}>
                                     Operador
                                 </option>
 
-                                <option value="admin"
-                                    ${user.role === 'admin' ? 'selected' : ''}>
+                                <option value="admin" ${role === 'admin' ? 'selected' : ''}>
                                     Admin
                                 </option>
                             </select>
 
                             <button
-                                class="btn btn-primary btn-small"
-                                onclick="actualizarRolUsuario('${userId}')"
+                                type="button"
+                                class="btn btn-primary btn-small actualizar-rol-btn"
+                                data-user-id="${userId}"
                             >
                                 Actualizar
                             </button>
@@ -801,6 +804,16 @@ async function loadAdminUsers() {
                 </div>
             `;
         }).join('');
+
+        container.querySelectorAll('.actualizar-rol-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const userId = btn.dataset.userId;
+
+                if (!userId) return;
+
+                actualizarRolUsuario(userId);
+            });
+        });
 
     } catch (error) {
         console.error('Error cargando usuarios:', error);

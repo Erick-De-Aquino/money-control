@@ -410,31 +410,36 @@ function updateMonthlyChart(gastos, ingresos) {
 function updateCategoryChart(gastos) {
     const ctx = document.getElementById('categoryChart')?.getContext('2d');
     if (!ctx) return;
-    
-    // Agrupar por categoría
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     const categorias = {};
+
     gastos.forEach(g => {
         const cat = g.categoria || 'Otros';
-        categorias[cat] = (categorias[cat] || 0) + (g.monto_eur || g.monto);
+        categorias[cat] = (categorias[cat] || 0) + (Number(g.monto_eur || g.monto) || 0);
     });
-    
+
     const labels = Object.keys(categorias);
     const data = Object.values(categorias);
 
-    // Colores para las categorías
-        const colores = [
-        '#E1D5E7', '#BCAAA4', '#4CAF50', '#FF9800', '#2196F3', 
+    const colores = [
+        '#E1D5E7', '#BCAAA4', '#4CAF50', '#FF9800', '#2196F3',
         '#f44336', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548',
         '#607D8B', '#FF5722', '#009688', '#673AB7', '#3F51B5',
         '#CDDC39', '#FFC107', '#8BC34A', '#E91E63', '#F44336'
     ];
 
-    // Generar leyenda desplegable
-    const leyendaContainer =
-        document.getElementById('leyendaCategoriasGastos');
+    const leyendaContainer = document.getElementById('leyendaCategoriasGastos');
 
     if (leyendaContainer) {
-
         let leyendaHTML = `
             <div style="
                 display:grid;
@@ -445,6 +450,7 @@ function updateCategoryChart(gastos) {
         `;
 
         labels.forEach((categoria, index) => {
+            const color = colores[index % colores.length];
 
             leyendaHTML += `
                 <div style="
@@ -457,12 +463,12 @@ function updateCategoryChart(gastos) {
                         width:12px;
                         height:12px;
                         border-radius:2px;
-                        background:${colores[index]};
+                        background:${color};
                         display:inline-block;
                         flex-shrink:0;
                     "></span>
 
-                    <span>${categoria}</span>
+                    <span>${escapeHTML(categoria)}</span>
                 </div>
             `;
         });
@@ -471,19 +477,17 @@ function updateCategoryChart(gastos) {
 
         leyendaContainer.innerHTML = leyendaHTML;
     }
-    
-    // Destruir gráfico anterior si existe
+
     if (categoryChart) {
         categoryChart.destroy();
     }
-    
-    // Crear nuevo gráfico
+
     categoryChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
-                data: data,
+                data,
                 backgroundColor: colores.slice(0, labels.length),
                 borderWidth: 0
             }]
@@ -499,7 +503,10 @@ function updateCategoryChart(gastos) {
                     callbacks: {
                         label: function(context) {
                             const total = data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.raw / total) * 100).toFixed(1);
+                            const percentage = total > 0
+                                ? ((context.raw / total) * 100).toFixed(1)
+                                : '0.0';
+
                             return `${context.label}: ${formatCurrency(context.raw, 'EUR')} (${percentage}%)`;
                         }
                     }
@@ -508,62 +515,49 @@ function updateCategoryChart(gastos) {
         }
     });
 
-    const btnToggleLeyenda =
-    document.getElementById('btnToggleLeyendaGastos');
+    const btnToggleLeyenda = document.getElementById('btnToggleLeyendaGastos');
 
-    if (
-        btnToggleLeyenda &&
-        !btnToggleLeyenda.dataset.eventAttached
-    ) {
-
+    if (btnToggleLeyenda && !btnToggleLeyenda.dataset.eventAttached) {
         btnToggleLeyenda.dataset.eventAttached = 'true';
 
         btnToggleLeyenda.addEventListener('click', () => {
-
-            const leyenda =
-                document.getElementById('leyendaCategoriasGastos');
+            const leyenda = document.getElementById('leyendaCategoriasGastos');
 
             if (!leyenda) return;
 
-            const visible =
-                leyenda.style.display === 'block';
+            const visible = leyenda.style.display === 'block';
 
-            leyenda.style.display =
-                visible ? 'none' : 'block';
-
-            btnToggleLeyenda.textContent =
-                visible
-                    ? 'Ver categorías'
-                    : 'Ocultar categorías';
+            leyenda.style.display = visible ? 'none' : 'block';
+            btnToggleLeyenda.textContent = visible ? 'Ver categorías' : 'Ocultar categorías';
         });
     }
 }
 
 // Actualizar gráfico de categorías de ingresos (dona)
 function updateIncomeCategoryChart(ingresos) {
-
-    const ctx =
-        document.getElementById('incomeCategoryChart')
-        ?.getContext('2d');
+    const ctx = document.getElementById('incomeCategoryChart')?.getContext('2d');
 
     if (!ctx) return;
 
-    // Agrupar por origen
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     const origenes = {};
 
     ingresos.forEach(i => {
-
         const orig = i.origen || 'Otros';
-
-        origenes[orig] =
-            (origenes[orig] || 0) +
-            (i.monto_eur || i.monto);
+        origenes[orig] = (origenes[orig] || 0) + (Number(i.monto_eur || i.monto) || 0);
     });
 
     const labels = Object.keys(origenes);
     const data = Object.values(origenes);
 
-    // Colores para los orígenes
     const colores = [
         '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107',
         '#FF9800', '#E1D5E7', '#BCAAA4', '#2196F3', '#9C27B0',
@@ -571,12 +565,9 @@ function updateIncomeCategoryChart(ingresos) {
         '#795548', '#E91E63', '#F44336', '#00BCD4', '#9E9E9E'
     ];
 
-    // Generar leyenda desplegable
-    const leyendaContainer =
-        document.getElementById('leyendaCategoriasIngresos');
+    const leyendaContainer = document.getElementById('leyendaCategoriasIngresos');
 
     if (leyendaContainer) {
-
         let leyendaHTML = `
             <div style="
                 display:grid;
@@ -587,6 +578,7 @@ function updateIncomeCategoryChart(ingresos) {
         `;
 
         labels.forEach((origen, index) => {
+            const color = colores[index % colores.length];
 
             leyendaHTML += `
                 <div style="
@@ -599,12 +591,12 @@ function updateIncomeCategoryChart(ingresos) {
                         width:12px;
                         height:12px;
                         border-radius:2px;
-                        background:${colores[index]};
+                        background:${color};
                         display:inline-block;
                         flex-shrink:0;
                     "></span>
 
-                    <span>${origen}</span>
+                    <span>${escapeHTML(origen)}</span>
                 </div>
             `;
         });
@@ -614,7 +606,6 @@ function updateIncomeCategoryChart(ingresos) {
         leyendaContainer.innerHTML = leyendaHTML;
     }
 
-    // Destruir gráfico anterior si existe
     if (
         window.incomeCategoryChart &&
         typeof window.incomeCategoryChart.destroy === 'function'
@@ -622,13 +613,12 @@ function updateIncomeCategoryChart(ingresos) {
         window.incomeCategoryChart.destroy();
     }
 
-    // Crear nuevo gráfico
     window.incomeCategoryChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
-                data: data,
+                data,
                 backgroundColor: colores.slice(0, labels.length),
                 borderWidth: 0
             }]
@@ -643,13 +633,10 @@ function updateIncomeCategoryChart(ingresos) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-
-                            const total =
-                                data.reduce((a, b) => a + b, 0);
-
-                            const percentage =
-                                ((context.raw / total) * 100)
-                                .toFixed(1);
+                            const total = data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0
+                                ? ((context.raw / total) * 100).toFixed(1)
+                                : '0.0';
 
                             return `${context.label}: ${formatCurrency(context.raw, 'EUR')} (${percentage}%)`;
                         }
@@ -659,37 +646,20 @@ function updateIncomeCategoryChart(ingresos) {
         }
     });
 
-    const btnToggleLeyenda =
-        document.getElementById(
-            'btnToggleLeyendaIngresos'
-        );
+    const btnToggleLeyenda = document.getElementById('btnToggleLeyendaIngresos');
 
-    if (
-        btnToggleLeyenda &&
-        !btnToggleLeyenda.dataset.eventAttached
-    ) {
-
+    if (btnToggleLeyenda && !btnToggleLeyenda.dataset.eventAttached) {
         btnToggleLeyenda.dataset.eventAttached = 'true';
 
         btnToggleLeyenda.addEventListener('click', () => {
-
-            const leyenda =
-                document.getElementById(
-                    'leyendaCategoriasIngresos'
-                );
+            const leyenda = document.getElementById('leyendaCategoriasIngresos');
 
             if (!leyenda) return;
 
-            const visible =
-                leyenda.style.display === 'block';
+            const visible = leyenda.style.display === 'block';
 
-            leyenda.style.display =
-                visible ? 'none' : 'block';
-
-            btnToggleLeyenda.textContent =
-                visible
-                    ? 'Ver categorías'
-                    : 'Ocultar categorías';
+            leyenda.style.display = visible ? 'none' : 'block';
+            btnToggleLeyenda.textContent = visible ? 'Ver categorías' : 'Ocultar categorías';
         });
     }
 }
@@ -1737,42 +1707,39 @@ async function verificarAlertasPresupuesto() {
 
 // Abrir modal de filtros (cargando valores según página activa)
 async function abrirModalFiltros() {
-
     if (!window.filtroActivoPara) {
         window.filtroActivoPara = 'dashboard';
     }
 
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     const desdeInput = document.getElementById('filtroDashboardDesde');
     const hastaInput = document.getElementById('filtroDashboardHasta');
-
     const catSelect = document.getElementById('filtroDashboardCategoria');
 
     let categorias = [];
     let seleccionadas = [];
 
-    // DASHBOARD
     if (window.filtroActivoPara === 'dashboard') {
-
         if (desdeInput) desdeInput.value = filtroDashboard.desde || '';
         if (hastaInput) hastaInput.value = filtroDashboard.hasta || '';
 
         categorias = await loadDashboardCategoriasConDatos();
         seleccionadas = filtroDashboard.categoria || [];
-    }
-
-    // GASTOS
-    else if (window.filtroActivoPara === 'gastos') {
-
+    } else if (window.filtroActivoPara === 'gastos') {
         if (desdeInput) desdeInput.value = filtroGastos.desde || '';
         if (hastaInput) hastaInput.value = filtroGastos.hasta || '';
 
         categorias = await getCategoriasCache('gastos');
         seleccionadas = filtroGastos.categoria || [];
-    }
-
-    // INGRESOS
-    else if (window.filtroActivoPara === 'ingresos') {
-
+    } else if (window.filtroActivoPara === 'ingresos') {
         if (desdeInput) desdeInput.value = filtroIngresos.desde || '';
         if (hastaInput) hastaInput.value = filtroIngresos.hasta || '';
 
@@ -1780,13 +1747,10 @@ async function abrirModalFiltros() {
         seleccionadas = filtroIngresos.categoria || [];
     }
 
-    // Crear contenedor de checkboxes
     if (catSelect) {
-
         let container = document.getElementById('contenedorCategoriasCheckbox');
 
         if (!container) {
-
             container = document.createElement('div');
             container.id = 'contenedorCategoriasCheckbox';
 
@@ -1800,16 +1764,10 @@ async function abrirModalFiltros() {
             catSelect.parentNode.appendChild(container);
         }
 
-        const categoriasGastos = categorias.filter(
-            c => c.tipo === 'gasto'
-        );
-
-        const categoriasIngresos = categorias.filter(
-            c => c.tipo === 'ingreso'
-        );
+        const categoriasGastos = categorias.filter(c => c.tipo === 'gasto');
+        const categoriasIngresos = categorias.filter(c => c.tipo === 'ingreso');
 
         container.innerHTML = `
-
             <div style="
                 font-weight:bold;
                 color:#dc3545;
@@ -1819,24 +1777,29 @@ async function abrirModalFiltros() {
                 🔴 GASTOS
             </div>
 
-            ${categoriasGastos.map(cat => `
-                <label style="
-                    display:flex;
-                    align-items:center;
-                    gap:8px;
-                    margin-bottom:6px;
-                    margin-left:10px;
-                ">
-                    <input
-                        type="checkbox"
-                        class="checkboxCategoriaFiltro"
-                        data-tipo="gasto"
-                        value="${cat.nombre}"
-                        ${seleccionadas.includes(cat.nombre) ? 'checked' : ''}
-                    >
-                    ${cat.nombre}
-                </label>
-            `).join('')}
+            ${categoriasGastos.map(cat => {
+                const nombre = cat.nombre || '';
+                const checked = seleccionadas.includes(nombre) ? 'checked' : '';
+
+                return `
+                    <label style="
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                        margin-bottom:6px;
+                        margin-left:10px;
+                    ">
+                        <input
+                            type="checkbox"
+                            class="checkboxCategoriaFiltro"
+                            data-tipo="gasto"
+                            value="${escapeHTML(nombre)}"
+                            ${checked}
+                        >
+                        ${escapeHTML(nombre)}
+                    </label>
+                `;
+            }).join('')}
 
             <hr style="
                 margin:12px 0;
@@ -1852,24 +1815,29 @@ async function abrirModalFiltros() {
                 🟢 INGRESOS
             </div>
 
-            ${categoriasIngresos.map(cat => `
-                <label style="
-                    display:flex;
-                    align-items:center;
-                    gap:8px;
-                    margin-bottom:6px;
-                    margin-left:10px;
-                ">
-                    <input
-                        type="checkbox"
-                        class="checkboxCategoriaFiltro"
-                        data-tipo="ingreso"
-                        value="${cat.nombre}"
-                        ${seleccionadas.includes(cat.nombre) ? 'checked' : ''}
-                    >
-                    ${cat.nombre}
-                </label>
-            `).join('')}
+            ${categoriasIngresos.map(cat => {
+                const nombre = cat.nombre || '';
+                const checked = seleccionadas.includes(nombre) ? 'checked' : '';
+
+                return `
+                    <label style="
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                        margin-bottom:6px;
+                        margin-left:10px;
+                    ">
+                        <input
+                            type="checkbox"
+                            class="checkboxCategoriaFiltro"
+                            data-tipo="ingreso"
+                            value="${escapeHTML(nombre)}"
+                            ${checked}
+                        >
+                        ${escapeHTML(nombre)}
+                    </label>
+                `;
+            }).join('')}
         `;
 
         catSelect.style.display = 'none';
@@ -1929,21 +1897,29 @@ function cerrarModalFiltros() {
 }
 
 function mostrarResumenCategorias(tipo) {
-
     const titulo = document.getElementById('tituloResumenCategorias');
     const contenido = document.getElementById('contenidoResumenCategorias');
+
+    if (!titulo || !contenido) return;
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
 
     let datos = [];
     let totalGeneral = 0;
 
     if (tipo === 'gastos') {
-
         titulo.textContent = 'Resumen de Gastos';
 
         const agrupados = {};
 
         (window.dashboardGastosFiltrados || []).forEach(gasto => {
-
             const categoria = gasto.categoria || 'Sin categoría';
             const monto = Number(gasto.monto || 0);
 
@@ -1956,9 +1932,7 @@ function mostrarResumenCategorias(tipo) {
 
             agrupados[categoria].total += monto;
             agrupados[categoria].operaciones += 1;
-
             totalGeneral += monto;
-
         });
 
         datos = Object.entries(agrupados)
@@ -1970,13 +1944,11 @@ function mostrarResumenCategorias(tipo) {
             .sort((a, b) => b.total - a.total);
 
     } else {
-
         titulo.textContent = 'Resumen de Ingresos';
 
         const agrupados = {};
 
         (window.dashboardIngresosFiltrados || []).forEach(ingreso => {
-
             const origen = ingreso.origen || 'Sin origen';
             const monto = Number(ingreso.monto || 0);
 
@@ -1989,9 +1961,7 @@ function mostrarResumenCategorias(tipo) {
 
             agrupados[origen].total += monto;
             agrupados[origen].operaciones += 1;
-
             totalGeneral += monto;
-
         });
 
         datos = Object.entries(agrupados)
@@ -2001,11 +1971,9 @@ function mostrarResumenCategorias(tipo) {
                 operaciones: info.operaciones
             }))
             .sort((a, b) => b.total - a.total);
-
     }
 
     if (datos.length === 0) {
-
         contenido.innerHTML = `
             <div style="text-align:center;padding:2rem;">
                 No hay datos para mostrar
@@ -2030,32 +1998,34 @@ function mostrarResumenCategorias(tipo) {
     `;
 
     datos.forEach(item => {
+        const total = Number(item.total) || 0;
+        const operaciones = Number(item.operaciones) || 0;
 
         const porcentaje = totalGeneral > 0
-            ? ((item.total / totalGeneral) * 100).toFixed(1)
-            : 0;
+            ? ((total / totalGeneral) * 100).toFixed(1)
+            : '0.0';
 
         html += `
             <tr>
-                <td style="padding:8px;">${item.nombre}</td>
+                <td style="padding:8px;">${escapeHTML(item.nombre)}</td>
 
                 <td style="padding:8px;text-align:right;">
-                    ${item.total.toFixed(2)} €
+                    ${escapeHTML(total.toFixed(2))} €
                 </td>
 
                 <td style="padding:8px;text-align:right;">
-                    ${porcentaje}%
+                    ${escapeHTML(porcentaje)}%
                 </td>
 
                 <td style="padding:8px;text-align:center;">
-                    (${item.operaciones})
+                    (${escapeHTML(operaciones)})
                 </td>
             </tr>
         `;
     });
 
     const totalOperaciones = datos.reduce(
-        (sum, item) => sum + item.operaciones,
+        (sum, item) => sum + (Number(item.operaciones) || 0),
         0
     );
 
@@ -2072,7 +2042,7 @@ function mostrarResumenCategorias(tipo) {
             font-size:1.1rem;
         ">
             <span>TOTAL</span>
-            <span>${formatNumber(totalGeneral)} €</span>
+            <span>${escapeHTML(formatNumber(totalGeneral))} €</span>
         </div>
 
         <div style="
@@ -2081,7 +2051,7 @@ function mostrarResumenCategorias(tipo) {
             color:var(--text-secondary);
             font-size:0.9rem;
         ">
-            ${datos.length} categorías · ${totalOperaciones} operaciones
+            ${escapeHTML(datos.length)} categorías · ${escapeHTML(totalOperaciones)} operaciones
         </div>
     `;
 

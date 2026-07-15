@@ -131,42 +131,60 @@ async function getGastosCategoriasCached(forceReload = false) {
 function displayGastos() {
     const container = document.getElementById('gastosList');
     if (!container) return;
-    
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     if (gastosList.length === 0) {
         container.innerHTML = '<p class="empty-message">No hay gastos registrados</p>';
         return;
     }
-    
-    container.innerHTML = gastosList.map(gasto => `
-        <div class="list-item-card" data-id="${gasto.id}">
-            <div class="item-info">
-                <div class="item-title">${gasto.categoria || 'Sin categoría'}</div>
-                <div class="item-subtitle">
-                    ${formatDate(gasto.fecha)} • ${gasto.descripcion || 'Sin descripción'}
+
+    container.innerHTML = gastosList.map(gasto => {
+        const id = Number(gasto.id);
+        const categoria = escapeHTML(gasto.categoria || 'Sin categoría');
+        const descripcion = escapeHTML(gasto.descripcion || 'Sin descripción');
+        const fecha = escapeHTML(formatDate(gasto.fecha));
+        const monto = escapeHTML(formatCurrency(gasto.monto, gasto.moneda));
+
+        return `
+            <div class="list-item-card" data-id="${id}">
+                <div class="item-info">
+                    <div class="item-title">${categoria}</div>
+                    <div class="item-subtitle">
+                        ${fecha} • ${descripcion}
+                    </div>
+                </div>
+
+                <div class="item-amount negative">
+                    ${monto}
+                </div>
+
+                <div class="item-actions">
+                    <button class="btn-icon btn-small edit-gasto" data-id="${id}" title="Editar">✏️</button>
+                    <button class="btn-icon btn-small delete-gasto" data-id="${id}" title="Eliminar">🗑️</button>
                 </div>
             </div>
-            <div class="item-amount negative">
-                ${formatCurrency(gasto.monto, gasto.moneda)}
-            </div>
-            <div class="item-actions">
-                <button class="btn-icon btn-small edit-gasto" data-id="${gasto.id}" title="Editar">✏️</button>
-                <button class="btn-icon btn-small delete-gasto" data-id="${gasto.id}" title="Eliminar">🗑️</button>
-            </div>
-        </div>
-    `).join('');
-    
+        `;
+    }).join('');
+
     document.querySelectorAll('.edit-gasto').forEach(btn => {
-        btn.addEventListener('click', () => editGasto(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => editGasto(Number(btn.dataset.id)));
     });
-    
+
     document.querySelectorAll('.delete-gasto').forEach(btn => {
-        btn.addEventListener('click', () => deleteGasto(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => deleteGasto(Number(btn.dataset.id)));
     });
 }
 
 // Mostrar modal para agregar/editar gasto
 async function showGastoModal(gasto = null) {
-    console.log("aqui esta el fitro de gastos")
     editingGastoId = gasto ? gasto.id : null;
 
     const categorias = await getCategoriasCache('gastos');
@@ -177,19 +195,43 @@ async function showGastoModal(gasto = null) {
 
     if (!modal || !modalTitle || !modalBody) return;
 
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const escapeAttr = escapeHTML;
+
     modalTitle.textContent = gasto ? '✏️ Editar Gasto' : '➕ Nuevo Gasto';
 
-    const categoriasOptions = categorias.length > 0 
-        ? categorias.map(cat =>
-            `<option value="${cat.nombre}" ${gasto && gasto.categoria === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`
-          ).join('')
+    const fecha = escapeAttr(gasto ? gasto.fecha : getTodayDate());
+    const monto = escapeAttr(gasto ? gasto.monto : '');
+    const descripcion = escapeHTML(gasto ? gasto.descripcion || '' : '');
+    const moneda = gasto?.moneda || 'EUR';
+    const categoriaActual = gasto?.categoria || '';
+
+    const categoriasOptions = categorias.length > 0
+        ? categorias.map(cat => {
+            const nombre = cat.nombre || '';
+            const selected = categoriaActual === nombre ? 'selected' : '';
+
+            return `
+                <option value="${escapeAttr(nombre)}" ${selected}>
+                    ${escapeHTML(nombre)}
+                </option>
+            `;
+        }).join('')
         : '<option value="">No hay categorías. Crea una primero.</option>';
 
     modalBody.innerHTML = `
         <form id="gastoForm">
             <div class="form-group">
                 <label for="gastoFecha">Fecha *</label>
-                <input type="date" id="gastoFecha" name="fecha" value="${gasto ? gasto.fecha : getTodayDate()}" required>
+                <input type="date" id="gastoFecha" name="fecha" value="${fecha}" required>
             </div>
 
             <div class="form-group">
@@ -198,28 +240,31 @@ async function showGastoModal(gasto = null) {
                     <option value="">Seleccionar categoría</option>
                     ${categoriasOptions}
                 </select>
-                <button type="button" id="btnNuevaCategoriaGasto" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
+
+                <button type="button" id="btnNuevaCategoriaGasto" class="btn btn-text btn-small" style="margin-top: 5px;">
+                    + Crear nueva categoría
+                </button>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="gastoMonto">Monto *</label>
-                    <input type="number" id="gastoMonto" name="monto" step="0.01" value="${gasto ? gasto.monto : ''}" required>
+                    <input type="number" id="gastoMonto" name="monto" step="0.01" value="${monto}" required>
                 </div>
 
                 <div class="form-group">
                     <label for="gastoMoneda">Moneda *</label>
                     <select id="gastoMoneda" name="moneda" required>
-                        <option value="EUR" ${gasto && gasto.moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                        <option value="USDT" ${gasto && gasto.moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                        <option value="BS" ${gasto && gasto.moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                        <option value="EUR" ${moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                        <option value="USDT" ${moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
+                        <option value="BS" ${moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="gastoDescripcion">Descripción</label>
-                <textarea id="gastoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${gasto ? gasto.descripcion || '' : ''}</textarea>
+                <textarea id="gastoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${descripcion}</textarea>
             </div>
 
             <div class="form-actions">
@@ -235,10 +280,11 @@ async function showGastoModal(gasto = null) {
     document.getElementById('cancelGastoBtn')?.addEventListener('click', closeModal);
 
     const btnNuevaCategoria = document.getElementById('btnNuevaCategoriaGasto');
+
     if (btnNuevaCategoria) {
         btnNuevaCategoria.onclick = () => {
             closeModal();
-            setTimeout(() => showAddCategoriaModal('gasto'), 100);
+            setTimeout(() => showAddCategoriaModal('gasto', 'movimiento'), 100);
         };
     }
 
@@ -421,10 +467,25 @@ async function loadCategoriasGastosConDatos() {
 async function actualizarSelectCategoriasGastos() {
     const categorias = await loadCategoriasGastosConDatos();
     const select = document.getElementById('filtroGastosCategoria');
-    if (select) {
-        select.innerHTML = '<option value="">Todas las categorías</option>' +
-            categorias.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-    }
+
+    if (!select) return;
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    select.innerHTML =
+        '<option value="">Todas las categorías</option>' +
+        categorias.map(cat => {
+            const nombre = escapeHTML(cat);
+
+            return `<option value="${nombre}">${nombre}</option>`;
+        }).join('');
 }
 
 // Inicializar eventos de gastos

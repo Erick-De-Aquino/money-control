@@ -392,32 +392,48 @@ function showEditCategoriaModal(id, nombreActual, tipo) {
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
-    modalTitle.textContent = `✏️ Editar Categoría de ${tipo === 'gasto' ? 'Gasto' : 'Ingreso'}`;
-    
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    modalTitle.textContent =
+        `✏️ Editar Categoría de ${tipo === 'gasto' ? 'Gasto' : 'Ingreso'}`;
+
     modalBody.innerHTML = `
         <form id="editCategoriaForm">
             <div class="form-group">
                 <label for="editCategoriaNombre">Nombre de la categoría *</label>
-                <input type="text" id="editCategoriaNombre" value="${nombreActual}" required>
+                <input type="text" id="editCategoriaNombre" value="${escapeHTML(nombreActual)}" required>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelEditBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Guardar Cambios</button>
             </div>
         </form>
     `;
-    
+
     modal.classList.add('active');
-    
+
     const form = document.getElementById('editCategoriaForm');
+
     if (form) {
         form.onsubmit = async (e) => {
             e.preventDefault();
-            const nuevoNombre = document.getElementById('editCategoriaNombre')?.value.trim();
+
+            const nuevoNombre =
+                document.getElementById('editCategoriaNombre')
+                    ?.value
+                    .trim();
+
             if (nuevoNombre && nuevoNombre !== nombreActual) {
                 await updateCategoria(
                     id,
@@ -426,13 +442,14 @@ function showEditCategoriaModal(id, nombreActual, tipo) {
                     tipo
                 );
             } else if (nuevoNombre === nombreActual) {
-                showInfo('El nombre no ha cambiado');
+                showInfo?.('El nombre no ha cambiado');
                 closeModal();
             }
         };
     }
-    
+
     const cancelBtn = document.getElementById('cancelEditBtn');
+
     if (cancelBtn) {
         cancelBtn.onclick = () => closeModal();
     }

@@ -123,36 +123,55 @@ async function loadIngresos() {
 function displayIngresos() {
     const container = document.getElementById('ingresosList');
     if (!container) return;
-    
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     if (ingresosList.length === 0) {
         container.innerHTML = '<p class="empty-message">No hay ingresos registrados</p>';
         return;
     }
-    
-    container.innerHTML = ingresosList.map(ingreso => `
-        <div class="list-item-card" data-id="${ingreso.id}">
-            <div class="item-info">
-                <div class="item-title">${ingreso.origen || 'Sin origen'}</div>
-                <div class="item-subtitle">
-                    ${formatDate(ingreso.fecha)} • ${ingreso.descripcion || 'Sin descripción'}
+
+    container.innerHTML = ingresosList.map(ingreso => {
+        const id = Number(ingreso.id);
+        const origen = escapeHTML(ingreso.origen || 'Sin origen');
+        const descripcion = escapeHTML(ingreso.descripcion || 'Sin descripción');
+        const fecha = escapeHTML(formatDate(ingreso.fecha));
+        const monto = escapeHTML(formatCurrency(ingreso.monto, ingreso.moneda));
+
+        return `
+            <div class="list-item-card" data-id="${id}">
+                <div class="item-info">
+                    <div class="item-title">${origen}</div>
+                    <div class="item-subtitle">
+                        ${fecha} • ${descripcion}
+                    </div>
+                </div>
+
+                <div class="item-amount positive">
+                    +${monto}
+                </div>
+
+                <div class="item-actions">
+                    <button class="btn-icon btn-small edit-ingreso" data-id="${id}" title="Editar">✏️</button>
+                    <button class="btn-icon btn-small delete-ingreso" data-id="${id}" title="Eliminar">🗑️</button>
                 </div>
             </div>
-            <div class="item-amount positive">
-                +${formatCurrency(ingreso.monto, ingreso.moneda)}
-            </div>
-            <div class="item-actions">
-                <button class="btn-icon btn-small edit-ingreso" data-id="${ingreso.id}" title="Editar">✏️</button>
-                <button class="btn-icon btn-small delete-ingreso" data-id="${ingreso.id}" title="Eliminar">🗑️</button>
-            </div>
-        </div>
-    `).join('');
-    
+        `;
+    }).join('');
+
     document.querySelectorAll('.edit-ingreso').forEach(btn => {
-        btn.addEventListener('click', () => editIngreso(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => editIngreso(Number(btn.dataset.id)));
     });
-    
+
     document.querySelectorAll('.delete-ingreso').forEach(btn => {
-        btn.addEventListener('click', () => deleteIngreso(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => deleteIngreso(Number(btn.dataset.id)));
     });
 }
 
@@ -168,19 +187,43 @@ async function showIngresoModal(ingreso = null) {
 
     if (!modal || !modalTitle || !modalBody) return;
 
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const escapeAttr = escapeHTML;
+
     modalTitle.textContent = ingreso ? '✏️ Editar Ingreso' : '💰 Nuevo Ingreso';
 
-    const categoriasOptions = categorias.length > 0 
-        ? categorias.map(cat =>
-            `<option value="${cat.nombre}" ${ingreso && ingreso.origen === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`
-          ).join('')
+    const fecha = escapeAttr(ingreso ? ingreso.fecha : getTodayDate());
+    const monto = escapeAttr(ingreso ? ingreso.monto : '');
+    const descripcion = escapeHTML(ingreso ? ingreso.descripcion || '' : '');
+    const moneda = ingreso?.moneda || 'EUR';
+    const origenActual = ingreso?.origen || '';
+
+    const categoriasOptions = categorias.length > 0
+        ? categorias.map(cat => {
+            const nombre = cat.nombre || '';
+            const selected = origenActual === nombre ? 'selected' : '';
+
+            return `
+                <option value="${escapeAttr(nombre)}" ${selected}>
+                    ${escapeHTML(nombre)}
+                </option>
+            `;
+        }).join('')
         : '<option value="">No hay categorías. Crea una primero.</option>';
 
     modalBody.innerHTML = `
         <form id="ingresoForm">
             <div class="form-group">
                 <label for="ingresoFecha">Fecha *</label>
-                <input type="date" id="ingresoFecha" name="fecha" value="${ingreso ? ingreso.fecha : getTodayDate()}" required>
+                <input type="date" id="ingresoFecha" name="fecha" value="${fecha}" required>
             </div>
 
             <div class="form-group">
@@ -189,28 +232,31 @@ async function showIngresoModal(ingreso = null) {
                     <option value="">Seleccionar origen</option>
                     ${categoriasOptions}
                 </select>
-                <button type="button" id="btnNuevaCategoriaIngreso" class="btn btn-text btn-small" style="margin-top: 5px;">+ Crear nueva categoría</button>
+
+                <button type="button" id="btnNuevaCategoriaIngreso" class="btn btn-text btn-small" style="margin-top: 5px;">
+                    + Crear nueva categoría
+                </button>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="ingresoMonto">Monto *</label>
-                    <input type="number" id="ingresoMonto" name="monto" step="0.01" value="${ingreso ? ingreso.monto : ''}" required>
+                    <input type="number" id="ingresoMonto" name="monto" step="0.01" value="${monto}" required>
                 </div>
 
                 <div class="form-group">
                     <label for="ingresoMoneda">Moneda *</label>
                     <select id="ingresoMoneda" name="moneda" required>
-                        <option value="EUR" ${ingreso && ingreso.moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                        <option value="USDT" ${ingreso && ingreso.moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                        <option value="BS" ${ingreso && ingreso.moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                        <option value="EUR" ${moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                        <option value="USDT" ${moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
+                        <option value="BS" ${moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="ingresoDescripcion">Descripción</label>
-                <textarea id="ingresoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${ingreso ? ingreso.descripcion || '' : ''}</textarea>
+                <textarea id="ingresoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${descripcion}</textarea>
             </div>
 
             <div class="form-actions">
@@ -226,10 +272,11 @@ async function showIngresoModal(ingreso = null) {
     document.getElementById('cancelIngresoBtn')?.addEventListener('click', closeModal);
 
     const btnNuevaCategoria = document.getElementById('btnNuevaCategoriaIngreso');
+
     if (btnNuevaCategoria) {
         btnNuevaCategoria.onclick = () => {
             closeModal();
-            setTimeout(() => showAddCategoriaModal('ingreso'), 100);
+            setTimeout(() => showAddCategoriaModal('ingreso', 'movimiento'), 100);
         };
     }
 
@@ -457,10 +504,25 @@ async function limpiarFiltroIngresos() {
 async function actualizarSelectCategoriasIngresos() {
     const categorias = await loadCategoriasIngresosConDatos();
     const select = document.getElementById('filtroIngresosCategoria');
-    if (select) {
-        select.innerHTML = '<option value="">Todas las categorías</option>' +
-            categorias.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-    }
+
+    if (!select) return;
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    select.innerHTML =
+        '<option value="">Todas las categorías</option>' +
+        categorias.map(cat => {
+            const nombre = escapeHTML(cat);
+
+            return `<option value="${nombre}">${nombre}</option>`;
+        }).join('');
 }
 
 // Limpiar filtros y UI de ingresos al entrar a la página

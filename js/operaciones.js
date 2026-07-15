@@ -45,46 +45,69 @@ async function loadOperaciones() {
 function displayOperaciones() {
     const container = document.getElementById('operacionesList');
     if (!container) return;
-    
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     if (operacionesList.length === 0) {
-        container.innerHTML = '<p class="empty-message">No hay operaciones registradas</p>';
+        container.innerHTML =
+            '<p class="empty-message">No hay operaciones registradas</p>';
         return;
     }
-    
+
     container.innerHTML = operacionesList.map(operacion => {
-        const ganancia = operacion.ganancia_perdida || 0;
+        const id = Number(operacion.id);
+        const plataforma = escapeHTML(operacion.plataforma || 'Sin plataforma');
+        const fecha = escapeHTML(formatDate(operacion.fecha));
+        const enviado = escapeHTML(formatCurrency(operacion.monto_enviado, operacion.moneda_enviada));
+        const recibido = escapeHTML(formatCurrency(operacion.monto_recibido, operacion.moneda_recibida));
+        const monedaEnviada = escapeHTML(operacion.moneda_enviada || '');
+        const monedaRecibida = escapeHTML(operacion.moneda_recibida || '');
+        const notas = escapeHTML(operacion.notas || '');
+
+        const ganancia = Number(operacion.ganancia_perdida) || 0;
         const gananciaClass = ganancia >= 0 ? 'positive' : 'negative';
         const gananciaSigno = ganancia >= 0 ? '+' : '';
-        
+        const gananciaTexto = escapeHTML(formatCurrency(ganancia, 'EUR'));
+
         return `
-            <div class="list-item-card" data-id="${operacion.id}">
+            <div class="list-item-card" data-id="${id}">
                 <div class="item-info">
-                    <div class="item-title">${operacion.plataforma}</div>
+                    <div class="item-title">${plataforma}</div>
+
                     <div class="item-subtitle">
-                        ${formatDate(operacion.fecha)} • 
-                        Enviado: ${formatCurrency(operacion.monto_enviado, operacion.moneda_enviada)} → 
-                        Recibido: ${formatCurrency(operacion.monto_recibido, operacion.moneda_recibida)}
+                        ${fecha} ·
+                        Enviado: ${enviado} ${monedaEnviada} →
+                        Recibido: ${recibido} ${monedaRecibida}
                     </div>
-                    ${operacion.notas ? `<div class="item-subtitle">📝 ${operacion.notas}</div>` : ''}
+
+                    ${notas ? `<div class="item-subtitle">📝 ${notas}</div>` : ''}
                 </div>
+
                 <div class="item-amount ${gananciaClass}">
-                    ${gananciaSigno}${formatCurrency(ganancia, 'EUR')}
+                    ${gananciaSigno}${gananciaTexto}
                 </div>
+
                 <div class="item-actions">
-                    <button class="btn-icon btn-small edit-operacion" data-id="${operacion.id}" title="Editar">✏️</button>
-                    <button class="btn-icon btn-small delete-operacion" data-id="${operacion.id}" title="Eliminar">🗑️</button>
+                    <button class="btn-icon btn-small edit-operacion" data-id="${id}" title="Editar">✏️</button>
+                    <button class="btn-icon btn-small delete-operacion" data-id="${id}" title="Eliminar">🗑️</button>
                 </div>
             </div>
         `;
     }).join('');
-    
-    // Agregar event listeners a los botones
+
     document.querySelectorAll('.edit-operacion').forEach(btn => {
-        btn.addEventListener('click', () => editOperacion(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => editOperacion(Number(btn.dataset.id)));
     });
-    
+
     document.querySelectorAll('.delete-operacion').forEach(btn => {
-        btn.addEventListener('click', () => deleteOperacion(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => deleteOperacion(Number(btn.dataset.id)));
     });
 }
 
@@ -98,103 +121,116 @@ async function calculateGanancia(montoEnviado, monedaEnviada, montoRecibido, mon
 // Mostrar modal para agregar/editar operación
 function showOperacionModal(operacion = null) {
     editingOperacionId = operacion ? operacion.id : null;
-    
+
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
-    modalTitle.textContent = operacion ? '✏️ Editar Operación' : '🔄 Nueva Operación';
-    
-    // Generar formulario
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const escapeAttr = escapeHTML;
+
+    modalTitle.textContent =
+        operacion ? '✏️ Editar Operación' : '🔄 Nueva Operación';
+
+    const fecha = escapeAttr(operacion ? operacion.fecha : getTodayDate());
+    const montoEnviado = escapeAttr(operacion ? operacion.monto_enviado : '');
+    const montoRecibido = escapeAttr(operacion ? operacion.monto_recibido : '');
+    const notas = escapeHTML(operacion ? operacion.notas || '' : '');
+
+    const plataformaActual = operacion?.plataforma || '';
+    const monedaEnviada = operacion?.moneda_enviada || 'EUR';
+    const monedaRecibida = operacion?.moneda_recibida || 'EUR';
+
+    const plataformasOptions = APP_CONFIG.categories.plataformas.map(plat => {
+        const selected = plataformaActual === plat ? 'selected' : '';
+
+        return `
+            <option value="${escapeAttr(plat)}" ${selected}>
+                ${escapeHTML(plat)}
+            </option>
+        `;
+    }).join('');
+
     modalBody.innerHTML = `
         <form id="operacionForm">
             <div class="form-group">
                 <label for="operacionFecha">Fecha *</label>
-                <input type="date" id="operacionFecha" name="fecha" value="${operacion ? operacion.fecha : getTodayDate()}" required>
+                <input type="date" id="operacionFecha" name="fecha" value="${fecha}" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="operacionPlataforma">Plataforma *</label>
                 <select id="operacionPlataforma" name="plataforma" required>
                     <option value="">Seleccionar plataforma</option>
-                    ${APP_CONFIG.categories.plataformas.map(plat => `
-                        <option value="${plat}" ${operacion && operacion.plataforma === plat ? 'selected' : ''}>${plat}</option>
-                    `).join('')}
+                    ${plataformasOptions}
                 </select>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="operacionMontoEnviado">Monto Enviado *</label>
-                    <input type="number" id="operacionMontoEnviado" name="monto_enviado" step="0.01" value="${operacion ? operacion.monto_enviado : ''}" required>
+                    <input type="number" id="operacionMontoEnviado" name="monto_enviado" step="0.01" value="${montoEnviado}" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="operacionMonedaEnviada">Moneda *</label>
                     <select id="operacionMonedaEnviada" name="moneda_enviada" required>
-                        <option value="EUR" ${operacion && operacion.moneda_enviada === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                        <option value="USDT" ${operacion && operacion.moneda_enviada === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                        <option value="BS" ${operacion && operacion.moneda_enviada === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                        <option value="EUR" ${monedaEnviada === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                        <option value="USDT" ${monedaEnviada === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
+                        <option value="BS" ${monedaEnviada === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
                     </select>
                 </div>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="operacionMontoRecibido">Monto Recibido *</label>
-                    <input type="number" id="operacionMontoRecibido" name="monto_recibido" step="0.01" value="${operacion ? operacion.monto_recibido : ''}" required>
+                    <input type="number" id="operacionMontoRecibido" name="monto_recibido" step="0.01" value="${montoRecibido}" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="operacionMonedaRecibida">Moneda *</label>
                     <select id="operacionMonedaRecibida" name="moneda_recibida" required>
-                        <option value="EUR" ${operacion && operacion.moneda_recibida === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                        <option value="USDT" ${operacion && operacion.moneda_recibida === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                        <option value="BS" ${operacion && operacion.moneda_recibida === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
+                        <option value="EUR" ${monedaRecibida === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                        <option value="USDT" ${monedaRecibida === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
+                        <option value="BS" ${monedaRecibida === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
                     </select>
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label for="operacionNotas">Notas</label>
-                <textarea id="operacionNotas" name="notas" rows="2" placeholder="Ej: Tasa de cambio utilizada, comisiones, etc.">${operacion ? operacion.notas || '' : ''}</textarea>
+                <textarea id="operacionNotas" name="notas" rows="2" placeholder="Ej: Tasa de cambio utilizada, comisiones, etc.">${notas}</textarea>
             </div>
-            
+
             <div id="gananciaPreview" class="form-message info" style="display: none;"></div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelOperacionBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">${operacion ? 'Actualizar' : 'Guardar'}</button>
             </div>
         </form>
     `;
-    
-    // Mostrar modal
+
     modal.classList.add('active');
-    
-    // Event listeners
-    const form = document.getElementById('operacionForm');
-    if (form) {
-        form.addEventListener('submit', saveOperacion);
-    }
-    
-    const cancelBtn = document.getElementById('cancelOperacionBtn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', closeModal);
-    }
-    
-    // Eventos para calcular ganancia en tiempo real
-    const montoEnviado = document.getElementById('operacionMontoEnviado');
-    const monedaEnviada = document.getElementById('operacionMonedaEnviada');
-    const montoRecibido = document.getElementById('operacionMontoRecibido');
-    const monedaRecibida = document.getElementById('operacionMonedaRecibida');
-    
-    if (montoEnviado) montoEnviado.addEventListener('input', previewGanancia);
-    if (monedaEnviada) monedaEnviada.addEventListener('change', previewGanancia);
-    if (montoRecibido) montoRecibido.addEventListener('input', previewGanancia);
-    if (monedaRecibida) monedaRecibida.addEventListener('change', previewGanancia);
+
+    document.getElementById('operacionForm')?.addEventListener('submit', saveOperacion);
+    document.getElementById('cancelOperacionBtn')?.addEventListener('click', closeModal);
+
+    document.getElementById('operacionMontoEnviado')?.addEventListener('input', previewGanancia);
+    document.getElementById('operacionMonedaEnviada')?.addEventListener('change', previewGanancia);
+    document.getElementById('operacionMontoRecibido')?.addEventListener('input', previewGanancia);
+    document.getElementById('operacionMonedaRecibida')?.addEventListener('change', previewGanancia);
 }
 
 // Previsualizar ganancia/pérdida
@@ -203,17 +239,27 @@ async function previewGanancia() {
     const monedaEnviada = document.getElementById('operacionMonedaEnviada')?.value;
     const montoRecibido = parseFloat(document.getElementById('operacionMontoRecibido')?.value || 0);
     const monedaRecibida = document.getElementById('operacionMonedaRecibida')?.value;
-    
+
     if (!montoEnviado || !monedaEnviada || !montoRecibido || !monedaRecibida) return;
-    
-    const ganancia = await calculateGanancia(montoEnviado, monedaEnviada, montoRecibido, monedaRecibida);
-    
+
+    const ganancia = await calculateGanancia(
+        montoEnviado,
+        monedaEnviada,
+        montoRecibido,
+        monedaRecibida
+    );
+
     const preview = document.getElementById('gananciaPreview');
+
     if (preview) {
         const gananciaClass = ganancia >= 0 ? 'success' : 'error';
         const gananciaSigno = ganancia >= 0 ? '+' : '';
+
         preview.className = `form-message ${gananciaClass}`;
-        preview.innerHTML = `<strong>Ganancia/Pérdida estimada:</strong> ${gananciaSigno}${formatCurrency(ganancia, 'EUR')}`;
+
+        preview.textContent =
+            `Ganancia/Pérdida estimada: ${gananciaSigno}${formatCurrency(ganancia, 'EUR')}`;
+
         preview.style.display = 'block';
     }
 }

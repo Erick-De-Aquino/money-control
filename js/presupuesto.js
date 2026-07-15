@@ -73,46 +73,78 @@ async function loadPresupuestos() {
 async function displayPresupuestos() {
     const container = document.getElementById('presupuestosList');
     if (!container) return;
-    
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     if (presupuestosList.length === 0) {
         container.innerHTML = '<p class="empty-message">No hay presupuestos para este período</p>';
         return;
     }
-    
+
     const gastos = await getGastosDelMes(filtroPresupuesto.año, filtroPresupuesto.mes);
-    
+
     container.innerHTML = presupuestosList.map(p => {
-        const gastado = gastos.filter(g => g.categoria === p.categoria).reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
-        const porcentaje = (gastado / p.limite) * 100;
-        
+        const id = Number(p.id);
+        const categoria = escapeHTML(p.categoria || 'Sin categoría');
+        const mes = Number(p.mes) || '';
+        const año = Number(p.año) || '';
+        const limite = Number(p.limite) || 0;
+
+        const gastado = gastos
+            .filter(g => g.categoria === p.categoria)
+            .reduce((sum, g) => sum + (Number(g.monto_eur || g.monto) || 0), 0);
+
+        const porcentaje = limite > 0 ? (gastado / limite) * 100 : 0;
+        const porcentajeSeguro = Math.min(Math.max(porcentaje, 0), 100);
+        const colorBarra =
+            porcentaje >= 90
+                ? '#f44336'
+                : porcentaje >= 75
+                    ? '#FF9800'
+                    : '#4CAF50';
+
+        const gastadoTexto = escapeHTML(formatCurrency(gastado, 'EUR'));
+        const limiteTexto = escapeHTML(formatCurrency(limite, 'EUR'));
+        const porcentajeTexto = escapeHTML(porcentaje.toFixed(1));
+
         return `
-            <div class="list-item-card" data-id="${p.id}">
+            <div class="list-item-card" data-id="${id}">
                 <div class="item-info" style="flex: 2;">
-                    <div class="item-title">${p.categoria}</div>
-                    <div class="item-subtitle">${p.mes}/${p.año}</div>
+                    <div class="item-title">${categoria}</div>
+                    <div class="item-subtitle">${mes}/${año}</div>
                 </div>
+
                 <div class="item-info" style="flex: 3;">
                     <div class="progress-bar-container" style="background: #e0e0e0; border-radius: 10px; height: 20px; width: 100%;">
-                        <div class="progress-bar-fill" style="width: ${Math.min(porcentaje, 100)}%; background-color: ${porcentaje >= 90 ? '#f44336' : (porcentaje >= 75 ? '#FF9800' : '#4CAF50')}; height: 20px; border-radius: 10px; transition: width 0.3s;"></div>
+                        <div class="progress-bar-fill" style="width: ${porcentajeSeguro}%; background-color: ${colorBarra}; height: 20px; border-radius: 10px; transition: width 0.3s;"></div>
                     </div>
+
                     <div class="item-subtitle" style="margin-top: 5px;">
-                        Gastado: ${formatCurrency(gastado, 'EUR')} / ${formatCurrency(p.limite, 'EUR')} (${porcentaje.toFixed(1)}%)
+                        Gastado: ${gastadoTexto} / ${limiteTexto} (${porcentajeTexto}%)
                     </div>
                 </div>
+
                 <div class="item-actions">
-                    <button class="btn-icon btn-small edit-presupuesto" data-id="${p.id}" title="Editar">✏️</button>
-                    <button class="btn-icon btn-small delete-presupuesto" data-id="${p.id}" title="Eliminar">🗑️</button>
+                    <button class="btn-icon btn-small edit-presupuesto" data-id="${id}" title="Editar">✏️</button>
+                    <button class="btn-icon btn-small delete-presupuesto" data-id="${id}" title="Eliminar">🗑️</button>
                 </div>
             </div>
         `;
     }).join('');
-    
+
     document.querySelectorAll('.edit-presupuesto').forEach(btn => {
-        btn.addEventListener('click', () => editPresupuesto(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => editPresupuesto(Number(btn.dataset.id)));
     });
-    
+
     document.querySelectorAll('.delete-presupuesto').forEach(btn => {
-        btn.addEventListener('click', () => deletePresupuesto(parseInt(btn.dataset.id)));
+        btn.addEventListener('click', () => deletePresupuesto(Number(btn.dataset.id)));
     });
 }
 
@@ -155,13 +187,36 @@ async function showPresupuestoModal(presupuesto = null) {
 
     if (!modal || !modalTitle || !modalBody) return;
 
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const escapeAttr = escapeHTML;
+
     modalTitle.textContent = presupuesto ? '✏️ Editar Presupuesto' : '➕ Nuevo Presupuesto';
 
     const categorias = await getCategoriasCache('gastos');
+    const categoriaActual = presupuesto?.categoria || '';
 
-    const categoriasOptions = categorias.map(cat =>
-        `<option value="${cat.nombre}" ${presupuesto && presupuesto.categoria === cat.nombre ? 'selected' : ''}>${cat.nombre}</option>`
-    ).join('');
+    const categoriasOptions = categorias.map(cat => {
+        const nombre = cat.nombre || '';
+        const selected = categoriaActual === nombre ? 'selected' : '';
+
+        return `
+            <option value="${escapeAttr(nombre)}" ${selected}>
+                ${escapeHTML(nombre)}
+            </option>
+        `;
+    }).join('');
+
+    const año = escapeAttr(presupuesto ? presupuesto.año : new Date().getFullYear());
+    const limite = escapeAttr(presupuesto ? presupuesto.limite : '');
+    const mesActual = Number(presupuesto?.mes);
 
     modalBody.innerHTML = `
         <form id="presupuestoForm">
@@ -177,29 +232,30 @@ async function showPresupuestoModal(presupuesto = null) {
                 <div class="form-group">
                     <label for="presupuestoMes">Mes *</label>
                     <select id="presupuestoMes" required>
-                        <option value="1" ${presupuesto && presupuesto.mes === 1 ? 'selected' : ''}>Enero</option>
-                        <option value="2" ${presupuesto && presupuesto.mes === 2 ? 'selected' : ''}>Febrero</option>
-                        <option value="3" ${presupuesto && presupuesto.mes === 3 ? 'selected' : ''}>Marzo</option>
-                        <option value="4" ${presupuesto && presupuesto.mes === 4 ? 'selected' : ''}>Abril</option>
-                        <option value="5" ${presupuesto && presupuesto.mes === 5 ? 'selected' : ''}>Mayo</option>
-                        <option value="6" ${presupuesto && presupuesto.mes === 6 ? 'selected' : ''}>Junio</option>
-                        <option value="7" ${presupuesto && presupuesto.mes === 7 ? 'selected' : ''}>Julio</option>
-                        <option value="8" ${presupuesto && presupuesto.mes === 8 ? 'selected' : ''}>Agosto</option>
-                        <option value="9" ${presupuesto && presupuesto.mes === 9 ? 'selected' : ''}>Septiembre</option>
-                        <option value="10" ${presupuesto && presupuesto.mes === 10 ? 'selected' : ''}>Octubre</option>
-                        <option value="11" ${presupuesto && presupuesto.mes === 11 ? 'selected' : ''}>Noviembre</option>
-                        <option value="12" ${presupuesto && presupuesto.mes === 12 ? 'selected' : ''}>Diciembre</option>
+                        <option value="1" ${mesActual === 1 ? 'selected' : ''}>Enero</option>
+                        <option value="2" ${mesActual === 2 ? 'selected' : ''}>Febrero</option>
+                        <option value="3" ${mesActual === 3 ? 'selected' : ''}>Marzo</option>
+                        <option value="4" ${mesActual === 4 ? 'selected' : ''}>Abril</option>
+                        <option value="5" ${mesActual === 5 ? 'selected' : ''}>Mayo</option>
+                        <option value="6" ${mesActual === 6 ? 'selected' : ''}>Junio</option>
+                        <option value="7" ${mesActual === 7 ? 'selected' : ''}>Julio</option>
+                        <option value="8" ${mesActual === 8 ? 'selected' : ''}>Agosto</option>
+                        <option value="9" ${mesActual === 9 ? 'selected' : ''}>Septiembre</option>
+                        <option value="10" ${mesActual === 10 ? 'selected' : ''}>Octubre</option>
+                        <option value="11" ${mesActual === 11 ? 'selected' : ''}>Noviembre</option>
+                        <option value="12" ${mesActual === 12 ? 'selected' : ''}>Diciembre</option>
                     </select>
                 </div>
+
                 <div class="form-group">
                     <label for="presupuestoAño">Año *</label>
-                    <input type="number" id="presupuestoAño" value="${presupuesto ? presupuesto.año : new Date().getFullYear()}" required>
+                    <input type="number" id="presupuestoAño" value="${año}" required>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="presupuestoLimite">Límite (EUR) *</label>
-                <input type="number" id="presupuestoLimite" step="0.01" value="${presupuesto ? presupuesto.limite : ''}" required>
+                <input type="number" id="presupuestoLimite" step="0.01" value="${limite}" required>
             </div>
 
             <div class="form-actions">
@@ -212,11 +268,13 @@ async function showPresupuestoModal(presupuesto = null) {
     modal.classList.add('active');
 
     const form = document.getElementById('presupuestoForm');
+
     if (form) {
         form.addEventListener('submit', savePresupuesto);
     }
 
     const cancelBtn = document.getElementById('cancelPresupuestoBtn');
+
     if (cancelBtn) {
         cancelBtn.addEventListener('click', closeModal);
     }
