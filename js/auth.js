@@ -342,7 +342,7 @@ async function registerUser(email, password, confirmPassword) {
         
         if (data.user) {
             // Guardar email en tabla usuario_config
-            await saveUserConfig(email);
+            //await saveUserConfig(email);
             
             showSuccess('¡Registro exitoso! Revisa tu correo para confirmar tu cuenta. Luego inicia sesión.', 'registerMessage');
             
@@ -543,19 +543,9 @@ async function updateUserPassword(newPassword) {
 
 // Guardar configuración de usuario
 async function saveUserConfig(email) {
-    try {
-        const supabase = getSupabase();
-        
-        const { error } = await supabase
-            .from(TABLES.usuario_config)
-            .insert([{ email: email }]);
-        
-        if (error && error.code !== '23505') { // Ignorar error de duplicado
-            console.error('Error al guardar config:', error);
-        }
-    } catch (error) {
-        console.error('Error en saveUserConfig:', error);
-    }
+    // Tabla legacy deshabilitada.
+    // La configuración del usuario se gestiona desde public.profiles.
+    return true;
 }
 
 // Mostrar dashboard (autenticado)
