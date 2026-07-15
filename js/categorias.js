@@ -101,41 +101,62 @@ async function createCategoria(nombre, tipo) {
 }
 
 // Mostrar modal para agregar categoría
-function showAddCategoriaModal(tipo) {
+function showAddCategoriaModal(tipo, contexto = 'auto') {
+    tipo = tipo === 'gastos' ? 'gasto' : tipo;
+    tipo = tipo === 'ingresos' ? 'ingreso' : tipo;
+
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
-    modalTitle.textContent = tipo === 'gasto' ? '➕ Nueva Categoría de Gasto' : '➕ Nueva Categoría de Ingreso';
-    
+
+    const isAdminCategoriasVisible = () => {
+        const gastosList = document.getElementById('categoriasGastosList');
+        const ingresosList = document.getElementById('categoriasIngresosList');
+
+        return [gastosList, ingresosList].some(el => {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+        });
+    };
+
+    const contextoFinal =
+        contexto !== 'auto'
+            ? contexto
+            : isAdminCategoriasVisible()
+                ? 'admin'
+                : 'movimiento';
+
+    modalTitle.textContent =
+        tipo === 'gasto'
+            ? '➕ Nueva Categoría de Gasto'
+            : '➕ Nueva Categoría de Ingreso';
+
     modalBody.innerHTML = `
         <form id="categoriaForm">
             <div class="form-group">
                 <label for="categoriaNombre">Nombre de la categoría *</label>
                 <input type="text" id="categoriaNombre" placeholder="Ej: Alimentación" required>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelCategoriaBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Crear Categoría</button>
             </div>
         </form>
     `;
-    
+
     modal.classList.add('active');
-    
+
     const form = document.getElementById('categoriaForm');
+
     if (form) {
         form.onsubmit = async (e) => {
-
             e.preventDefault();
 
-            const nombre =
-                document.getElementById('categoriaNombre')
-                ?.value
-                .trim();
+            const nombre = document.getElementById('categoriaNombre')?.value.trim();
 
             if (!nombre) return;
 
@@ -145,28 +166,31 @@ function showAddCategoriaModal(tipo) {
 
             closeModal();
 
-            if (tipo === 'gasto') {
+            invalidateCategoriasCache?.(tipo);
 
-                await actualizarSelectCategoriasGastos();
+            if (contextoFinal === 'admin') {
+                await loadCategoriasAdmin(filtroActual || '');
+                return;
+            }
+
+            if (tipo === 'gasto') {
+                await actualizarSelectCategoriasGastos?.();
 
                 if (typeof showGastoModal === 'function') {
                     showGastoModal();
                 }
-
             } else {
-
-                await actualizarSelectCategoriasIngresos();
+                await actualizarSelectCategoriasIngresos?.();
 
                 if (typeof showIngresoModal === 'function') {
                     showIngresoModal();
                 }
-
             }
-
         };
     }
-    
+
     const cancelBtn = document.getElementById('cancelCategoriaBtn');
+
     if (cancelBtn) {
         cancelBtn.onclick = () => closeModal();
     }
@@ -242,78 +266,125 @@ async function loadCategoriasAdmin(filtro = '') {
 }
 
 function displayCategoriasAdmin(categoriasGastos, categoriasIngresos, filtro = '') {
-    const filtroLower = filtro.toLowerCase();
-    
-    // Filtrar categorías
-    const gastosFiltrados = categoriasGastos.filter(cat => 
-        cat.nombre.toLowerCase().includes(filtroLower)
-    );
-    const ingresosFiltrados = categoriasIngresos.filter(cat => 
-        cat.nombre.toLowerCase().includes(filtroLower)
+    const filtroLower = String(filtro || '').toLowerCase();
+
+    const escapeHTML = (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const gastosFiltrados = (categoriasGastos || []).filter(cat =>
+        String(cat.nombre || '').toLowerCase().includes(filtroLower)
     );
 
-    // Actualizar contadores en los acordeones
+    const ingresosFiltrados = (categoriasIngresos || []).filter(cat =>
+        String(cat.nombre || '').toLowerCase().includes(filtroLower)
+    );
+
     const tituloGastos = document.getElementById('tituloCategoriasGastos');
     const tituloIngresos = document.getElementById('tituloCategoriasIngresos');
 
     if (tituloGastos) {
-        tituloGastos.textContent =
-            `Categorías de Gastos (${gastosFiltrados.length})`;
+        tituloGastos.textContent = `Categorías de Gastos (${gastosFiltrados.length})`;
     }
 
     if (tituloIngresos) {
-        tituloIngresos.textContent =
-            `Categorías de Ingresos (${ingresosFiltrados.length})`;
+        tituloIngresos.textContent = `Categorías de Ingresos (${ingresosFiltrados.length})`;
     }
-    
-    // Mostrar categorías de gastos (fondo rojo suave)
+
     const gastosContainer = document.getElementById('categoriasGastosList');
+
     if (gastosContainer) {
         if (gastosFiltrados.length === 0) {
-            gastosContainer.innerHTML = '<p class="empty-message">No hay categorías de gastos. Crea una.</p>';
+            gastosContainer.innerHTML =
+                '<p class="empty-message">No hay categorías de gastos. Crea una.</p>';
         } else {
             gastosContainer.innerHTML = gastosFiltrados.map(cat => `
-                <div class="list-item-card" data-id="${cat.id}" style="background-color: rgba(244, 67, 54, 0.05); border-left: 4px solid #f44336;">
+                <div class="list-item-card" data-id="${escapeHTML(cat.id)}" style="background-color: rgba(244, 67, 54, 0.05); border-left: 4px solid #f44336;">
                     <div class="item-info">
-                        <div class="item-title">📌 ${cat.nombre}</div>
+                        <div class="item-title">📌 ${escapeHTML(cat.nombre)}</div>
                     </div>
                     <div class="item-actions">
-                        <button class="btn-icon btn-small edit-categoria" data-id="${cat.id}" data-nombre="${cat.nombre}" data-tipo="gasto" title="Editar">✏️</button>
-                        <button class="btn-icon btn-small delete-categoria" data-id="${cat.id}" data-nombre="${cat.nombre}" data-tipo="gasto" title="Eliminar">🗑️</button>
+                        <button class="btn-icon btn-small edit-categoria" data-id="${escapeHTML(cat.id)}" data-tipo="gasto" title="Editar">✏️</button>
+                        <button class="btn-icon btn-small delete-categoria" data-id="${escapeHTML(cat.id)}" data-tipo="gasto" title="Eliminar">🗑️</button>
                     </div>
                 </div>
             `).join('');
         }
+
+        gastosContainer.onclick = (e) => {
+            const editBtn = e.target.closest('.edit-categoria');
+            const deleteBtn = e.target.closest('.delete-categoria');
+
+            if (editBtn) {
+                const id = Number(editBtn.dataset.id);
+                const categoria = window.categoriasGastos?.find(cat => Number(cat.id) === id);
+
+                if (!categoria) return;
+
+                showEditCategoriaModal(categoria.id, categoria.nombre, 'gasto');
+                return;
+            }
+
+            if (deleteBtn) {
+                const id = Number(deleteBtn.dataset.id);
+                const categoria = window.categoriasGastos?.find(cat => Number(cat.id) === id);
+
+                if (!categoria) return;
+
+                deleteCategoria(categoria.id, categoria.nombre, 'gasto');
+            }
+        };
     }
-    
-    // Mostrar categorías de ingresos (fondo verde suave)
+
     const ingresosContainer = document.getElementById('categoriasIngresosList');
+
     if (ingresosContainer) {
         if (ingresosFiltrados.length === 0) {
-            ingresosContainer.innerHTML = '<p class="empty-message">No hay categorías de ingresos. Crea una.</p>';
+            ingresosContainer.innerHTML =
+                '<p class="empty-message">No hay categorías de ingresos. Crea una.</p>';
         } else {
             ingresosContainer.innerHTML = ingresosFiltrados.map(cat => `
-                <div class="list-item-card" data-id="${cat.id}" style="background-color: rgba(76, 175, 80, 0.05); border-left: 4px solid #4CAF50;">
+                <div class="list-item-card" data-id="${escapeHTML(cat.id)}" style="background-color: rgba(76, 175, 80, 0.05); border-left: 4px solid #4CAF50;">
                     <div class="item-info">
-                        <div class="item-title">💰 ${cat.nombre}</div>
+                        <div class="item-title">💰 ${escapeHTML(cat.nombre)}</div>
                     </div>
                     <div class="item-actions">
-                        <button class="btn-icon btn-small edit-categoria" data-id="${cat.id}" data-nombre="${cat.nombre}" data-tipo="ingreso" title="Editar">✏️</button>
-                        <button class="btn-icon btn-small delete-categoria" data-id="${cat.id}" data-nombre="${cat.nombre}" data-tipo="ingreso" title="Eliminar">🗑️</button>
+                        <button class="btn-icon btn-small edit-categoria" data-id="${escapeHTML(cat.id)}" data-tipo="ingreso" title="Editar">✏️</button>
+                        <button class="btn-icon btn-small delete-categoria" data-id="${escapeHTML(cat.id)}" data-tipo="ingreso" title="Eliminar">🗑️</button>
                     </div>
                 </div>
             `).join('');
         }
+
+        ingresosContainer.onclick = (e) => {
+            const editBtn = e.target.closest('.edit-categoria');
+            const deleteBtn = e.target.closest('.delete-categoria');
+
+            if (editBtn) {
+                const id = Number(editBtn.dataset.id);
+                const categoria = window.categoriasIngresos?.find(cat => Number(cat.id) === id);
+
+                if (!categoria) return;
+
+                showEditCategoriaModal(categoria.id, categoria.nombre, 'ingreso');
+                return;
+            }
+
+            if (deleteBtn) {
+                const id = Number(deleteBtn.dataset.id);
+                const categoria = window.categoriasIngresos?.find(cat => Number(cat.id) === id);
+
+                if (!categoria) return;
+
+                deleteCategoria(categoria.id, categoria.nombre, 'ingreso');
+            }
+        };
     }
-    
-    // Agregar event listeners
-    document.querySelectorAll('.edit-categoria').forEach(btn => {
-        btn.addEventListener('click', () => showEditCategoriaModal(btn.dataset.id, btn.dataset.nombre, btn.dataset.tipo));
-    });
-    
-    document.querySelectorAll('.delete-categoria').forEach(btn => {
-        btn.addEventListener('click', () => deleteCategoria(parseInt(btn.dataset.id), btn.dataset.nombre, btn.dataset.tipo));
-    });
 }
 
 // Mostrar modal para editar categoría
@@ -435,88 +506,139 @@ async function updateCategoria(id, nombreAnterior, nuevoNombre, tipo) {
 
 // Eliminar categoría
 async function deleteCategoria(id, nombre, tipo) {
-    // Verificar si hay gastos/ingresos usando esta categoría
-    const supabase = getSupabase();
-    const user = await getCategoriasAuthUser();
+    try {
+        const supabase = getSupabase();
+        const user = await getCategoriasAuthUser();
 
-    if (!user) return;
+        if (!user) return;
 
-    let tieneRegistros = false;
-    let count = 0;
-    
-    if (tipo === 'gasto') {
-        const { count: c, error } = await supabase
-            .from('gastos')
-            .select('*', { count: 'exact', head: true })
-            .eq('categoria', nombre)
-            .eq('user_id', user.id);
-        
-        if (!error && c > 0) {
-            tieneRegistros = true;
-            count = c;
-        }
-    } else {
-        const { count: c, error } = await supabase
-            .from('ingresos')
-            .select('*', { count: 'exact', head: true })
-            .eq('origen', nombre)
-            .eq('user_id', user.id);
-        
-        if (!error && c > 0) {
-            tieneRegistros = true;
-            count = c;
-        }
-    }
-    
-    if (tieneRegistros) {
-        showError(`No se puede eliminar "${nombre}". Tiene ${count} ${tipo === 'gasto' ? 'gastos' : 'ingresos'} asociados.`);
-        return;
-    }
-    
-    showConfirmModal(
-        `¿Eliminar categoría "${nombre}"?`,
-        async () => {
-            try {
-                const { error } = await supabase
-                    .from('categorias')
-                    .delete()
-                    .eq('id', id)
-                    .eq('user_id', user.id);
-                
-                if (error) {
-                    console.error('Error al eliminar categoría:', error);
-                    showError('Error al eliminar la categoría');
-                    return;
-                }
-                
-                showSuccess(`Categoría "${nombre}" eliminada`);
-                invalidateCategoriasCache(tipo);
-                await loadCategoriasAdmin(filtroActual || '');
-                
-                // ✅ Recargar usando getCategoriasCache
-                if (tipo === 'gasto') {
-                    await getCategoriasCache('gastos', true);
-                    if (typeof loadGastos === 'function') {
-                        await loadGastos();
-                    }
-                } else {
-                    await getCategoriasCache('ingresos', true);
-                    if (typeof loadIngresos === 'function') {
-                        await loadIngresos();
-                    }
-                }
-                
-                if (typeof loadDashboardData === 'function') {
-                    await loadDashboardData();
-                }
-                
-            } catch (error) {
-                console.error('Error en deleteCategoria:', error);
-                showError('Error al eliminar la categoría');
+        const mostrarMensaje = (mensaje, tipoMensaje = 'error') => {
+            if (window.ElaraNotifications?.showToast) {
+                window.ElaraNotifications.showToast(mensaje, tipoMensaje);
+                return;
             }
-        },
-        'Eliminar Categoría'
-    );
+
+            if (typeof showToast === 'function') {
+                showToast(mensaje, tipoMensaje);
+                return;
+            }
+
+            if (tipoMensaje === 'error' && typeof showError === 'function') {
+                showError(mensaje);
+                return;
+            }
+
+            console.warn(mensaje);
+        };
+
+        let count = 0;
+
+        if (tipo === 'gasto') {
+            const { count: total, error } = await supabase
+                .from('gastos')
+                .select('*', { count: 'exact', head: true })
+                .eq('categoria', nombre)
+                .eq('user_id', user.id);
+
+            if (error) {
+                console.error('Error verificando gastos asociados:', error);
+                mostrarMensaje('No se pudo verificar si la categoría tiene gastos asociados.');
+                return;
+            }
+
+            count = total || 0;
+        } else {
+            const { count: total, error } = await supabase
+                .from('ingresos')
+                .select('*', { count: 'exact', head: true })
+                .eq('origen', nombre)
+                .eq('user_id', user.id);
+
+            if (error) {
+                console.error('Error verificando ingresos asociados:', error);
+                mostrarMensaje('No se pudo verificar si la categoría tiene ingresos asociados.');
+                return;
+            }
+
+            count = total || 0;
+        }
+
+        if (count > 0) {
+            const tipoRegistro = tipo === 'gasto' ? 'gasto' : 'ingreso';
+            const tipoRegistroPlural = tipo === 'gasto' ? 'gastos' : 'ingresos';
+
+            const mensaje =
+                `No se puede eliminar "${nombre}" porque tiene ${count} ` +
+                `${count === 1 ? tipoRegistro : tipoRegistroPlural} ` +
+                `asociado${count === 1 ? '' : 's'}. ` +
+                `Primero cambia o elimina esos movimientos.`;
+
+            if (typeof showInfoModal === 'function') {
+                showInfoModal(mensaje, 'Categoría en uso');
+            } else {
+                console.warn(mensaje);
+            }
+
+            return;
+        }
+
+        showConfirmModal(
+            `¿Eliminar categoría "${nombre}"?`,
+            async () => {
+                try {
+                    const { error } = await supabase
+                        .from('categorias')
+                        .delete()
+                        .eq('id', id)
+                        .eq('user_id', user.id);
+
+                    if (error) {
+                        console.error('Error al eliminar categoría:', error);
+                        mostrarMensaje('Error al eliminar la categoría.');
+                        return;
+                    }
+
+                    mostrarMensaje(`Categoría "${nombre}" eliminada correctamente.`, 'success');
+
+                    invalidateCategoriasCache?.(tipo);
+
+                    await loadCategoriasAdmin(filtroActual || '');
+
+                    if (tipo === 'gasto') {
+                        await getCategoriasCache?.('gastos', true);
+
+                        if (typeof loadGastos === 'function') {
+                            await loadGastos();
+                        }
+                    } else {
+                        await getCategoriasCache?.('ingresos', true);
+
+                        if (typeof loadIngresos === 'function') {
+                            await loadIngresos();
+                        }
+                    }
+
+                    if (typeof loadDashboardData === 'function') {
+                        await loadDashboardData();
+                    }
+
+                } catch (error) {
+                    console.error('Error en confirmación de deleteCategoria:', error);
+                    mostrarMensaje('Error al eliminar la categoría.');
+                }
+            },
+            'Eliminar Categoría'
+        );
+
+    } catch (error) {
+        console.error('Error en deleteCategoria:', error);
+
+        if (window.ElaraNotifications?.showToast) {
+            window.ElaraNotifications.showToast('Error al eliminar la categoría.', 'error');
+        } else if (typeof showError === 'function') {
+            showError('Error al eliminar la categoría.');
+        }
+    }
 }
 
 // Inicializar eventos del admin de categorías

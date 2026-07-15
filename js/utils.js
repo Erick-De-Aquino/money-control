@@ -366,27 +366,78 @@ function showConfirmModal(message, onConfirm, title = 'Confirmar') {
     const messageEl = document.getElementById('confirmMessage');
     const confirmBtn = document.getElementById('confirmOkBtn');
     const cancelBtn = document.getElementById('confirmCancelBtn');
-    
-    if (!modal) return;
-    
+
+    if (!modal || !titleEl || !messageEl || !confirmBtn || !cancelBtn) return;
+
     titleEl.textContent = title;
     messageEl.textContent = message;
-    
-    // Remover eventos anteriores
+
     const newConfirmBtn = confirmBtn.cloneNode(true);
     const newCancelBtn = cancelBtn.cloneNode(true);
+
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-    
+
+    newConfirmBtn.textContent = 'Confirmar';
+    newCancelBtn.textContent = 'Cancelar';
+
+    newConfirmBtn.style.display = '';
+    newCancelBtn.style.display = '';
+
     newConfirmBtn.onclick = () => {
         modal.classList.remove('active');
-        onConfirm();
+
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
     };
-    
+
     newCancelBtn.onclick = () => {
         modal.classList.remove('active');
     };
-    
+
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    };
+
+    modal.classList.add('active');
+}
+
+// Modal informativo personalizado
+function showInfoModal(message, title = 'Información') {
+    const modal = document.getElementById('confirmModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const confirmBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    if (!modal || !titleEl || !messageEl || !confirmBtn || !cancelBtn) return;
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    const newCancelBtn = cancelBtn.cloneNode(true);
+
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+    newConfirmBtn.textContent = 'OK';
+    newConfirmBtn.style.display = '';
+    newCancelBtn.style.display = 'none';
+
+    newConfirmBtn.onclick = () => {
+        modal.classList.remove('active');
+    };
+
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    };
+
     modal.classList.add('active');
 }
 
