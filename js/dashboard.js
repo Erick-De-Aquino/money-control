@@ -6,6 +6,12 @@
 let monthlyChart = null;
 let categoryChart = null;
 let intervaloParpadeo = null;
+
+const MONTHLY_CHART_PERIOD_KEY = 'elaraFinanceMonthlyChartPeriod';
+const DEFAULT_MONTHLY_CHART_PERIOD = '6';
+
+let monthlyChartPeriodInitialized = false;
+
 // Variables de filtros del dashboard
 let filtroDashboard = {
     desde: '',
@@ -58,6 +64,203 @@ function resetDashboardUserView() {
     }
 }
 
+function getStoredMonthlyChartPeriod() {
+    const allowedPeriods = ['3', '6', '12', 'current-year'];
+
+    try {
+        const storedPeriod = localStorage.getItem(
+            MONTHLY_CHART_PERIOD_KEY
+        );
+
+        return allowedPeriods.includes(storedPeriod)
+            ? storedPeriod
+            : DEFAULT_MONTHLY_CHART_PERIOD;
+    } catch (error) {
+        console.warn(
+            'No se pudo leer el periodo del gráfico mensual:',
+            error
+        );
+
+        return DEFAULT_MONTHLY_CHART_PERIOD;
+    }
+}
+
+function saveMonthlyChartPeriod(period) {
+    try {
+        localStorage.setItem(
+            MONTHLY_CHART_PERIOD_KEY,
+            period
+        );
+    } catch (error) {
+        console.warn(
+            'No se pudo guardar el periodo del gráfico mensual:',
+            error
+        );
+    }
+}
+
+function getMonthlyChartDateRange(period) {
+    const today = new Date();
+
+    let startDate;
+
+    if (period === 'current-year') {
+        startDate = new Date(
+            today.getFullYear(),
+            0,
+            1
+        );
+    } else {
+        const numberOfMonths = Number(period);
+
+        startDate = new Date(
+            today.getFullYear(),
+            today.getMonth() - numberOfMonths + 1,
+            1
+        );
+    }
+
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(
+            date.getMonth() + 1
+        ).padStart(2, '0');
+        const day = String(
+            date.getDate()
+        ).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
+    return {
+        startDate: formatDate(startDate),
+        endDate: formatDate(today),
+        startMonth: new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            1
+        ),
+        endMonth: new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            1
+        )
+    };
+}
+
+function updateMonthlyPeriodChips(activePeriod) {
+    const chips = document.querySelectorAll('.monthly-period-chip');
+
+    chips.forEach((chip) => {
+        const isActive = chip.dataset.period === activePeriod;
+
+        chip.classList.toggle('active', isActive);
+        chip.setAttribute('aria-pressed', String(isActive));
+    });
+}
+
+function initMonthlyChartPeriodControls() {
+    if (monthlyChartPeriodInitialized) {
+        updateMonthlyPeriodChips(getStoredMonthlyChartPeriod());
+        return;
+    }
+
+    document.addEventListener('click', async (event) => {
+        const chip = event.target.closest('.monthly-period-chip');
+
+        if (!chip) {
+            return;
+        }
+
+        const period = chip.dataset.period;
+
+        if (!['3', '6', '12', 'current-year'].includes(period)) {
+            return;
+        }
+
+        saveMonthlyChartPeriod(period);
+        updateMonthlyPeriodChips(period);
+
+        const user = await getDashboardAuthUser();
+
+        if (!user?.id) {
+            return;
+        }
+
+        await loadMonthlyEvolutionData(user.id, period);
+    });
+
+    updateMonthlyPeriodChips(getStoredMonthlyChartPeriod());
+    monthlyChartPeriodInitialized = true;
+}
+
+async function loadMonthlyEvolutionData(
+    userId,
+    period = getStoredMonthlyChartPeriod()
+) {
+    const supabase = getSupabase();
+
+    const {
+        startDate,
+        endDate,
+        startMonth,
+        endMonth
+    } = getMonthlyChartDateRange(period);
+
+    updateMonthlyPeriodChips(period);
+
+    const [
+        gastosResult,
+        ingresosResult
+    ] = await Promise.all([
+        supabase
+            .from(TABLES.gastos)
+            .select('fecha, monto, monto_eur')
+            .eq('user_id', userId)
+            .gte('fecha', startDate)
+            .lte('fecha', endDate)
+            .order('fecha', { ascending: true }),
+
+        supabase
+            .from(TABLES.ingresos)
+            .select('fecha, monto, monto_eur')
+            .eq('user_id', userId)
+            .gte('fecha', startDate)
+            .lte('fecha', endDate)
+            .order('fecha', { ascending: true })
+    ]);
+
+    if (gastosResult.error) {
+        console.error(
+            'Error cargando gastos para evolución mensual:',
+            gastosResult.error
+        );
+    }
+
+    if (ingresosResult.error) {
+        console.error(
+            'Error cargando ingresos para evolución mensual:',
+            ingresosResult.error
+        );
+    }
+
+    updateMonthlyChart(
+        gastosResult.data || [],
+        ingresosResult.data || [],
+        startMonth,
+        endMonth
+    );
+
+    const chartModal = document.getElementById('chartModal');
+
+    if (
+        chartModal?.classList.contains('active') &&
+        window.expandedChartSourceId === 'monthlyChart'
+    ) {
+        renderExpandedChartFromOriginal('monthlyChart');
+    }
+}
+
 // Cargar datos para el dashboard
 async function loadDashboardData() {
 
@@ -65,6 +268,7 @@ async function loadDashboardData() {
 
         const supabase = getSupabase();
         resetDashboardUserView();
+        initMonthlyChartPeriodControls();
 
         // =========================
         // ESPERAR AUTH LISTA
@@ -216,7 +420,10 @@ async function loadDashboardData() {
         // UI
         // =========================
         updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaRemesas);
-        updateMonthlyChart(gastos || [], ingresos || []);
+        await loadMonthlyEvolutionData(
+            userId,
+            getStoredMonthlyChartPeriod()
+        );
         updateCategoryChart(gastos || []);
         updateIncomeCategoryChart(ingresos || []);
 
@@ -324,50 +531,102 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
 }
 
 // Actualizar gráfico mensual (línea)
-function updateMonthlyChart(gastos, ingresos) {
-    const ctx = document.getElementById('monthlyChart')?.getContext('2d');
-    if (!ctx) return;
-    
-    // Agrupar por mes
+function updateMonthlyChart(
+    gastos,
+    ingresos,
+    startMonth,
+    endMonth
+) {
+    const ctx = document
+        .getElementById('monthlyChart')
+        ?.getContext('2d');
+
+    if (!ctx) {
+        return;
+    }
+
     const gastosPorMes = {};
     const ingresosPorMes = {};
-    
-    gastos.forEach(g => {
-        const mes = g.fecha.substring(0, 7); // YYYY-MM
-        gastosPorMes[mes] = (gastosPorMes[mes] || 0) + (g.monto_eur || g.monto);
+
+    gastos.forEach((gasto) => {
+        if (!gasto?.fecha) {
+            return;
+        }
+
+        const monthKey = String(gasto.fecha).substring(0, 7);
+
+        const amount = Number(
+            gasto.monto_eur ?? gasto.monto ?? 0
+        );
+
+        gastosPorMes[monthKey] =
+            (gastosPorMes[monthKey] || 0) + amount;
     });
-    
-    ingresos.forEach(i => {
-        const mes = i.fecha.substring(0, 7);
-        ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + (i.monto_eur || i.monto);
+
+    ingresos.forEach((ingreso) => {
+        if (!ingreso?.fecha) {
+            return;
+        }
+
+        const monthKey = String(ingreso.fecha).substring(0, 7);
+
+        const amount = Number(
+            ingreso.monto_eur ?? ingreso.monto ?? 0
+        );
+
+        ingresosPorMes[monthKey] =
+            (ingresosPorMes[monthKey] || 0) + amount;
     });
-    
-    // Obtener últimos 6 meses
-    const meses = [];
+
+    const labels = [];
     const gastosData = [];
     const ingresosData = [];
-    
-    const hoy = new Date();
-    for (let i = 5; i >= 0; i--) {
-        const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
-        const mesKey = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-        const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-        
-        meses.push(nombreMes);
-        gastosData.push(gastosPorMes[mesKey] || 0);
-        ingresosData.push(ingresosPorMes[mesKey] || 0);
+
+    const currentMonth = new Date(
+        startMonth.getFullYear(),
+        startMonth.getMonth(),
+        1
+    );
+
+    const finalMonth = new Date(
+        endMonth.getFullYear(),
+        endMonth.getMonth(),
+        1
+    );
+
+    while (currentMonth <= finalMonth) {
+        const monthKey =
+            `${currentMonth.getFullYear()}-` +
+            `${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+        const monthLabel = currentMonth.toLocaleDateString(
+            'es-ES',
+            {
+                month: 'short',
+                year: 'numeric'
+            }
+        );
+
+        labels.push(monthLabel);
+        gastosData.push(gastosPorMes[monthKey] || 0);
+        ingresosData.push(ingresosPorMes[monthKey] || 0);
+
+        currentMonth.setMonth(
+            currentMonth.getMonth() + 1
+        );
     }
-    
-    // Destruir gráfico anterior si existe
+
     if (monthlyChart) {
         monthlyChart.destroy();
+        monthlyChart = null;
     }
-    
-    // Crear nuevo gráfico
+
     monthlyChart = new Chart(ctx, {
         type: 'line',
+
         data: {
-            labels: meses,
+            labels,
+
             datasets: [
                 {
                     label: 'Gastos',
@@ -387,19 +646,39 @@ function updateMonthlyChart(gastos, ingresos) {
                 }
             ]
         },
+
         options: {
             responsive: true,
             maintainAspectRatio: true,
+
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+
             plugins: {
                 legend: {
-                    position: 'top',
+                    position: 'top'
                 },
+
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return `${context.dataset.label}: ${formatCurrency(context.raw, 'EUR')}`;
+                        label(context) {
+                            return (
+                                `${context.dataset.label}: ` +
+                                formatCurrency(
+                                    context.raw,
+                                    'EUR'
+                                )
+                            );
                         }
                     }
+                }
+            },
+
+            scales: {
+                y: {
+                    beginAtZero: true
                 }
             }
         }
@@ -1042,86 +1321,121 @@ function initModalEvents() {
     }
 }
 
+function getChartInstanceById(chartId) {
+    if (chartId === 'monthlyChart') return monthlyChart;
+    if (chartId === 'categoryChart') return categoryChart;
+    if (chartId === 'incomeCategoryChart') return window.incomeCategoryChart;
+    return null;
+}
+
+function toggleExpandedMonthlyChartControls(chartId) {
+    const controls = document.getElementById('expandedMonthlyChartPeriodControls');
+
+    if (!controls) {
+        return;
+    }
+
+    const shouldShow = chartId === 'monthlyChart';
+
+    controls.hidden = !shouldShow;
+
+    if (shouldShow) {
+        updateMonthlyPeriodChips(getStoredMonthlyChartPeriod());
+    }
+}
+
+function renderExpandedChartFromOriginal(chartId) {
+    const expandedCanvas = document.getElementById('expandedChart');
+    const originalChart = getChartInstanceById(chartId);
+
+    if (!expandedCanvas || !originalChart) {
+        return;
+    }
+
+    if (window.expandedChartInstance) {
+        window.expandedChartInstance.destroy();
+        window.expandedChartInstance = null;
+    }
+
+    const config = {
+        type: originalChart.config.type,
+        data: JSON.parse(JSON.stringify(originalChart.config.data)),
+        options: {
+            ...originalChart.config.options,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                ...originalChart.config.options.plugins,
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 14 } }
+                },
+                tooltip: {
+                    callbacks:
+                        originalChart.config.options.plugins?.tooltip?.callbacks || {}
+                }
+            }
+        }
+    };
+
+    window.expandedChartInstance = new Chart(expandedCanvas, config);
+}
+
+function closeChartModal() {
+    const modal = document.getElementById('chartModal');
+    const expandedControls = document.getElementById('expandedMonthlyChartPeriodControls');
+
+    if (modal) {
+        modal.classList.remove('active');
+    }
+
+    if (expandedControls) {
+        expandedControls.hidden = true;
+    }
+
+    if (window.expandedChartInstance) {
+        window.expandedChartInstance.destroy();
+        window.expandedChartInstance = null;
+    }
+
+    window.expandedChartSourceId = null;
+}
+
 // Expandir gráfico a pantalla completa
 function setupChartExpand() {
-    document.querySelectorAll('.expand-chart').forEach(btn => {
+    document.querySelectorAll('.expand-chart').forEach((btn) => {
         btn.addEventListener('click', () => {
             const chartId = btn.dataset.chart;
-            const originalCanvas = document.getElementById(chartId);
-            const expandedCanvas = document.getElementById('expandedChart');
             const modal = document.getElementById('chartModal');
             const modalTitle = document.getElementById('chartModalTitle');
-            
-            if (!originalCanvas || !expandedCanvas || !modal) return;
-            
-            // Obtener el título del gráfico
-            const chartCard = btn.closest('.chart-card');
-            const title = chartCard.querySelector('h3')?.textContent || 'Gráfico';
-            modalTitle.textContent = title;
-            
-            // Obtener el gráfico original de Chart.js
-            let originalChart = null;
-            if (chartId === 'monthlyChart') originalChart = monthlyChart;
-            else if (chartId === 'categoryChart') originalChart = categoryChart;
-            else if (chartId === 'incomeCategoryChart') originalChart = window.incomeCategoryChart;
-            
-            if (!originalChart) return;
-            
-            // Crear un nuevo gráfico en el canvas expandido con los mismos datos
-            if (window.expandedChartInstance) {
-                window.expandedChartInstance.destroy();
+
+            if (!modal) {
+                return;
             }
-            
-            // Copiar configuración del gráfico original
-            const config = {
-                type: originalChart.config.type,
-                data: originalChart.config.data,
-                options: {
-                    ...originalChart.config.options,
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        ...originalChart.config.options.plugins,
-                        legend: {
-                            position: 'bottom',
-                            labels: { font: { size: 14 } }
-                        },
-                        tooltip: {
-                            callbacks: originalChart.config.options.plugins?.tooltip?.callbacks || {}
-                        }
-                    }
-                }
-            };
-            
-            window.expandedChartInstance = new Chart(expandedCanvas, config);
-            
+
+            const chartCard = btn.closest('.chart-card');
+            const title = chartCard?.querySelector('h3')?.textContent || 'Gráfico';
+
+            modalTitle.textContent = title;
+            window.expandedChartSourceId = chartId;
+
+            toggleExpandedMonthlyChartControls(chartId);
+            renderExpandedChartFromOriginal(chartId);
+
             modal.classList.add('active');
         });
     });
-    
-    // Cerrar modal al hacer clic en el botón de cierre
+
     const closeBtn = document.querySelector('#chartModal .modal-close');
     if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            const modal = document.getElementById('chartModal');
-            modal.classList.remove('active');
-            if (window.expandedChartInstance) {
-                window.expandedChartInstance.destroy();
-                window.expandedChartInstance = null;
-            }
-        });
+        closeBtn.addEventListener('click', closeChartModal);
     }
-    
-    // Cerrar modal al hacer clic fuera
+
     const modal = document.getElementById('chartModal');
     if (modal) {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                modal.classList.remove('active');
-                if (window.expandedChartInstance) {
-                    window.expandedChartInstance.destroy();
-                    window.expandedChartInstance = null;
-                }
+                closeChartModal();
             }
         });
     }
@@ -2089,7 +2403,6 @@ function hasPermission(roleNeeded) {
 
     return true;
 }
-
 console.log('✅ Módulo de dashboard cargado');
 
 

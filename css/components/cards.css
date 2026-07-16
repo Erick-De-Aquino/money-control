@@ -208,6 +208,91 @@
     color: var(--text-secondary, #5A4B63);
 }
 
+/* ===== PERIODO DEL GRÁFICO MENSUAL ===== */
+.monthly-chart-period-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    width: min(100%, 320px);
+    margin: 1rem auto 0;
+}
+
+.monthly-chart-period-controls[hidden] {
+    display: none !important;
+}
+
+.monthly-period-chip {
+    width: 100%;
+    border: 1px solid var(--border-light, #E8E0EC);
+    border-radius: 999px;
+    padding: 0.65rem 0.9rem;
+    background: transparent;
+    color: var(--text-secondary, #5A4B63);
+    font-size: var(--font-size-sm, 0.875rem);
+    font-family: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.monthly-period-chip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.monthly-period-chip.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #FFFFFF;
+    box-shadow: 0 0 0 2px rgba(138, 63, 252, 0.18);
+}
+
+.monthly-period-chip:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+body.dark-mode .monthly-period-chip {
+    color: var(--text-secondary);
+    border-color: var(--border-light);
+}
+
+body.dark-mode .monthly-period-chip.active {
+    color: #FFFFFF;
+}
+
+.monthly-period-chip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.monthly-period-chip.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #FFFFFF;
+}
+
+.monthly-period-chip:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+body.dark-mode .monthly-period-chip {
+    color: var(--text-secondary);
+    border-color: var(--border-light);
+}
+
+body.dark-mode .monthly-period-chip.active {
+    color: #FFFFFF;
+}
+
 /* ===== HEADER DE TARJETA ===== */
 .card-header {
     display: flex;
