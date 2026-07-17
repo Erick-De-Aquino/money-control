@@ -33,16 +33,23 @@ async function loadIngresos() {
     try {
         const supabase = getSupabase();
         const container = document.getElementById('ingresosList');
-        const totalElement = document.getElementById('totalIngresosFiltrados');
+        const totalElement = document.getElementById(
+            'totalIngresosFiltrados'
+        );
+        const userCurrency = getUserCurrency();
 
         ingresosList = [];
 
         if (container) {
-            container.innerHTML = '<p class="empty-message">Cargando ingresos...</p>';
+            container.innerHTML =
+                '<p class="empty-message">Cargando ingresos...</p>';
         }
 
         if (totalElement) {
-            totalElement.textContent = formatCurrency(0, 'EUR');
+            totalElement.textContent = formatCurrency(
+                0,
+                userCurrency
+            );
         }
 
         const user = await getIngresosAuthUser();
@@ -59,30 +66,45 @@ async function loadIngresos() {
             .eq('user_id', userId);
 
         if (filtroIngresos.desde) {
-            query = query.gte('fecha', filtroIngresos.desde);
+            query = query.gte(
+                'fecha',
+                filtroIngresos.desde
+            );
         }
 
         if (filtroIngresos.hasta) {
-            query = query.lte('fecha', filtroIngresos.hasta);
+            query = query.lte(
+                'fecha',
+                filtroIngresos.hasta
+            );
         }
 
-        const { data, error } = await query.order('fecha', { ascending: false });
+        const { data, error } = await query.order(
+            'fecha',
+            { ascending: false }
+        );
 
         if (error) {
-            console.error('Error al cargar ingresos:', error);
+            console.error(
+                'Error al cargar ingresos:',
+                error
+            );
+
             showError?.('Error al cargar los ingresos');
             return [];
         }
 
         ingresosList = data || [];
 
-        // FILTRO MULTICATEGORÍA
         if (
             Array.isArray(filtroIngresos.categoria) &&
             filtroIngresos.categoria.length > 0
         ) {
-            ingresosList = ingresosList.filter(i =>
-                filtroIngresos.categoria.includes(i.origen)
+            ingresosList = ingresosList.filter(
+                (ingreso) =>
+                    filtroIngresos.categoria.includes(
+                        ingreso.origen
+                    )
             );
         }
 
@@ -99,15 +121,24 @@ async function loadIngresos() {
         if (totalElement) {
             if (hayFiltros) {
                 const total = ingresosList.reduce(
-                    (sum, i) => sum + (i.monto_eur || i.monto),
+                    (sum, ingreso) =>
+                        sum + Number(
+                            ingreso.monto_eur ??
+                            ingreso.monto ??
+                            0
+                        ),
                     0
                 );
 
-                totalElement.textContent =
-                    formatCurrency(total, 'EUR');
+                totalElement.textContent = formatCurrency(
+                    total,
+                    userCurrency
+                );
             } else {
-                totalElement.textContent =
-                    formatCurrency(0, 'EUR');
+                totalElement.textContent = formatCurrency(
+                    0,
+                    userCurrency
+                );
             }
         }
 
@@ -122,7 +153,12 @@ async function loadIngresos() {
 // Mostrar ingresos en UI
 function displayIngresos() {
     const container = document.getElementById('ingresosList');
-    if (!container) return;
+
+    if (!container) {
+        return;
+    }
+
+    const userCurrency = getUserCurrency();
 
     const escapeHTML = (value) => {
         return String(value ?? '')
@@ -134,21 +170,33 @@ function displayIngresos() {
     };
 
     if (ingresosList.length === 0) {
-        container.innerHTML = '<p class="empty-message">No hay ingresos registrados</p>';
+        container.innerHTML =
+            '<p class="empty-message">No hay ingresos registrados</p>';
+
         return;
     }
 
-    container.innerHTML = ingresosList.map(ingreso => {
+    container.innerHTML = ingresosList.map((ingreso) => {
         const id = Number(ingreso.id);
-        const origen = escapeHTML(ingreso.origen || 'Sin origen');
-        const descripcion = escapeHTML(ingreso.descripcion || 'Sin descripción');
+        const origen = escapeHTML(
+            ingreso.origen || 'Sin origen'
+        );
+        const descripcion = escapeHTML(
+            ingreso.descripcion || 'Sin descripción'
+        );
         const fecha = escapeHTML(formatDate(ingreso.fecha));
-        const monto = escapeHTML(formatCurrency(ingreso.monto, ingreso.moneda));
+        const monto = escapeHTML(
+            formatCurrency(
+                ingreso.monto,
+                userCurrency
+            )
+        );
 
         return `
             <div class="list-item-card" data-id="${id}">
                 <div class="item-info">
                     <div class="item-title">${origen}</div>
+
                     <div class="item-subtitle">
                         ${fecha} • ${descripcion}
                     </div>
@@ -159,20 +207,39 @@ function displayIngresos() {
                 </div>
 
                 <div class="item-actions">
-                    <button class="btn-icon btn-small edit-ingreso" data-id="${id}" title="Editar">✏️</button>
-                    <button class="btn-icon btn-small delete-ingreso" data-id="${id}" title="Eliminar">🗑️</button>
+                    <button
+                        class="btn-icon btn-small edit-ingreso"
+                        data-id="${id}"
+                        title="Editar">
+                        ✏️
+                    </button>
+
+                    <button
+                        class="btn-icon btn-small delete-ingreso"
+                        data-id="${id}"
+                        title="Eliminar">
+                        🗑️
+                    </button>
                 </div>
             </div>
         `;
     }).join('');
 
-    document.querySelectorAll('.edit-ingreso').forEach(btn => {
-        btn.addEventListener('click', () => editIngreso(Number(btn.dataset.id)));
-    });
+    document.querySelectorAll('.edit-ingreso').forEach(
+        (btn) => {
+            btn.addEventListener('click', () => {
+                editIngreso(Number(btn.dataset.id));
+            });
+        }
+    );
 
-    document.querySelectorAll('.delete-ingreso').forEach(btn => {
-        btn.addEventListener('click', () => deleteIngreso(Number(btn.dataset.id)));
-    });
+    document.querySelectorAll('.delete-ingreso').forEach(
+        (btn) => {
+            btn.addEventListener('click', () => {
+                deleteIngreso(Number(btn.dataset.id));
+            });
+        }
+    );
 }
 
 // Mostrar modal para agregar/editar ingreso
@@ -185,7 +252,9 @@ async function showIngresoModal(ingreso = null) {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.querySelector('#modal .modal-body');
 
-    if (!modal || !modalTitle || !modalBody) return;
+    if (!modal || !modalTitle || !modalBody) {
+        return;
+    }
 
     const escapeHTML = (value) => {
         return String(value ?? '')
@@ -198,165 +267,227 @@ async function showIngresoModal(ingreso = null) {
 
     const escapeAttr = escapeHTML;
 
-    modalTitle.textContent = ingreso ? '✏️ Editar Ingreso' : '💰 Nuevo Ingreso';
+    modalTitle.textContent = ingreso
+        ? '✏️ Editar Ingreso'
+        : '💰 Nuevo Ingreso';
 
-    const fecha = escapeAttr(ingreso ? ingreso.fecha : getTodayDate());
-    const monto = escapeAttr(ingreso ? ingreso.monto : '');
-    const descripcion = escapeHTML(ingreso ? ingreso.descripcion || '' : '');
-    const moneda = ingreso?.moneda || 'EUR';
+    const fecha = escapeAttr(
+        ingreso ? ingreso.fecha : getTodayDate()
+    );
+
+    const monto = escapeAttr(
+        ingreso ? ingreso.monto : ''
+    );
+
+    const descripcion = escapeHTML(
+        ingreso ? ingreso.descripcion || '' : ''
+    );
+
     const origenActual = ingreso?.origen || '';
 
+    const userCurrency = getUserCurrency();
+
     const categoriasOptions = categorias.length > 0
-        ? categorias.map(cat => {
-            const nombre = cat.nombre || '';
-            const selected = origenActual === nombre ? 'selected' : '';
+        ? categorias.map((categoria) => {
+            const nombre = categoria.nombre || '';
+            const selected =
+                origenActual === nombre
+                    ? 'selected'
+                    : '';
 
             return `
-                <option value="${escapeAttr(nombre)}" ${selected}>
+                <option
+                    value="${escapeAttr(nombre)}"
+                    ${selected}>
                     ${escapeHTML(nombre)}
                 </option>
             `;
         }).join('')
-        : '<option value="">No hay categorías. Crea una primero.</option>';
+        : `
+            <option value="">
+                No hay categorías. Crea una primero.
+            </option>
+        `;
 
     modalBody.innerHTML = `
         <form id="ingresoForm">
             <div class="form-group">
                 <label for="ingresoFecha">Fecha *</label>
-                <input type="date" id="ingresoFecha" name="fecha" value="${fecha}" required>
+
+                <input
+                    type="date"
+                    id="ingresoFecha"
+                    name="fecha"
+                    value="${fecha}"
+                    required>
             </div>
 
             <div class="form-group">
                 <label for="ingresoOrigen">Origen *</label>
-                <select id="ingresoOrigen" name="origen" required>
-                    <option value="">Seleccionar origen</option>
+
+                <select
+                    id="ingresoOrigen"
+                    name="origen"
+                    required>
+                    <option value="">
+                        Seleccionar origen
+                    </option>
+
                     ${categoriasOptions}
                 </select>
 
-                <button type="button" id="btnNuevaCategoriaIngreso" class="btn btn-text btn-small" style="margin-top: 5px;">
+                <button
+                    type="button"
+                    id="btnNuevaCategoriaIngreso"
+                    class="btn btn-text btn-small"
+                    style="margin-top: 5px;">
                     + Crear nueva categoría
                 </button>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="ingresoMonto">Monto *</label>
-                    <input type="number" id="ingresoMonto" name="monto" step="0.01" value="${monto}" required>
-                </div>
+            <div class="form-group">
+                <label for="ingresoMonto">
+                    Monto (${escapeHTML(userCurrency)}) *
+                </label>
 
-                <div class="form-group">
-                    <label for="ingresoMoneda">Moneda *</label>
-                    <select id="ingresoMoneda" name="moneda" required>
-                        <option value="EUR" ${moneda === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                        <option value="USDT" ${moneda === 'USDT' ? 'selected' : ''}>USDT (₿)</option>
-                        <option value="BS" ${moneda === 'BS' ? 'selected' : ''}>BS (Bs.)</option>
-                    </select>
-                </div>
+                <input
+                    type="number"
+                    id="ingresoMonto"
+                    name="monto"
+                    step="0.01"
+                    min="0.01"
+                    value="${monto}"
+                    required>
             </div>
 
             <div class="form-group">
-                <label for="ingresoDescripcion">Descripción</label>
-                <textarea id="ingresoDescripcion" name="descripcion" rows="2" placeholder="Opcional">${descripcion}</textarea>
+                <label for="ingresoDescripcion">
+                    Descripción
+                </label>
+
+                <textarea
+                    id="ingresoDescripcion"
+                    name="descripcion"
+                    rows="2"
+                    placeholder="Opcional">${descripcion}</textarea>
             </div>
 
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" id="cancelIngresoBtn">Cancelar</button>
-                <button type="submit" class="btn btn-primary">${ingreso ? 'Actualizar' : 'Guardar'}</button>
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    id="cancelIngresoBtn">
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+                    ${ingreso ? 'Actualizar' : 'Guardar'}
+                </button>
             </div>
         </form>
     `;
 
     modal.classList.add('active');
 
-    document.getElementById('ingresoForm')?.addEventListener('submit', saveIngreso);
-    document.getElementById('cancelIngresoBtn')?.addEventListener('click', closeModal);
+    document
+        .getElementById('ingresoForm')
+        ?.addEventListener('submit', saveIngreso);
 
-    const btnNuevaCategoria = document.getElementById('btnNuevaCategoriaIngreso');
+    document
+        .getElementById('cancelIngresoBtn')
+        ?.addEventListener('click', closeModal);
+
+    const btnNuevaCategoria = document.getElementById(
+        'btnNuevaCategoriaIngreso'
+    );
 
     if (btnNuevaCategoria) {
         btnNuevaCategoria.onclick = () => {
             closeModal();
-            setTimeout(() => showAddCategoriaModal('ingreso', 'movimiento'), 100);
+
+            setTimeout(() => {
+                showAddCategoriaModal(
+                    'ingreso',
+                    'movimiento'
+                );
+            }, 100);
         };
-    }
-
-    document.getElementById('ingresoMoneda')?.addEventListener('change', () => showIngresoConversion());
-    document.getElementById('ingresoMonto')?.addEventListener('input', () => showIngresoConversion());
-}
-
-// Mostrar conversión en tiempo real para ingresos
-async function showIngresoConversion() {
-    const monto = parseFloat(document.getElementById('ingresoMonto')?.value || 0);
-    const moneda = document.getElementById('ingresoMoneda')?.value;
-    
-    if (!monto || !moneda || moneda === 'EUR') return;
-    
-    const montoEUR = await convertToEUR(monto, moneda);
-    
-    let conversionMsg = document.getElementById('conversionMsgIngreso');
-    if (!conversionMsg) {
-        const form = document.getElementById('ingresoForm');
-        const lastGroup = form?.querySelector('.form-group:last-child');
-        if (lastGroup) {
-            conversionMsg = document.createElement('div');
-            conversionMsg.id = 'conversionMsgIngreso';
-            conversionMsg.className = 'form-message info';
-            lastGroup.insertAdjacentElement('afterend', conversionMsg);
-        }
-    }
-    
-    if (conversionMsg) {
-        conversionMsg.textContent = `≈ ${formatCurrency(montoEUR, 'EUR')} (convertido)`;
-        conversionMsg.style.display = 'block';
     }
 }
 
 // Guardar ingreso
 async function saveIngreso(event) {
     event.preventDefault();
-    
-    const fecha = document.getElementById('ingresoFecha')?.value;
-    const origen = document.getElementById('ingresoOrigen')?.value;
-    const monto = parseFloat(document.getElementById('ingresoMonto')?.value);
-    const moneda = document.getElementById('ingresoMoneda')?.value;
-    const descripcion = document.getElementById('ingresoDescripcion')?.value;
-    
+
+    const fecha = document.getElementById(
+        'ingresoFecha'
+    )?.value;
+
+    const origen = document.getElementById(
+        'ingresoOrigen'
+    )?.value;
+
+    const monto = Number(
+        document.getElementById('ingresoMonto')?.value
+    );
+
+    const moneda = getUserCurrency();
+
+    const descripcion = document.getElementById(
+        'ingresoDescripcion'
+    )?.value;
+
     if (!fecha || !origen || !monto || !moneda) {
-        showError('Por favor completa todos los campos obligatorios');
+        showError(
+            'Por favor completa todos los campos obligatorios'
+        );
+
         return;
     }
-    
+
     if (monto <= 0) {
         showError('El monto debe ser mayor a 0');
         return;
     }
-    
-    const categoriaExiste = categoriasIngresos.some(cat => cat.nombre === origen);
-    if (!categoriaExiste && categoriasIngresos.length > 0) {
-        showError('La categoría seleccionada no existe');
+
+    const categoriaExiste = categoriasIngresos.some(
+        (categoriaItem) =>
+            categoriaItem.nombre === origen
+    );
+
+    if (
+        !categoriaExiste &&
+        categoriasIngresos.length > 0
+    ) {
+        showError(
+            'La categoría seleccionada no existe'
+        );
+
         return;
     }
-    
+
     const user = await getIngresosAuthUser();
 
-    if (!user) return;
+    if (!user) {
+        return;
+    }
 
-    const montoEUR = await convertToEUR(monto, moneda);
-    
     const ingresoData = {
         fecha,
         origen,
         monto,
         moneda,
-        monto_eur: montoEUR,
+        monto_eur: monto,
         descripcion: descripcion || null,
         user_id: user.id
     };
-    
+
     try {
         const supabase = getSupabase();
         let result;
-        
+
         if (editingIngresoId) {
             result = await supabase
                 .from(TABLES.ingresos)
@@ -368,18 +499,28 @@ async function saveIngreso(event) {
                 .from(TABLES.ingresos)
                 .insert([ingresoData]);
         }
-        
+
         if (result.error) {
-            console.error('Error al guardar ingreso:', result.error);
+            console.error(
+                'Error al guardar ingreso:',
+                result.error
+            );
+
             showError('Error al guardar el ingreso');
             return;
         }
-        
-        showSuccess(editingIngresoId ? 'Ingreso actualizado' : 'Ingreso guardado');
+
+        showSuccess(
+            editingIngresoId
+                ? 'Ingreso actualizado'
+                : 'Ingreso guardado'
+        );
+
         closeModal();
+
         await loadIngresos();
         await loadDashboardData();
-        
+
     } catch (error) {
         console.error('Error en saveIngreso:', error);
         showError('Error al guardar el ingreso');
@@ -399,7 +540,10 @@ async function deleteIngreso(id) {
     const ingreso = ingresosList.find(i => i.id === id);
     
     showConfirmModal(
-        `¿Eliminar ingreso de ${formatCurrency(ingreso.monto, ingreso.moneda)}?`,
+        `¿Eliminar ingreso de ${formatCurrency(
+            ingreso.monto,
+            getUserCurrency()
+        )}?`,
         async () => {
             try {
                 const supabase = getSupabase();
@@ -472,7 +616,7 @@ async function limpiarFiltroIngresos() {
     // Forzar total a 0 visualmente
     const totalElement = document.getElementById('totalIngresosFiltrados');
     if (totalElement) {
-        totalElement.textContent = formatCurrency(0, 'EUR');
+        totalElement.textContent = formatCurrency(0, getUserCurrency());
     }
     
     // Limpiar la lista visual
@@ -541,7 +685,7 @@ async function resetearFiltrosIngresos() {
     // Mostrar 0 porque no hay filtros
     const totalElement = document.getElementById('totalIngresosFiltrados');
     if (totalElement) {
-        totalElement.textContent = formatCurrency(0, 'EUR');
+        totalElement.textContent = formatCurrency(0, getUserCurrency());
     }
     
     // Limpiar reseña y detener parpadeo

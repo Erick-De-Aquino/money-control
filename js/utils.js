@@ -13,31 +13,108 @@ function formatNumber(value, decimals = 2) {
 
 }
 
+const SUPPORTED_CURRENCIES = Object.freeze({
+    EUR: {
+        code: 'EUR',
+        name: 'Euro',
+        symbol: '€'
+    },
+    USD: {
+        code: 'USD',
+        name: 'Dólar estadounidense',
+        symbol: '$'
+    },
+    ARS: {
+        code: 'ARS',
+        name: 'Peso argentino',
+        symbol: 'AR$'
+    },
+    VES: {
+        code: 'VES',
+        name: 'Bolívar venezolano',
+        symbol: 'Bs.'
+    },
+    COP: {
+        code: 'COP',
+        name: 'Peso colombiano',
+        symbol: 'COL$'
+    },
+    MXN: {
+        code: 'MXN',
+        name: 'Peso mexicano',
+        symbol: 'MX$'
+    },
+    CLP: {
+        code: 'CLP',
+        name: 'Peso chileno',
+        symbol: 'CLP$'
+    },
+    PEN: {
+        code: 'PEN',
+        name: 'Sol peruano',
+        symbol: 'S/'
+    },
+    BRL: {
+        code: 'BRL',
+        name: 'Real brasileño',
+        symbol: 'R$'
+    },
+    GBP: {
+        code: 'GBP',
+        name: 'Libra esterlina',
+        symbol: '£'
+    },
+    USDT: {
+        code: 'USDT',
+        name: 'Tether',
+        symbol: '₮',
+        remesasOnly: true
+    },
+    BS: {
+        code: 'BS',
+        name: 'Bolívares',
+        symbol: 'Bs.',
+        remesasOnly: true
+    }
+});
+
+function getSupportedCurrencies(options = {}) {
+    const includeRemesas = options.includeRemesas === true;
+
+    return Object.values(SUPPORTED_CURRENCIES).filter((currency) => {
+        return includeRemesas || currency.remesasOnly !== true;
+    });
+}
+
+function normalizeCurrencyCode(currency, fallback = 'EUR') {
+    const code = String(currency || '').trim().toUpperCase();
+
+    return SUPPORTED_CURRENCIES[code]
+        ? code
+        : fallback;
+}
+
+function getUserCurrency() {
+    return normalizeCurrencyCode(
+        window.currentUserCurrency ||
+        window.currentUser?.moneda_principal ||
+        localStorage.getItem('user_currency') ||
+        'EUR'
+    );
+}
+
+function getCurrencyConfig(currency = getUserCurrency()) {
+    const code = normalizeCurrencyCode(currency);
+
+    return SUPPORTED_CURRENCIES[code];
+}
+
 // Formatear número como moneda
-function formatCurrency(amount, currency = 'EUR') {
-
-    const currencies = {
-
-        EUR: { symbol: '€' },
-        USD: { symbol: '$' },
-        USDT:{ symbol: '₮' },
-        BS:  { symbol: 'Bs.' },
-        COP: { symbol: 'COL$' },
-        VES: { symbol: 'Bs.' },
-        MXN: { symbol: 'MX$' },
-        ARS: { symbol: 'AR$' },
-        CLP: { symbol: 'CLP$' },
-        PEN: { symbol: 'S/' },
-        BRL: { symbol: 'R$' }
-
-    };
-
-    const symbol = currencies[currency]?.symbol || currency;
-
+function formatCurrency(amount, currency = getUserCurrency()) {
+    const currencyConfig = getCurrencyConfig(currency);
     const value = Number(amount) || 0;
 
-    return `${symbol} ${formatNumber(value)}`;
-
+    return `${currencyConfig.symbol} ${formatNumber(value)}`;
 }
 
 // Formatear fecha
@@ -447,20 +524,37 @@ function exportGastosToCSV(gastos) {
         showError('No hay gastos para exportar');
         return;
     }
-    
-    const columns = ['fecha', 'categoria', 'monto', 'moneda', 'monto_eur', 'descripcion'];
-    const headers = ['Fecha', 'Categoría', 'Monto', 'Moneda', 'Monto (EUR)', 'Descripción'];
-    
-    const data = gastos.map(g => ({
-        fecha: formatDate(g.fecha, 'short'),
-        categoria: g.categoria || 'Sin categoría',
-        monto: g.monto,
-        moneda: g.moneda,
-        monto_eur: g.monto_eur || g.monto,
-        descripcion: g.descripcion || ''
+
+    const columns = [
+        'fecha',
+        'categoria',
+        'monto',
+        'moneda',
+        'descripcion'
+    ];
+
+    const headers = [
+        'Fecha',
+        'Categoría',
+        'Monto',
+        'Moneda',
+        'Descripción'
+    ];
+
+    const data = gastos.map((gasto) => ({
+        fecha: formatDate(gasto.fecha, 'short'),
+        categoria: gasto.categoria || 'Sin categoría',
+        monto: gasto.monto,
+        moneda: gasto.moneda || getUserCurrency(),
+        descripcion: gasto.descripcion || ''
     }));
-    
-    exportToCSV(data, 'gastos', headers, columns);
+
+    exportToCSV(
+        data,
+        'gastos',
+        headers,
+        columns
+    );
 }
 
 // Exportar gastos mostrados en pantalla
@@ -559,20 +653,37 @@ function exportIngresosToCSV(ingresos) {
         showError('No hay ingresos para exportar');
         return;
     }
-    
-    const columns = ['fecha', 'origen', 'monto', 'moneda', 'monto_eur', 'descripcion'];
-    const headers = ['Fecha', 'Origen', 'Monto', 'Moneda', 'Monto (EUR)', 'Descripción'];
-    
-    const data = ingresos.map(i => ({
-        fecha: formatDate(i.fecha, 'short'),
-        origen: i.origen || 'Sin origen',
-        monto: i.monto,
-        moneda: i.moneda,
-        monto_eur: i.monto_eur || i.monto,
-        descripcion: i.descripcion || ''
+
+    const columns = [
+        'fecha',
+        'origen',
+        'monto',
+        'moneda',
+        'descripcion'
+    ];
+
+    const headers = [
+        'Fecha',
+        'Origen',
+        'Monto',
+        'Moneda',
+        'Descripción'
+    ];
+
+    const data = ingresos.map((ingreso) => ({
+        fecha: formatDate(ingreso.fecha, 'short'),
+        origen: ingreso.origen || 'Sin origen',
+        monto: ingreso.monto,
+        moneda: ingreso.moneda || getUserCurrency(),
+        descripcion: ingreso.descripcion || ''
     }));
-    
-    exportToCSV(data, 'ingresos', headers, columns);
+
+    exportToCSV(
+        data,
+        'ingresos',
+        headers,
+        columns
+    );
 }
 
 // Exportar ingresos mostrados en pantalla
@@ -671,30 +782,78 @@ function exportToCSV(data, filename, headers, columns) {
         showError('No hay datos para exportar');
         return;
     }
-    
+
+    const separator = ';';
     const csvRows = [];
-    csvRows.push(headers.join(','));
-    
+
+    const escapeCSVValue = (value) => {
+        const normalizedValue =
+            value === null || value === undefined
+                ? ''
+                : String(value);
+
+        const escapedValue = normalizedValue
+            .replace(/"/g, '""');
+
+        const needsQuotes =
+            escapedValue.includes(separator) ||
+            escapedValue.includes('"') ||
+            escapedValue.includes('\n') ||
+            escapedValue.includes('\r');
+
+        return needsQuotes
+            ? `"${escapedValue}"`
+            : escapedValue;
+    };
+
+    csvRows.push(
+        headers
+            .map(escapeCSVValue)
+            .join(separator)
+    );
+
     for (const row of data) {
-        const values = columns.map(col => {
-            let value = row[col] !== undefined ? row[col] : '';
-            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-                value = `"${value.replace(/"/g, '""')}"`;
-            }
-            return value;
+        const values = columns.map((column) => {
+            return escapeCSVValue(row[column]);
         });
-        csvRows.push(values.join(','));
+
+        csvRows.push(values.join(separator));
     }
-    
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+    /*
+     * BOM UTF-8 para que Excel reconozca correctamente
+     * acentos, eñes y demás caracteres especiales.
+     */
+    const utf8Bom = '\uFEFF';
+
+    const csvContent =
+        utf8Bom + csvRows.join('\r\n');
+
+    const blob = new Blob(
+        [csvContent],
+        {
+            type: 'text/csv;charset=utf-8'
+        }
+    );
+
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}_${getTodayDate()}.csv`;
-    a.click();
+    const link = document.createElement('a');
+
+    const exportFilename =
+        `${filename}_${getTodayDate()}.csv`;
+
+    link.href = url;
+    link.download = exportFilename;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
     URL.revokeObjectURL(url);
-    
-    showSuccess(`Exportación completada: ${filename}_${getTodayDate()}.csv`);
+
+    showSuccess(
+        `Exportación completada: ${exportFilename}`
+    );
 }
 
 // Exportar categorías a CSV

@@ -70,7 +70,12 @@ async function cargarHistorial() {
 // Mostrar historial agrupado por mes
 function displayHistorial() {
     const container = document.getElementById('historialList');
-    if (!container) return;
+
+    if (!container) {
+        return;
+    }
+
+    const userCurrency = getUserCurrency();
 
     const escapeHTML = (value) => {
         return String(value ?? '')
@@ -82,13 +87,15 @@ function displayHistorial() {
     };
 
     if (historialList.length === 0) {
-        container.innerHTML = '<p class="empty-message">No hay historial de presupuestos</p>';
+        container.innerHTML =
+            '<p class="empty-message">No hay historial de presupuestos</p>';
+
         return;
     }
 
     const grupos = {};
 
-    historialList.forEach(item => {
+    historialList.forEach((item) => {
         const año = Number(item.año) || '';
         const mes = Number(item.mes) || '';
         const key = `${año}-${mes}`;
@@ -103,29 +110,54 @@ function displayHistorial() {
         }
 
         if (item.categoria === 'GENERAL') {
-            grupos[key].cumplimientoGeneral = Number(item.porcentaje) || 0;
+            grupos[key].cumplimientoGeneral =
+                Number(item.porcentaje) || 0;
         } else {
             grupos[key].items.push(item);
         }
     });
 
     const gruposArray = Object.values(grupos).sort((a, b) => {
-        if (a.año !== b.año) return b.año - a.año;
+        if (a.año !== b.año) {
+            return b.año - a.año;
+        }
+
         return b.mes - a.mes;
     });
 
     const meses = [
-        'Enero', 'Febrero', 'Marzo', 'Abril',
-        'Mayo', 'Junio', 'Julio', 'Agosto',
-        'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        'Enero',
+        'Febrero',
+        'Marzo',
+        'Abril',
+        'Mayo',
+        'Junio',
+        'Julio',
+        'Agosto',
+        'Septiembre',
+        'Octubre',
+        'Noviembre',
+        'Diciembre'
     ];
 
-    container.innerHTML = gruposArray.map(grupo => {
-        const mesNombre = escapeHTML(meses[grupo.mes - 1] || 'Mes no válido');
+    container.innerHTML = gruposArray.map((grupo) => {
+        const mesNombre = escapeHTML(
+            meses[grupo.mes - 1] || 'Mes no válido'
+        );
+
         const año = escapeHTML(grupo.año);
-        const cumplimiento = Number(grupo.cumplimientoGeneral) || 0;
-        const cumplimientoSeguro = Math.min(Math.max(cumplimiento, 0), 100);
-        const cumplimientoTexto = escapeHTML(cumplimiento.toFixed(1));
+
+        const cumplimiento =
+            Number(grupo.cumplimientoGeneral) || 0;
+
+        const cumplimientoSeguro = Math.min(
+            Math.max(cumplimiento, 0),
+            100
+        );
+
+        const cumplimientoTexto = escapeHTML(
+            cumplimiento.toFixed(1)
+        );
 
         const colorCumplimiento =
             cumplimiento >= 100
@@ -136,49 +168,152 @@ function displayHistorial() {
 
         return `
             <div class="historial-mes">
-                <div class="mes-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem; background: var(--primary); border-radius: var(--border-radius-md);">
+                <div
+                    class="mes-header"
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 1rem;
+                        padding: 0.5rem;
+                        background: var(--primary);
+                        border-radius: var(--border-radius-md);
+                    "
+                >
                     <h3>📅 ${mesNombre} ${año}</h3>
 
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span>Cumplimiento: ${cumplimientoTexto}%</span>
+                    <div
+                        style="
+                            display: flex;
+                            align-items: center;
+                            gap: 1rem;
+                        "
+                    >
+                        <span>
+                            Cumplimiento: ${cumplimientoTexto}%
+                        </span>
 
-                        <div class="progress-bar-container" style="background: #e0e0e0; border-radius: 10px; height: 10px; width: 150px;">
-                            <div class="progress-bar-fill" style="width: ${cumplimientoSeguro}%; background-color: ${colorCumplimiento}; height: 10px; border-radius: 10px;"></div>
+                        <div
+                            class="progress-bar-container"
+                            style="
+                                background: #e0e0e0;
+                                border-radius: 10px;
+                                height: 10px;
+                                width: 150px;
+                            "
+                        >
+                            <div
+                                class="progress-bar-fill"
+                                style="
+                                    width: ${cumplimientoSeguro}%;
+                                    background-color: ${colorCumplimiento};
+                                    height: 10px;
+                                    border-radius: 10px;
+                                "
+                            ></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="historial-items" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem;">
-                    ${grupo.items.map(item => {
+                <div
+                    class="historial-items"
+                    style="
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.5rem;
+                        margin-bottom: 2rem;
+                    "
+                >
+                    ${grupo.items.map((item) => {
                         const id = Number(item.id);
-                        const categoria = escapeHTML(item.categoria || 'Sin categoría');
-                        const limite = escapeHTML(formatCurrency(Number(item.limite) || 0, 'EUR'));
-                        const gastado = escapeHTML(formatCurrency(Number(item.gastado) || 0, 'EUR'));
-                        const porcentaje = Number(item.porcentaje) || 0;
-                        const porcentajeDecimal = escapeHTML(porcentaje.toFixed(1));
-                        const porcentajeEntero = escapeHTML(porcentaje.toFixed(0));
-                        const esVerde = item.color === 'verde';
-                        const color = esVerde ? '#4CAF50' : '#f44336';
-                        const icono = esVerde ? '✅' : '⚠️';
+
+                        const categoria = escapeHTML(
+                            item.categoria || 'Sin categoría'
+                        );
+
+                        const limite = escapeHTML(
+                            formatCurrency(
+                                Number(item.limite) || 0,
+                                userCurrency
+                            )
+                        );
+
+                        const gastado = escapeHTML(
+                            formatCurrency(
+                                Number(item.gastado) || 0,
+                                userCurrency
+                            )
+                        );
+
+                        const porcentaje =
+                            Number(item.porcentaje) || 0;
+
+                        const porcentajeDecimal = escapeHTML(
+                            porcentaje.toFixed(1)
+                        );
+
+                        const porcentajeEntero = escapeHTML(
+                            porcentaje.toFixed(0)
+                        );
+
+                        const esVerde =
+                            item.color === 'verde';
+
+                        const color = esVerde
+                            ? '#4CAF50'
+                            : '#f44336';
+
+                        const icono = esVerde
+                            ? '✅'
+                            : '⚠️';
 
                         return `
-                            <div class="list-item-card" data-id="${id}" style="border-left: 4px solid ${color};">
-                                <div class="item-info" style="flex: 2;">
-                                    <div class="item-title">${categoria}</div>
-                                    <div class="item-subtitle">Límite: ${limite}</div>
+                            <div
+                                class="list-item-card"
+                                data-id="${id}"
+                                style="border-left: 4px solid ${color};"
+                            >
+                                <div
+                                    class="item-info"
+                                    style="flex: 2;"
+                                >
+                                    <div class="item-title">
+                                        ${categoria}
+                                    </div>
+
+                                    <div class="item-subtitle">
+                                        Límite: ${limite}
+                                    </div>
                                 </div>
 
-                                <div class="item-info" style="flex: 2;">
-                                    <div class="item-subtitle">Gastado: ${gastado}</div>
-                                    <div class="item-subtitle">${porcentajeDecimal}%</div>
+                                <div
+                                    class="item-info"
+                                    style="flex: 2;"
+                                >
+                                    <div class="item-subtitle">
+                                        Gastado: ${gastado}
+                                    </div>
+
+                                    <div class="item-subtitle">
+                                        ${porcentajeDecimal}%
+                                    </div>
                                 </div>
 
-                                <div class="item-amount" style="color: ${color}">
+                                <div
+                                    class="item-amount"
+                                    style="color: ${color};"
+                                >
                                     ${icono} ${porcentajeEntero}%
                                 </div>
 
                                 <div class="item-actions">
-                                    <button class="btn-icon btn-small delete-historial" data-id="${id}" title="Eliminar">🗑️</button>
+                                    <button
+                                        class="btn-icon btn-small delete-historial"
+                                        data-id="${id}"
+                                        title="Eliminar"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
                         `;
@@ -188,9 +323,15 @@ function displayHistorial() {
         `;
     }).join('');
 
-    document.querySelectorAll('.delete-historial').forEach(btn => {
-        btn.addEventListener('click', () => eliminarHistorialItem(Number(btn.dataset.id)));
-    });
+    document
+        .querySelectorAll('.delete-historial')
+        .forEach((btn) => {
+            btn.addEventListener('click', () => {
+                eliminarHistorialItem(
+                    Number(btn.dataset.id)
+                );
+            });
+        });
 }
 
 // Eliminar un item del historial

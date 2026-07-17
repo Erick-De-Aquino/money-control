@@ -90,6 +90,8 @@ async function displayPresupuestos() {
 
     const gastos = await getGastosDelMes(filtroPresupuesto.año, filtroPresupuesto.mes);
 
+    const userCurrency = getUserCurrency();
+
     container.innerHTML = presupuestosList.map(p => {
         const id = Number(p.id);
         const categoria = escapeHTML(p.categoria || 'Sin categoría');
@@ -99,7 +101,15 @@ async function displayPresupuestos() {
 
         const gastado = gastos
             .filter(g => g.categoria === p.categoria)
-            .reduce((sum, g) => sum + (Number(g.monto_eur || g.monto) || 0), 0);
+            .reduce(
+                (sum, g) =>
+                    sum + Number(
+                        g.monto_eur ??
+                        g.monto ??
+                        0
+                    ),
+                0
+            );
 
         const porcentaje = limite > 0 ? (gastado / limite) * 100 : 0;
         const porcentajeSeguro = Math.min(Math.max(porcentaje, 0), 100);
@@ -110,8 +120,13 @@ async function displayPresupuestos() {
                     ? '#FF9800'
                     : '#4CAF50';
 
-        const gastadoTexto = escapeHTML(formatCurrency(gastado, 'EUR'));
-        const limiteTexto = escapeHTML(formatCurrency(limite, 'EUR'));
+        const gastadoTexto = escapeHTML(
+            formatCurrency(gastado, userCurrency)
+        );
+
+        const limiteTexto = escapeHTML(
+            formatCurrency(limite, userCurrency)
+        );
         const porcentajeTexto = escapeHTML(porcentaje.toFixed(1));
 
         return `
@@ -148,31 +163,82 @@ async function displayPresupuestos() {
     });
 }
 
-// Obtener gastos del mes específico
+// Obtener gastos de un mes específico
 async function getGastosDelMes(año, mes) {
     try {
         const supabase = getSupabase();
         const user = await getPresupuestoAuthUser();
 
-        if (!user) return [];
-        const fechaInicio = `${año}-${String(mes).padStart(2, '0')}-01`;
-        const fechaFin = `${año}-${String(mes).padStart(2, '0')}-${new Date(año, mes, 0).getDate()}`;
-        
-        const { data, error } = await supabase
-            .from(TABLES.gastos)
-            .select('*')
-            .eq('user_id', user.id)
-            .gte('fecha', fechaInicio)
-            .lte('fecha', fechaFin);
-        
-        if (error) {
-            console.error('Error al cargar gastos del mes:', error);
+        if (!user) {
             return [];
         }
-        
-        return data || [];
+
+        const añoNumerico = Number(año);
+        const mesNumerico = Number(mes);
+
+        if (
+            !Number.isInteger(añoNumerico) ||
+            !Number.isInteger(mesNumerico) ||
+            mesNumerico < 1 ||
+            mesNumerico > 12
+        ) {
+            console.error(
+                'Periodo inválido al consultar gastos:',
+                { año, mes }
+            );
+
+            return [];
+        }
+
+        const fechaInicio =
+            `${añoNumerico}-${String(mesNumerico).padStart(2, '0')}-01`;
+
+        /*
+         * Se utiliza el primer día del mes siguiente como límite
+         * exclusivo. Es más seguro que calcular manualmente el
+         * último día del mes.
+         */
+        const siguienteMes =
+            mesNumerico === 12
+                ? 1
+                : mesNumerico + 1;
+
+        const siguienteAño =
+            mesNumerico === 12
+                ? añoNumerico + 1
+                : añoNumerico;
+
+        const fechaSiguienteMes =
+            `${siguienteAño}-${String(siguienteMes).padStart(2, '0')}-01`;
+
+        const { data, error } = await supabase
+            .from('gastos')
+            .select(
+                'id, fecha, categoria, monto, monto_eur, moneda, user_id'
+            )
+            .eq('user_id', user.id)
+            .gte('fecha', fechaInicio)
+            .lt('fecha', fechaSiguienteMes)
+            .order('fecha', { ascending: true });
+
+        if (error) {
+            console.error(
+                'Error al cargar gastos del mes:',
+                error
+            );
+
+            return [];
+        }
+
+        return Array.isArray(data)
+            ? data
+            : [];
     } catch (error) {
-        console.error('Error en getGastosDelMes:', error);
+        console.error(
+            'Error en getGastosDelMes:',
+            error
+        );
+
         return [];
     }
 }
@@ -218,6 +284,8 @@ async function showPresupuestoModal(presupuesto = null) {
     const limite = escapeAttr(presupuesto ? presupuesto.limite : '');
     const mesActual = Number(presupuesto?.mes);
 
+    const userCurrency = getUserCurrency();
+
     modalBody.innerHTML = `
         <form id="presupuestoForm">
             <div class="form-group">
@@ -254,8 +322,8 @@ async function showPresupuestoModal(presupuesto = null) {
             </div>
 
             <div class="form-group">
-                <label for="presupuestoLimite">Límite (EUR) *</label>
-                <input type="number" id="presupuestoLimite" step="0.01" value="${limite}" required>
+                <label for="presupuestoLimite">Límite (${escapeHTML(userCurrency)}) *</label>
+                <input type="number" id="presupuestoLimite" step="0.01" min="0.01" value="${limite}" required>
             </div>
 
             <div class="form-actions">
@@ -283,17 +351,39 @@ async function showPresupuestoModal(presupuesto = null) {
 // Guardar presupuesto
 async function savePresupuesto(event) {
     event.preventDefault();
-    
-    const categoria = document.getElementById('presupuestoCategoria')?.value;
-    const mes = parseInt(document.getElementById('presupuestoMes')?.value);
-    const año = parseInt(document.getElementById('presupuestoAño')?.value);
-    const limite = parseFloat(document.getElementById('presupuestoLimite')?.value);
-    
-    if (!categoria || !mes || !año || !limite) {
+
+    const categoria =
+        document.getElementById('presupuestoCategoria')?.value;
+
+    const mes = Number.parseInt(
+        document.getElementById('presupuestoMes')?.value,
+        10
+    );
+
+    const año = Number.parseInt(
+        document.getElementById('presupuestoAño')?.value,
+        10
+    );
+
+    const limite = Number.parseFloat(
+        document.getElementById('presupuestoLimite')?.value
+    );
+
+    if (
+        !categoria ||
+        !Number.isInteger(mes) ||
+        !Number.isInteger(año) ||
+        !Number.isFinite(limite)
+    ) {
         showError('Por favor completa todos los campos');
         return;
     }
-    
+
+    if (mes < 1 || mes > 12) {
+        showError('El mes seleccionado no es válido');
+        return;
+    }
+
     if (limite <= 0) {
         showError('El límite debe ser mayor a 0');
         return;
@@ -301,8 +391,10 @@ async function savePresupuesto(event) {
 
     const user = await getPresupuestoAuthUser();
 
-    if (!user) return;
-    
+    if (!user) {
+        return;
+    }
+
     const presupuestoData = {
         categoria,
         mes,
@@ -310,12 +402,14 @@ async function savePresupuesto(event) {
         limite,
         user_id: user.id
     };
-    
+
     try {
         const supabase = getSupabase();
+        const estabaEditando = Boolean(editingPresupuestoId);
+
         let result;
-        
-        if (editingPresupuestoId) {
+
+        if (estabaEditando) {
             result = await supabase
                 .from('presupuestos')
                 .update(presupuestoData)
@@ -326,19 +420,76 @@ async function savePresupuesto(event) {
                 .from('presupuestos')
                 .insert([presupuestoData]);
         }
-        
+
         if (result.error) {
-            console.error('Error al guardar presupuesto:', result.error);
+            console.error(
+                'Error al guardar presupuesto:',
+                result.error
+            );
+
             showError('Error al guardar el presupuesto');
             return;
         }
-        
-        showSuccess(editingPresupuestoId ? 'Presupuesto actualizado' : 'Presupuesto guardado');
+
+        /*
+         * Determinar si el presupuesto pertenece a un mes
+         * que ya ha finalizado.
+         */
+        const hoy = new Date();
+        const mesActual = hoy.getMonth() + 1;
+        const añoActual = hoy.getFullYear();
+
+        const periodoSeleccionado = (año * 100) + mes;
+        const periodoActual = (añoActual * 100) + mesActual;
+
+        const esPeriodoCerrado =
+            periodoSeleccionado < periodoActual;
+
+        /*
+         * Si el presupuesto pertenece a un mes anterior,
+         * pasarlo inmediatamente al historial.
+         */
+        if (esPeriodoCerrado) {
+            const guardadoEnHistorial =
+                await guardarMesEnHistorial(año, mes);
+
+            if (!guardadoEnHistorial) {
+                console.error(
+                    `El presupuesto se guardó, pero no pudo sincronizarse con el historial de ${mes}/${año}.`
+                );
+
+                showError(
+                    'El presupuesto se guardó, pero no pudo actualizarse el historial'
+                );
+
+                await loadPresupuestos();
+                return;
+            }
+        }
+
         closeModal();
+
+        if (esPeriodoCerrado) {
+            showSuccess(
+                estabaEditando
+                    ? 'Presupuesto actualizado en el historial'
+                    : 'Presupuesto guardado en el historial'
+            );
+        } else {
+            showSuccess(
+                estabaEditando
+                    ? 'Presupuesto actualizado'
+                    : 'Presupuesto guardado'
+            );
+        }
+
         await loadPresupuestos();
-        
     } catch (error) {
-        console.error('Error en savePresupuesto:', error);
+        console.error(
+            'Error en savePresupuesto:',
+            error
+        );
+
         showError('Error al guardar el presupuesto');
     }
 }
@@ -558,7 +709,17 @@ async function verificarTodasAlertas() {
     const todasAlertas = [];
     
     for (const p of presupuestos) {
-        const gastado = (gastos || []).filter(g => g.categoria === p.categoria).reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
+        const gastado = (gastos || [])
+            .filter(g => g.categoria === p.categoria)
+            .reduce(
+                (sum, g) =>
+                    sum + Number(
+                        g.monto_eur ??
+                        g.monto ??
+                        0
+                    ),
+                0
+            );
         const alertas = await verificarAlertasPresupuestoUnico(p, gastado, mesActual, añoActual);
         todasAlertas.push(...alertas);
         
@@ -595,126 +756,373 @@ async function getUltimoMesHistorial() {
     return { año: data[0].año, mes: data[0].mes };
 }
 
-// Guardar presupuestos del mes en el historial
+// Guardar o actualizar presupuestos de un mes cerrado en el historial
 async function guardarMesEnHistorial(año, mes) {
     const supabase = getSupabase();
     const user = await getPresupuestoAuthUser();
 
-    if (!user) return;
-    
-    // Obtener presupuestos del mes
-    const { data: presupuestos, error: errorPres } = await supabase
+    if (!user) {
+        return false;
+    }
+
+    const añoNumerico = Number(año);
+    const mesNumerico = Number(mes);
+
+    if (
+        !Number.isInteger(añoNumerico) ||
+        !Number.isInteger(mesNumerico) ||
+        mesNumerico < 1 ||
+        mesNumerico > 12
+    ) {
+        console.error(
+            'Periodo inválido para guardar en historial:',
+            { año, mes }
+        );
+
+        return false;
+    }
+
+    // Obtener presupuestos pendientes del mes cerrado
+    const {
+        data: presupuestos,
+        error: errorPresupuestos
+    } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('user_id', user.id)
-        .eq('mes', mes)
-        .eq('año', año);
-    
-    if (errorPres || !presupuestos || presupuestos.length === 0) return;
-    
-    // Obtener gastos del mes
-    const gastos = await getGastosDelMes(año, mes);
-    
-    let presupuestosCumplidos = 0;
-    
-    for (const p of presupuestos) {
-        const gastado = (gastos || []).filter(g => g.categoria === p.categoria).reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
-        const porcentaje = (gastado / p.limite) * 100;
-        const color = porcentaje >= 100 ? 'rojo' : 'verde';
-        
-        if (porcentaje < 100) presupuestosCumplidos++;
-        
-        // Guardar en historial
-        await supabase
-            .from('historial_presupuestos')
-            .insert([{
-                categoria: p.categoria,
-                mes: mes,
-                año: año,
-                limite: p.limite,
-                gastado: gastado,
-                porcentaje: porcentaje,
-                color: color,
-                user_id: user.id
-            }]);
+        .eq('mes', mesNumerico)
+        .eq('año', añoNumerico);
+
+    if (errorPresupuestos) {
+        console.error(
+            'Error al obtener los presupuestos del mes:',
+            errorPresupuestos
+        );
+
+        return false;
     }
-    
-    // Calcular y guardar cumplimiento general
-    const cumplimientoGeneral = (presupuestosCumplidos / presupuestos.length) * 100;
-    
-    await supabase
+
+    if (!presupuestos || presupuestos.length === 0) {
+        return false;
+    }
+
+    // Obtener los registros históricos ya existentes para ese mes
+    const {
+        data: historialExistente,
+        error: errorHistorial
+    } = await supabase
         .from('historial_presupuestos')
-        .insert([{
-            categoria: 'GENERAL',
-            mes: mes,
-            año: año,
-            limite: 0,
-            gastado: 0,
-            porcentaje: cumplimientoGeneral,
-            color: cumplimientoGeneral >= 100 ? 'verde' : 'rojo',
-            cumplimiento_general: cumplimientoGeneral,
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('mes', mesNumerico)
+        .eq('año', añoNumerico);
+
+    if (errorHistorial) {
+        console.error(
+            'Error al consultar el historial existente:',
+            errorHistorial
+        );
+
+        return false;
+    }
+
+    const historialPorCategoria = new Map();
+
+    (historialExistente || [])
+        .filter((item) => item.categoria !== 'GENERAL')
+        .forEach((item) => {
+            historialPorCategoria.set(
+                item.categoria,
+                item
+            );
+        });
+
+    const registroGeneralExistente =
+        (historialExistente || []).find(
+            (item) => item.categoria === 'GENERAL'
+        ) || null;
+
+    // Obtener los gastos del mes completo
+    const gastos = await getGastosDelMes(
+        añoNumerico,
+        mesNumerico
+    );
+
+    let huboError = false;
+
+    for (const presupuesto of presupuestos) {
+        const limite =
+            Number(presupuesto.limite) || 0;
+
+        const gastado = (gastos || [])
+            .filter(
+                (gasto) =>
+                    gasto.categoria ===
+                    presupuesto.categoria
+            )
+            .reduce(
+                (total, gasto) =>
+                    total + Number(
+                        gasto.monto_eur ??
+                        gasto.monto ??
+                        0
+                    ),
+                0
+            );
+
+        const porcentaje =
+            limite > 0
+                ? (gastado / limite) * 100
+                : 0;
+
+        const cumplido = porcentaje < 100;
+
+        const datosHistorial = {
+            categoria: presupuesto.categoria,
+            mes: mesNumerico,
+            año: añoNumerico,
+            limite,
+            gastado,
+            porcentaje,
+            color: cumplido ? 'verde' : 'rojo',
             user_id: user.id
-        }]);
-    
-    // Eliminar presupuestos del mes anterior
-    await supabase
-        .from('presupuestos')
-        .delete()
+        };
+
+        const registroExistente =
+            historialPorCategoria.get(
+                presupuesto.categoria
+            );
+
+        let errorGuardar;
+
+        if (registroExistente) {
+            const { error } = await supabase
+                .from('historial_presupuestos')
+                .update(datosHistorial)
+                .eq('id', registroExistente.id)
+                .eq('user_id', user.id);
+
+            errorGuardar = error;
+        } else {
+            const { error } = await supabase
+                .from('historial_presupuestos')
+                .insert([datosHistorial]);
+
+            errorGuardar = error;
+        }
+
+        if (errorGuardar) {
+            console.error(
+                `Error al guardar la categoría "${presupuesto.categoria}" en el historial:`,
+                errorGuardar
+            );
+
+            huboError = true;
+            break;
+        }
+    }
+
+    if (huboError) {
+        return false;
+    }
+
+    /*
+     * Volver a consultar todas las categorías históricas del mes,
+     * incluyendo las que ya existían y las recién añadidas.
+     */
+    const {
+        data: categoriasHistorial,
+        error: errorCategoriasHistorial
+    } = await supabase
+        .from('historial_presupuestos')
+        .select('id, categoria, porcentaje')
         .eq('user_id', user.id)
-        .eq('mes', mes)
-        .eq('año', año);
-    
-    // Eliminar alertas del mes anterior
-    await supabase
-        .from('alertas_mostradas')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('mes', mes)
-        .eq('año', año);
-    
-    console.log(`✅ Historial guardado para ${mes}/${año}`);
+        .eq('mes', mesNumerico)
+        .eq('año', añoNumerico)
+        .neq('categoria', 'GENERAL');
+
+    if (errorCategoriasHistorial) {
+        console.error(
+            'Error al recalcular el cumplimiento general:',
+            errorCategoriasHistorial
+        );
+
+        return false;
+    }
+
+    const totalCategorias =
+        categoriasHistorial?.length || 0;
+
+    const categoriasCumplidas =
+        (categoriasHistorial || []).filter(
+            (item) =>
+                Number(item.porcentaje) < 100
+        ).length;
+
+    const cumplimientoGeneral =
+        totalCategorias > 0
+            ? (
+                categoriasCumplidas /
+                totalCategorias
+            ) * 100
+            : 0;
+
+    const datosGenerales = {
+        categoria: 'GENERAL',
+        mes: mesNumerico,
+        año: añoNumerico,
+        limite: 0,
+        gastado: 0,
+        porcentaje: cumplimientoGeneral,
+        color:
+            cumplimientoGeneral >= 100
+                ? 'verde'
+                : 'rojo',
+        cumplimiento_general:
+            cumplimientoGeneral,
+        user_id: user.id
+    };
+
+    let errorGuardarGeneral;
+
+    if (registroGeneralExistente) {
+        const { error } = await supabase
+            .from('historial_presupuestos')
+            .update(datosGenerales)
+            .eq('id', registroGeneralExistente.id)
+            .eq('user_id', user.id);
+
+        errorGuardarGeneral = error;
+    } else {
+        const { error } = await supabase
+            .from('historial_presupuestos')
+            .insert([datosGenerales]);
+
+        errorGuardarGeneral = error;
+    }
+
+    if (errorGuardarGeneral) {
+        console.error(
+            'Error al guardar el cumplimiento general:',
+            errorGuardarGeneral
+        );
+
+        return false;
+    }
+
+    /*
+     * Eliminar los presupuestos pendientes únicamente después
+     * de que todos hayan sido guardados correctamente.
+     */
+    const { error: errorEliminarPresupuestos } =
+        await supabase
+            .from('presupuestos')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('mes', mesNumerico)
+            .eq('año', añoNumerico);
+
+    if (errorEliminarPresupuestos) {
+        console.error(
+            'El historial se guardó, pero no se pudieron eliminar los presupuestos procesados:',
+            errorEliminarPresupuestos
+        );
+
+        return false;
+    }
+
+    const { error: errorEliminarAlertas } =
+        await supabase
+            .from('alertas_mostradas')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('mes', mesNumerico)
+            .eq('año', añoNumerico);
+
+    if (errorEliminarAlertas) {
+        console.warn(
+            'No se pudieron eliminar algunas alertas antiguas:',
+            errorEliminarAlertas
+        );
+    }
+
+    return true;
 }
 
-// Verificar si es un nuevo mes y pasar al historial
+// Verificar presupuestos de meses cerrados y pasarlos al historial
 async function verificarNuevoMes() {
     const supabase = getSupabase();
     const user = await getPresupuestoAuthUser();
 
-    if (!user) return;
+    if (!user) {
+        return;
+    }
+
     const hoy = new Date();
     const mesActual = hoy.getMonth() + 1;
     const añoActual = hoy.getFullYear();
-    
-    // Verificar si ya hay presupuestos para el mes actual
-    const { data: presupuestosActuales, error } = await supabase
+
+    const periodoActual = (añoActual * 100) + mesActual;
+
+    const { data: presupuestos, error } = await supabase
         .from('presupuestos')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('mes', mesActual)
-        .eq('año', añoActual)
-        .limit(1);
-    
-    // Si ya hay presupuestos para el mes actual, no hacer nada
-    if (presupuestosActuales && presupuestosActuales.length > 0) return;
-    
-    // Buscar presupuestos del mes anterior
-    let mesAnterior = mesActual - 1;
-    let añoAnterior = añoActual;
-    if (mesAnterior === 0) {
-        mesAnterior = 12;
-        añoAnterior--;
+        .select('mes, año')
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error(
+            'Error al buscar presupuestos de meses anteriores:',
+            error
+        );
+
+        return;
     }
-    
-    const { data: presupuestosAnteriores } = await supabase
-        .from('presupuestos')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('mes', mesAnterior)
-        .eq('año', añoAnterior)
-        .limit(1);
-    
-    if (presupuestosAnteriores && presupuestosAnteriores.length > 0) {
-        await guardarMesEnHistorial(añoAnterior, mesAnterior);
+
+    if (!presupuestos || presupuestos.length === 0) {
+        return;
+    }
+
+    /*
+     * Obtener los periodos anteriores al mes actual.
+     * Se usa Set para evitar procesar varias veces un mismo mes.
+     */
+    const periodosCerrados = [
+        ...new Map(
+            presupuestos
+                .filter((presupuesto) => {
+                    const mes = Number(presupuesto.mes);
+                    const año = Number(presupuesto.año);
+                    const periodo = (año * 100) + mes;
+
+                    return periodo < periodoActual;
+                })
+                .map((presupuesto) => {
+                    const mes = Number(presupuesto.mes);
+                    const año = Number(presupuesto.año);
+
+                    return [
+                        `${año}-${mes}`,
+                        { año, mes }
+                    ];
+                })
+        ).values()
+    ];
+
+    /*
+     * Procesar primero los meses más antiguos.
+     */
+    periodosCerrados.sort((a, b) => {
+        const periodoA = (a.año * 100) + a.mes;
+        const periodoB = (b.año * 100) + b.mes;
+
+        return periodoA - periodoB;
+    });
+
+    for (const periodo of periodosCerrados) {
+        await guardarMesEnHistorial(
+            periodo.año,
+            periodo.mes
+        );
     }
 }
 

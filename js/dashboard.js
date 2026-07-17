@@ -440,21 +440,37 @@ async function loadDashboardData() {
 }
 
 // Actualizar estadísticas en UI
-function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaciones) {
+function updateStatsDisplay(
+    totalGastos,
+    totalIngresos,
+    balance,
+    gananciaOperaciones
+) {
+    const userCurrency = getUserCurrency();
+
     const totalGastosEl = document.getElementById('totalGastos');
     const totalIngresosEl = document.getElementById('totalIngresos');
     const balanceEl = document.getElementById('balance');
 
     if (totalGastosEl) {
-        totalGastosEl.textContent = formatCurrency(totalGastos, 'EUR');
+        totalGastosEl.textContent = formatCurrency(
+            totalGastos,
+            userCurrency
+        );
     }
 
     if (totalIngresosEl) {
-        totalIngresosEl.textContent = formatCurrency(totalIngresos, 'EUR');
+        totalIngresosEl.textContent = formatCurrency(
+            totalIngresos,
+            userCurrency
+        );
     }
 
     if (balanceEl) {
-        balanceEl.textContent = formatCurrency(balance, 'EUR');
+        balanceEl.textContent = formatCurrency(
+            balance,
+            userCurrency
+        );
 
         balanceEl.style.color =
             balance >= 0
@@ -462,10 +478,19 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
                 : 'var(--error, #f44336)';
     }
 
-    const gananciaOperacionesEl = document.getElementById('gananciaOperaciones');
+    const gananciaOperacionesEl = document.getElementById(
+        'gananciaOperaciones'
+    );
 
     if (gananciaOperacionesEl) {
-        gananciaOperacionesEl.textContent = formatCurrency(gananciaOperaciones, 'EUR');
+        /*
+         * La ganancia de Remesas conserva EUR porque pertenece
+         * a la lógica específica de ese módulo.
+         */
+        gananciaOperacionesEl.textContent = formatCurrency(
+            gananciaOperaciones,
+            'EUR'
+        );
 
         gananciaOperacionesEl.style.color =
             gananciaOperaciones >= 0
@@ -474,12 +499,15 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     }
 
     // =========================
-    // BOTÓN GASTOS (SAFE)
+    // BOTÓN GASTOS
     // =========================
     if (totalGastosEl) {
         const targetCardGastos = totalGastosEl.closest('.stat-card');
 
-        if (targetCardGastos && !targetCardGastos.querySelector('#btnProgresoGastos')) {
+        if (
+            targetCardGastos &&
+            !targetCardGastos.querySelector('#btnProgresoGastos')
+        ) {
             const btnContainer = document.createElement('div');
 
             btnContainer.style.marginTop = '25px';
@@ -492,9 +520,9 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
             btnProgreso.className = 'btn btn-secondary btn-small';
             btnProgreso.style.width = '100%';
 
-            btnProgreso.onclick = () => {
+            btnProgreso.addEventListener('click', () => {
                 mostrarResumenCategorias('gastos');
-            };
+            });
 
             btnContainer.appendChild(btnProgreso);
             targetCardGastos.appendChild(btnContainer);
@@ -502,12 +530,16 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
     }
 
     // =========================
-    // BOTÓN INGRESOS (SAFE)
+    // BOTÓN INGRESOS
     // =========================
     if (totalIngresosEl) {
-        const targetCardIngresos = totalIngresosEl.closest('.stat-card');
+        const targetCardIngresos =
+            totalIngresosEl.closest('.stat-card');
 
-        if (targetCardIngresos && !targetCardIngresos.querySelector('#btnProgresoIngresos')) {
+        if (
+            targetCardIngresos &&
+            !targetCardIngresos.querySelector('#btnProgresoIngresos')
+        ) {
             const btnContainer = document.createElement('div');
 
             btnContainer.style.marginTop = '25px';
@@ -520,9 +552,9 @@ function updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaOperaci
             btnProgreso.className = 'btn btn-secondary btn-small';
             btnProgreso.style.width = '100%';
 
-            btnProgreso.onclick = () => {
+            btnProgreso.addEventListener('click', () => {
                 mostrarResumenCategorias('ingresos');
-            };
+            });
 
             btnContainer.appendChild(btnProgreso);
             targetCardIngresos.appendChild(btnContainer);
@@ -668,7 +700,7 @@ function updateMonthlyChart(
                                 `${context.dataset.label}: ` +
                                 formatCurrency(
                                     context.raw,
-                                    'EUR'
+                                    getUserCurrency()
                                 )
                             );
                         }
@@ -786,7 +818,11 @@ function updateCategoryChart(gastos) {
                                 ? ((context.raw / total) * 100).toFixed(1)
                                 : '0.0';
 
-                            return `${context.label}: ${formatCurrency(context.raw, 'EUR')} (${percentage}%)`;
+                            return (
+                                `${context.label}: ` +
+                                `${formatCurrency(context.raw, getUserCurrency())} ` +
+                                `(${percentage}%)`
+                            );
                         }
                     }
                 }
@@ -917,7 +953,11 @@ function updateIncomeCategoryChart(ingresos) {
                                 ? ((context.raw / total) * 100).toFixed(1)
                                 : '0.0';
 
-                            return `${context.label}: ${formatCurrency(context.raw, 'EUR')} (${percentage}%)`;
+                            return (
+                                `${context.label}: ` +
+                                `${formatCurrency(context.raw, getUserCurrency())} ` +
+                                `(${percentage}%)`
+                            );
                         }
                     }
                 }
@@ -958,7 +998,8 @@ const PAGE_PERMISSIONS = {
         'ingresos',
         'categorias',
         'presupuestos',
-        'historial'
+        'historial',
+        'configuracion'
     ],
     operador: [
         'dashboard',
@@ -967,7 +1008,8 @@ const PAGE_PERMISSIONS = {
         'remesas',
         'categorias',
         'presupuestos',
-        'historial'
+        'historial',
+        'configuracion'
     ],
     admin: [
         'dashboard',
@@ -977,6 +1019,7 @@ const PAGE_PERMISSIONS = {
         'categorias',
         'presupuestos',
         'historial',
+        'configuracion',
         'administracion'
     ]
 };
@@ -1283,6 +1326,9 @@ function showPage(page) {
             break;
         case 'historial':
             initHistorialEvents?.();
+            break;
+        case 'configuracion':
+            initConfiguracionEvents?.();
             break;
     }
 
@@ -1996,12 +2042,20 @@ async function verificarAlertasPresupuesto() {
     
     const alertas = [];
     
+    const userCurrency = getUserCurrency();
+
     for (const p of presupuestos) {
         const gastado = (gastos || []).filter(g => g.categoria === p.categoria).reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
         const porcentaje = (gastado / p.limite) * 100;
         
         if (porcentaje >= 100) {
-            alertas.push(`⚠️ ¡ALERTA! Has superado el presupuesto de "${p.categoria}". Límite: ${formatCurrency(p.limite, 'EUR')}, Gastado: ${formatCurrency(gastado, 'EUR')}`);
+
+            alertas.push(
+                `⚠️ ¡ALERTA! Has superado el presupuesto de ` +
+                `"${p.categoria}". ` +
+                `Límite: ${formatCurrency(p.limite, userCurrency)}, ` +
+                `Gastado: ${formatCurrency(gastado, userCurrency)}`
+            );
         } else if (porcentaje >= 75) {
             alertas.push(`📢 Atención: Has alcanzado el ${porcentaje.toFixed(1)}% del presupuesto de "${p.categoria}".`);
         }

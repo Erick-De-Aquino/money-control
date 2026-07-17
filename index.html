@@ -233,6 +233,7 @@
                     <li><button data-page="categorias" class="menu-item">Admin de Categorías</button></li>
                     <li><button data-page="presupuestos" class="menu-item">Presupuestos</button></li>
                     <li><button data-page="historial" class="menu-item">Historial de Presupuestos</button></li>
+                    <li><button data-page="configuracion" class="menu-item">Configuración</button></li>
                     <li id="adminMenuItem" style="display:none;"><button data-page="administracion" class="menu-item">Administración</button></li>
                 </ul>
                 <div class="user-info">
@@ -666,6 +667,75 @@
                     </div>
                 </div>
 
+                <!-- Página Configuración -->
+                <div id="pageConfiguracion" class="page">
+
+                    <div class="page-header">
+                        <div>
+                            <h2>Configuración</h2>
+                            <p class="page-description">
+                                Personaliza las preferencias generales de tu cuenta.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="settings-container">
+
+                        <section class="settings-card">
+
+                            <div class="settings-card-header">
+                                <div>
+                                    <h3>Preferencias regionales</h3>
+                                    <p>
+                                        Selecciona la moneda que deseas utilizar visualmente
+                                        en la aplicación.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <form id="currencySettingsForm">
+
+                                <div class="form-group">
+                                    <label for="settingsCurrency">
+                                        Moneda principal
+                                    </label>
+
+                                    <select id="settingsCurrency" required>
+                                        <option value="">
+                                            Selecciona una moneda
+                                        </option>
+                                    </select>
+
+                                    <small class="form-help">
+                                        Esta opción cambia el símbolo mostrado en la aplicación.
+                                        No realiza conversiones ni modifica importes.
+                                    </small>
+                                </div>
+
+                                <div class="currency-preview">
+                                    <span>Vista previa</span>
+                                    <strong id="settingsCurrencyPreview">
+                                        € 1.250,00
+                                    </strong>
+                                </div>
+
+                                <div class="settings-actions">
+                                    <button
+                                        type="submit"
+                                        id="btnSaveCurrencySettings"
+                                        class="btn btn-primary">
+                                        Guardar cambios
+                                    </button>
+                                </div>
+
+                            </form>
+
+                        </section>
+
+                    </div>
+
+                </div>
+
                 <!-- Página Administración -->
                 <div id="pageAdministracion" class="page">
 
@@ -980,6 +1050,7 @@
     <script src="js/remesas.js"></script>
     <script src="js/presupuesto.js"></script>
     <script src="js/historial.js"></script>
+    <script src="js/configuracion.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
