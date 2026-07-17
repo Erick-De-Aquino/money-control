@@ -215,7 +215,7 @@ async function loadMonthlyEvolutionData(
     ] = await Promise.all([
         supabase
             .from(TABLES.gastos)
-            .select('fecha, monto, monto_eur')
+            .select('fecha, monto')
             .eq('user_id', userId)
             .gte('fecha', startDate)
             .lte('fecha', endDate)
@@ -223,7 +223,7 @@ async function loadMonthlyEvolutionData(
 
         supabase
             .from(TABLES.ingresos)
-            .select('fecha, monto, monto_eur')
+            .select('fecha, monto')
             .eq('user_id', userId)
             .gte('fecha', startDate)
             .lte('fecha', endDate)
@@ -251,40 +251,48 @@ async function loadMonthlyEvolutionData(
         endMonth
     );
 
-    const chartModal = document.getElementById('chartModal');
+    const chartModal =
+        document.getElementById('chartModal');
 
     if (
         chartModal?.classList.contains('active') &&
         window.expandedChartSourceId === 'monthlyChart'
     ) {
-        renderExpandedChartFromOriginal('monthlyChart');
+        renderExpandedChartFromOriginal(
+            'monthlyChart'
+        );
     }
 }
 
 // Cargar datos para el dashboard
 async function loadDashboardData() {
-
     try {
-
         const supabase = getSupabase();
+
         resetDashboardUserView();
         initMonthlyChartPeriodControls();
 
-        // =========================
-        // ESPERAR AUTH LISTA
-        // =========================
-        let user = await getDashboardAuthUser();
+        let user =
+            await getDashboardAuthUser();
 
-        if (!user || !user.id) {
-            console.warn('⏳ Esperando sesión de usuario...');
+        if (!user?.id) {
+            console.warn(
+                '⏳ Esperando sesión de usuario...'
+            );
 
-            // reintento corto (evita race condition)
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(
+                (resolve) =>
+                    setTimeout(resolve, 300)
+            );
 
-            const retryUser = await getDashboardAuthUser();
+            const retryUser =
+                await getDashboardAuthUser();
 
             if (!retryUser?.id) {
-                console.error('No user ID válido');
+                console.error(
+                    'No user ID válido'
+                );
+
                 return null;
             }
 
@@ -293,23 +301,34 @@ async function loadDashboardData() {
 
         const userId = user.id;
 
-        // =========================
-        // FECHAS
-        // =========================
         const hoy = new Date();
-        const añoActual = hoy.getFullYear();
-        const mesActual = hoy.getMonth() + 1;
+        const añoActual =
+            hoy.getFullYear();
 
-        const fechaInicioDefault = `${añoActual}-${String(mesActual).padStart(2, '0')}-01`;
-        const fechaFinDefault = `${añoActual}-${String(mesActual).padStart(2, '0')}-${new Date(añoActual, mesActual, 0).getDate()}`;
+        const mesActual =
+            hoy.getMonth() + 1;
 
-        const desde = filtroDashboard?.desde || fechaInicioDefault;
-        const hasta = filtroDashboard?.hasta || fechaFinDefault;
+        const fechaInicioDefault =
+            `${añoActual}-` +
+            `${String(mesActual).padStart(2, '0')}-01`;
 
-        
-        // =========================
-        // GASTOS
-        // =========================
+        const fechaFinDefault =
+            `${añoActual}-` +
+            `${String(mesActual).padStart(2, '0')}-` +
+            `${new Date(
+                añoActual,
+                mesActual,
+                0
+            ).getDate()}`;
+
+        const desde =
+            filtroDashboard?.desde ||
+            fechaInicioDefault;
+
+        const hasta =
+            filtroDashboard?.hasta ||
+            fechaFinDefault;
+
         let gastosQuery = supabase
             .from(TABLES.gastos)
             .select('*')
@@ -321,36 +340,32 @@ async function loadDashboardData() {
             filtroDashboard.categoriasGastos &&
             filtroDashboard.categoriasGastos.length > 0
         ) {
-
             gastosQuery = gastosQuery.in(
                 'categoria',
                 filtroDashboard.categoriasGastos
             );
-
-        }
-        else if (
+        } else if (
             filtroDashboard.categoriasIngresos &&
             filtroDashboard.categoriasIngresos.length > 0
         ) {
-
-            // Si eligió ingresos pero ningún gasto,
-            // no mostrar gastos
             gastosQuery = gastosQuery.in(
                 'categoria',
                 ['__SIN_RESULTADOS__']
             );
-
         }
 
-        const { data: gastos, error: errorGastos } = await gastosQuery;
+        const {
+            data: gastos,
+            error: errorGastos
+        } = await gastosQuery;
 
         if (errorGastos) {
-            console.error('Error cargando gastos:', errorGastos);
+            console.error(
+                'Error cargando gastos:',
+                errorGastos
+            );
         }
 
-        // =========================
-        // INGRESOS
-        // =========================
         let ingresosQuery = supabase
             .from(TABLES.ingresos)
             .select('*')
@@ -362,25 +377,18 @@ async function loadDashboardData() {
             filtroDashboard.categoriasIngresos &&
             filtroDashboard.categoriasIngresos.length > 0
         ) {
-
             ingresosQuery = ingresosQuery.in(
                 'origen',
                 filtroDashboard.categoriasIngresos
             );
-
-        }
-        else if (
+        } else if (
             filtroDashboard.categoriasGastos &&
             filtroDashboard.categoriasGastos.length > 0
         ) {
-
-            // Si eligió gastos pero ningún ingreso,
-            // no mostrar ingresos
             ingresosQuery = ingresosQuery.in(
                 'origen',
                 ['__SIN_RESULTADOS__']
             );
-
         }
 
         const {
@@ -389,52 +397,93 @@ async function loadDashboardData() {
         } = await ingresosQuery;
 
         if (errorIngresos) {
-            console.error('Error cargando ingresos:', errorIngresos);
+            console.error(
+                'Error cargando ingresos:',
+                errorIngresos
+            );
         }
 
-        // =========================
-        // CACHE
-        // =========================
-        window.dashboardGastosFiltrados = gastos || [];
-        window.dashboardIngresosFiltrados = ingresos || [];
+        window.dashboardGastosFiltrados =
+            gastos || [];
 
-        // =========================
-        // REMESAS
-        // =========================
-        const remesas = (await loadRemesas?.()) || [];
-        //await updateRemesasRatesPanel?.();
+        window.dashboardIngresosFiltrados =
+            ingresos || [];
 
-        // =========================
-        // CALCULOS
-        // =========================
-        const totalGastos = (gastos || []).reduce((s, g) => s + (g.monto_eur || g.monto || 0), 0);
-        const totalIngresos = (ingresos || []).reduce((s, i) => s + (i.monto_eur || i.monto || 0), 0);
-        const balance = totalIngresos - totalGastos;
+        const remesas =
+            (await loadRemesas?.()) || [];
 
-        const gananciaRemesas = remesas.reduce(
-            (s, r) => s + (r.ganancia_real || r.ganancia_calculada || 0),
-            0
+        const totalGastos =
+            (gastos || []).reduce(
+                (total, gasto) =>
+                    total + Number(
+                        gasto.monto ?? 0
+                    ),
+                0
+            );
+
+        const totalIngresos =
+            (ingresos || []).reduce(
+                (total, ingreso) =>
+                    total + Number(
+                        ingreso.monto ?? 0
+                    ),
+                0
+            );
+
+        const balance =
+            totalIngresos - totalGastos;
+
+        const gananciaRemesas =
+            remesas.reduce(
+                (total, remesa) =>
+                    total + Number(
+                        remesa.ganancia_real ??
+                        remesa.ganancia_calculada ??
+                        0
+                    ),
+                0
+            );
+
+        updateStatsDisplay(
+            totalGastos,
+            totalIngresos,
+            balance,
+            gananciaRemesas
         );
 
-        // =========================
-        // UI
-        // =========================
-        updateStatsDisplay(totalGastos, totalIngresos, balance, gananciaRemesas);
         await loadMonthlyEvolutionData(
             userId,
             getStoredMonthlyChartPeriod()
         );
-        updateCategoryChart(gastos || []);
-        updateIncomeCategoryChart(ingresos || []);
 
-        if (typeof verificarTodasAlertas === 'function') {
+        updateCategoryChart(
+            gastos || []
+        );
+
+        updateIncomeCategoryChart(
+            ingresos || []
+        );
+
+        if (
+            typeof verificarTodasAlertas ===
+            'function'
+        ) {
             verificarTodasAlertas();
         }
 
-        return { totalGastos, totalIngresos, balance, gananciaRemesas };
+        return {
+            totalGastos,
+            totalIngresos,
+            balance,
+            gananciaRemesas
+        };
 
     } catch (error) {
-        console.error('Error en loadDashboardData:', error);
+        console.error(
+            'Error en loadDashboardData:',
+            error
+        );
+
         return null;
     }
 }
@@ -562,7 +611,7 @@ function updateStatsDisplay(
     }
 }
 
-// Actualizar gráfico mensual (línea)
+// Actualizar gráfico mensual
 function updateMonthlyChart(
     gastos,
     ingresos,
@@ -585,14 +634,15 @@ function updateMonthlyChart(
             return;
         }
 
-        const monthKey = String(gasto.fecha).substring(0, 7);
+        const monthKey =
+            String(gasto.fecha).substring(0, 7);
 
-        const amount = Number(
-            gasto.monto_eur ?? gasto.monto ?? 0
-        );
+        const amount =
+            Number(gasto.monto ?? 0);
 
         gastosPorMes[monthKey] =
-            (gastosPorMes[monthKey] || 0) + amount;
+            (gastosPorMes[monthKey] || 0) +
+            amount;
     });
 
     ingresos.forEach((ingreso) => {
@@ -600,14 +650,15 @@ function updateMonthlyChart(
             return;
         }
 
-        const monthKey = String(ingreso.fecha).substring(0, 7);
+        const monthKey =
+            String(ingreso.fecha).substring(0, 7);
 
-        const amount = Number(
-            ingreso.monto_eur ?? ingreso.monto ?? 0
-        );
+        const amount =
+            Number(ingreso.monto ?? 0);
 
         ingresosPorMes[monthKey] =
-            (ingresosPorMes[monthKey] || 0) + amount;
+            (ingresosPorMes[monthKey] || 0) +
+            amount;
     });
 
     const labels = [];
@@ -629,19 +680,28 @@ function updateMonthlyChart(
     while (currentMonth <= finalMonth) {
         const monthKey =
             `${currentMonth.getFullYear()}-` +
-            `${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+            `${String(
+                currentMonth.getMonth() + 1
+            ).padStart(2, '0')}`;
 
-        const monthLabel = currentMonth.toLocaleDateString(
-            'es-ES',
-            {
-                month: 'short',
-                year: 'numeric'
-            }
-        );
+        const monthLabel =
+            currentMonth.toLocaleDateString(
+                'es-ES',
+                {
+                    month: 'short',
+                    year: 'numeric'
+                }
+            );
 
         labels.push(monthLabel);
-        gastosData.push(gastosPorMes[monthKey] || 0);
-        ingresosData.push(ingresosPorMes[monthKey] || 0);
+
+        gastosData.push(
+            gastosPorMes[monthKey] || 0
+        );
+
+        ingresosData.push(
+            ingresosPorMes[monthKey] || 0
+        );
 
         currentMonth.setMonth(
             currentMonth.getMonth() + 1
@@ -664,7 +724,8 @@ function updateMonthlyChart(
                     label: 'Gastos',
                     data: gastosData,
                     borderColor: '#f44336',
-                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                    backgroundColor:
+                        'rgba(244, 67, 54, 0.1)',
                     tension: 0.3,
                     fill: true
                 },
@@ -672,7 +733,8 @@ function updateMonthlyChart(
                     label: 'Ingresos',
                     data: ingresosData,
                     borderColor: '#4CAF50',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    backgroundColor:
+                        'rgba(76, 175, 80, 0.1)',
                     tension: 0.3,
                     fill: true
                 }
@@ -717,10 +779,15 @@ function updateMonthlyChart(
     });
 }
 
-// Actualizar gráfico de categorías de gastos (dona)
+// Actualizar gráfico de categorías de gastos
 function updateCategoryChart(gastos) {
-    const ctx = document.getElementById('categoryChart')?.getContext('2d');
-    if (!ctx) return;
+    const ctx = document
+        .getElementById('categoryChart')
+        ?.getContext('2d');
+
+    if (!ctx) {
+        return;
+    }
 
     const escapeHTML = (value) => {
         return String(value ?? '')
@@ -733,22 +800,48 @@ function updateCategoryChart(gastos) {
 
     const categorias = {};
 
-    gastos.forEach(g => {
-        const cat = g.categoria || 'Otros';
-        categorias[cat] = (categorias[cat] || 0) + (Number(g.monto_eur || g.monto) || 0);
+    gastos.forEach((gasto) => {
+        const categoria =
+            gasto.categoria || 'Otros';
+
+        categorias[categoria] =
+            (categorias[categoria] || 0) +
+            Number(gasto.monto ?? 0);
     });
 
-    const labels = Object.keys(categorias);
-    const data = Object.values(categorias);
+    const labels =
+        Object.keys(categorias);
+
+    const data =
+        Object.values(categorias);
 
     const colores = [
-        '#E1D5E7', '#BCAAA4', '#4CAF50', '#FF9800', '#2196F3',
-        '#f44336', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548',
-        '#607D8B', '#FF5722', '#009688', '#673AB7', '#3F51B5',
-        '#CDDC39', '#FFC107', '#8BC34A', '#E91E63', '#F44336'
+        '#E1D5E7',
+        '#BCAAA4',
+        '#4CAF50',
+        '#FF9800',
+        '#2196F3',
+        '#f44336',
+        '#9C27B0',
+        '#00BCD4',
+        '#FFEB3B',
+        '#795548',
+        '#607D8B',
+        '#FF5722',
+        '#009688',
+        '#673AB7',
+        '#3F51B5',
+        '#CDDC39',
+        '#FFC107',
+        '#8BC34A',
+        '#E91E63',
+        '#F44336'
     ];
 
-    const leyendaContainer = document.getElementById('leyendaCategoriasGastos');
+    const leyendaContainer =
+        document.getElementById(
+            'leyendaCategoriasGastos'
+        );
 
     if (leyendaContainer) {
         let leyendaHTML = `
@@ -760,33 +853,41 @@ function updateCategoryChart(gastos) {
             ">
         `;
 
-        labels.forEach((categoria, index) => {
-            const color = colores[index % colores.length];
+        labels.forEach(
+            (categoria, index) => {
+                const color =
+                    colores[
+                        index % colores.length
+                    ];
 
-            leyendaHTML += `
-                <div style="
-                    display:flex;
-                    align-items:center;
-                    gap:8px;
-                    font-size:0.9rem;
-                ">
-                    <span style="
-                        width:12px;
-                        height:12px;
-                        border-radius:2px;
-                        background:${color};
-                        display:inline-block;
-                        flex-shrink:0;
-                    "></span>
+                leyendaHTML += `
+                    <div style="
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                        font-size:0.9rem;
+                    ">
+                        <span style="
+                            width:12px;
+                            height:12px;
+                            border-radius:2px;
+                            background:${color};
+                            display:inline-block;
+                            flex-shrink:0;
+                        "></span>
 
-                    <span>${escapeHTML(categoria)}</span>
-                </div>
-            `;
-        });
+                        <span>
+                            ${escapeHTML(categoria)}
+                        </span>
+                    </div>
+                `;
+            }
+        );
 
         leyendaHTML += '</div>';
 
-        leyendaContainer.innerHTML = leyendaHTML;
+        leyendaContainer.innerHTML =
+            leyendaHTML;
     }
 
     if (categoryChart) {
@@ -795,32 +896,58 @@ function updateCategoryChart(gastos) {
 
     categoryChart = new Chart(ctx, {
         type: 'doughnut',
+
         data: {
             labels,
-            datasets: [{
-                data,
-                backgroundColor: colores.slice(0, labels.length),
-                borderWidth: 0
-            }]
+
+            datasets: [
+                {
+                    data,
+                    backgroundColor:
+                        colores.slice(
+                            0,
+                            labels.length
+                        ),
+                    borderWidth: 0
+                }
+            ]
         },
+
         options: {
             responsive: true,
             maintainAspectRatio: true,
+
             plugins: {
                 legend: {
                     display: false
                 },
+
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            const total = data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0
-                                ? ((context.raw / total) * 100).toFixed(1)
-                                : '0.0';
+                        label(context) {
+                            const total =
+                                data.reduce(
+                                    (sum, value) =>
+                                        sum + value,
+                                    0
+                                );
+
+                            const percentage =
+                                total > 0
+                                    ? (
+                                        (
+                                            context.raw /
+                                            total
+                                        ) * 100
+                                    ).toFixed(1)
+                                    : '0.0';
 
                             return (
                                 `${context.label}: ` +
-                                `${formatCurrency(context.raw, getUserCurrency())} ` +
+                                `${formatCurrency(
+                                    context.raw,
+                                    getUserCurrency()
+                                )} ` +
                                 `(${percentage}%)`
                             );
                         }
@@ -830,29 +957,57 @@ function updateCategoryChart(gastos) {
         }
     });
 
-    const btnToggleLeyenda = document.getElementById('btnToggleLeyendaGastos');
+    const btnToggleLeyenda =
+        document.getElementById(
+            'btnToggleLeyendaGastos'
+        );
 
-    if (btnToggleLeyenda && !btnToggleLeyenda.dataset.eventAttached) {
-        btnToggleLeyenda.dataset.eventAttached = 'true';
+    if (
+        btnToggleLeyenda &&
+        !btnToggleLeyenda.dataset.eventAttached
+    ) {
+        btnToggleLeyenda.dataset.eventAttached =
+            'true';
 
-        btnToggleLeyenda.addEventListener('click', () => {
-            const leyenda = document.getElementById('leyendaCategoriasGastos');
+        btnToggleLeyenda.addEventListener(
+            'click',
+            () => {
+                const leyenda =
+                    document.getElementById(
+                        'leyendaCategoriasGastos'
+                    );
 
-            if (!leyenda) return;
+                if (!leyenda) {
+                    return;
+                }
 
-            const visible = leyenda.style.display === 'block';
+                const visible =
+                    leyenda.style.display ===
+                    'block';
 
-            leyenda.style.display = visible ? 'none' : 'block';
-            btnToggleLeyenda.textContent = visible ? 'Ver categorías' : 'Ocultar categorías';
-        });
+                leyenda.style.display =
+                    visible
+                        ? 'none'
+                        : 'block';
+
+                btnToggleLeyenda.textContent =
+                    visible
+                        ? 'Ver categorías'
+                        : 'Ocultar categorías';
+            }
+        );
     }
 }
 
-// Actualizar gráfico de categorías de ingresos (dona)
+// Actualizar gráfico de categorías de ingresos
 function updateIncomeCategoryChart(ingresos) {
-    const ctx = document.getElementById('incomeCategoryChart')?.getContext('2d');
+    const ctx = document
+        .getElementById('incomeCategoryChart')
+        ?.getContext('2d');
 
-    if (!ctx) return;
+    if (!ctx) {
+        return;
+    }
 
     const escapeHTML = (value) => {
         return String(value ?? '')
@@ -865,22 +1020,48 @@ function updateIncomeCategoryChart(ingresos) {
 
     const origenes = {};
 
-    ingresos.forEach(i => {
-        const orig = i.origen || 'Otros';
-        origenes[orig] = (origenes[orig] || 0) + (Number(i.monto_eur || i.monto) || 0);
+    ingresos.forEach((ingreso) => {
+        const origen =
+            ingreso.origen || 'Otros';
+
+        origenes[origen] =
+            (origenes[origen] || 0) +
+            Number(ingreso.monto ?? 0);
     });
 
-    const labels = Object.keys(origenes);
-    const data = Object.values(origenes);
+    const labels =
+        Object.keys(origenes);
+
+    const data =
+        Object.values(origenes);
 
     const colores = [
-        '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107',
-        '#FF9800', '#E1D5E7', '#BCAAA4', '#2196F3', '#9C27B0',
-        '#607D8B', '#FF5722', '#009688', '#673AB7', '#3F51B5',
-        '#795548', '#E91E63', '#F44336', '#00BCD4', '#9E9E9E'
+        '#4CAF50',
+        '#8BC34A',
+        '#CDDC39',
+        '#FFEB3B',
+        '#FFC107',
+        '#FF9800',
+        '#E1D5E7',
+        '#BCAAA4',
+        '#2196F3',
+        '#9C27B0',
+        '#607D8B',
+        '#FF5722',
+        '#009688',
+        '#673AB7',
+        '#3F51B5',
+        '#795548',
+        '#E91E63',
+        '#F44336',
+        '#00BCD4',
+        '#9E9E9E'
     ];
 
-    const leyendaContainer = document.getElementById('leyendaCategoriasIngresos');
+    const leyendaContainer =
+        document.getElementById(
+            'leyendaCategoriasIngresos'
+        );
 
     if (leyendaContainer) {
         let leyendaHTML = `
@@ -892,94 +1073,158 @@ function updateIncomeCategoryChart(ingresos) {
             ">
         `;
 
-        labels.forEach((origen, index) => {
-            const color = colores[index % colores.length];
+        labels.forEach(
+            (origen, index) => {
+                const color =
+                    colores[
+                        index % colores.length
+                    ];
 
-            leyendaHTML += `
-                <div style="
-                    display:flex;
-                    align-items:center;
-                    gap:8px;
-                    font-size:0.9rem;
-                ">
-                    <span style="
-                        width:12px;
-                        height:12px;
-                        border-radius:2px;
-                        background:${color};
-                        display:inline-block;
-                        flex-shrink:0;
-                    "></span>
+                leyendaHTML += `
+                    <div style="
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                        font-size:0.9rem;
+                    ">
+                        <span style="
+                            width:12px;
+                            height:12px;
+                            border-radius:2px;
+                            background:${color};
+                            display:inline-block;
+                            flex-shrink:0;
+                        "></span>
 
-                    <span>${escapeHTML(origen)}</span>
-                </div>
-            `;
-        });
+                        <span>
+                            ${escapeHTML(origen)}
+                        </span>
+                    </div>
+                `;
+            }
+        );
 
         leyendaHTML += '</div>';
 
-        leyendaContainer.innerHTML = leyendaHTML;
+        leyendaContainer.innerHTML =
+            leyendaHTML;
     }
 
     if (
         window.incomeCategoryChart &&
-        typeof window.incomeCategoryChart.destroy === 'function'
+        typeof window.incomeCategoryChart.destroy ===
+        'function'
     ) {
         window.incomeCategoryChart.destroy();
     }
 
-    window.incomeCategoryChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels,
-            datasets: [{
-                data,
-                backgroundColor: colores.slice(0, labels.length),
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const total = data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0
-                                ? ((context.raw / total) * 100).toFixed(1)
-                                : '0.0';
+    window.incomeCategoryChart =
+        new Chart(ctx, {
+            type: 'doughnut',
 
-                            return (
-                                `${context.label}: ` +
-                                `${formatCurrency(context.raw, getUserCurrency())} ` +
-                                `(${percentage}%)`
-                            );
+            data: {
+                labels,
+
+                datasets: [
+                    {
+                        data,
+                        backgroundColor:
+                            colores.slice(
+                                0,
+                                labels.length
+                            ),
+                        borderWidth: 0
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const total =
+                                    data.reduce(
+                                        (
+                                            sum,
+                                            value
+                                        ) =>
+                                            sum +
+                                            value,
+                                        0
+                                    );
+
+                                const percentage =
+                                    total > 0
+                                        ? (
+                                            (
+                                                context.raw /
+                                                total
+                                            ) * 100
+                                        ).toFixed(1)
+                                        : '0.0';
+
+                                return (
+                                    `${context.label}: ` +
+                                    `${formatCurrency(
+                                        context.raw,
+                                        getUserCurrency()
+                                    )} ` +
+                                    `(${percentage}%)`
+                                );
+                            }
                         }
                     }
                 }
             }
-        }
-    });
-
-    const btnToggleLeyenda = document.getElementById('btnToggleLeyendaIngresos');
-
-    if (btnToggleLeyenda && !btnToggleLeyenda.dataset.eventAttached) {
-        btnToggleLeyenda.dataset.eventAttached = 'true';
-
-        btnToggleLeyenda.addEventListener('click', () => {
-            const leyenda = document.getElementById('leyendaCategoriasIngresos');
-
-            if (!leyenda) return;
-
-            const visible = leyenda.style.display === 'block';
-
-            leyenda.style.display = visible ? 'none' : 'block';
-            btnToggleLeyenda.textContent = visible ? 'Ver categorías' : 'Ocultar categorías';
         });
+
+    const btnToggleLeyenda =
+        document.getElementById(
+            'btnToggleLeyendaIngresos'
+        );
+
+    if (
+        btnToggleLeyenda &&
+        !btnToggleLeyenda.dataset.eventAttached
+    ) {
+        btnToggleLeyenda.dataset.eventAttached =
+            'true';
+
+        btnToggleLeyenda.addEventListener(
+            'click',
+            () => {
+                const leyenda =
+                    document.getElementById(
+                        'leyendaCategoriasIngresos'
+                    );
+
+                if (!leyenda) {
+                    return;
+                }
+
+                const visible =
+                    leyenda.style.display ===
+                    'block';
+
+                leyenda.style.display =
+                    visible
+                        ? 'none'
+                        : 'block';
+
+                btnToggleLeyenda.textContent =
+                    visible
+                        ? 'Ver categorías'
+                        : 'Ocultar categorías';
+            }
+        );
     }
 }
 
@@ -2011,60 +2256,127 @@ function resetearFiltrosDashboard() {
 // Verificar presupuestos y mostrar alertas
 async function verificarAlertasPresupuesto() {
     const supabase = getSupabase();
-    const user = await getDashboardAuthUser();
+    const user =
+        await getDashboardAuthUser();
 
-    if (!user) return;
+    if (!user) {
+        return;
+    }
 
     const hoy = new Date();
-    const mesActual = hoy.getMonth() + 1;
-    const añoActual = hoy.getFullYear();
-    
-    // Obtener presupuestos del mes actual
-    const { data: presupuestos, error } = await supabase
+    const mesActual =
+        hoy.getMonth() + 1;
+
+    const añoActual =
+        hoy.getFullYear();
+
+    const {
+        data: presupuestos,
+        error
+    } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('user_id', user.id)
         .eq('mes', mesActual)
         .eq('año', añoActual);
-    
-    if (error || !presupuestos || presupuestos.length === 0) return;
-    
-    // Obtener gastos del mes actual
-    const fechaInicio = `${añoActual}-${String(mesActual).padStart(2, '0')}-01`;
-    const fechaFin = `${añoActual}-${String(mesActual).padStart(2, '0')}-${new Date(añoActual, mesActual, 0).getDate()}`;
-    
-    const { data: gastos } = await supabase
+
+    if (
+        error ||
+        !presupuestos ||
+        presupuestos.length === 0
+    ) {
+        return;
+    }
+
+    const fechaInicio =
+        `${añoActual}-` +
+        `${String(mesActual).padStart(2, '0')}-01`;
+
+    const fechaFin =
+        `${añoActual}-` +
+        `${String(mesActual).padStart(2, '0')}-` +
+        `${new Date(
+            añoActual,
+            mesActual,
+            0
+        ).getDate()}`;
+
+    const {
+        data: gastos,
+        error: gastosError
+    } = await supabase
         .from(TABLES.gastos)
-        .select('*')
+        .select(
+            'categoria, monto'
+        )
         .eq('user_id', user.id)
         .gte('fecha', fechaInicio)
         .lte('fecha', fechaFin);
-    
+
+    if (gastosError) {
+        console.error(
+            'Error cargando gastos para alertas:',
+            gastosError
+        );
+
+        return;
+    }
+
     const alertas = [];
-    
-    const userCurrency = getUserCurrency();
+    const userCurrency =
+        getUserCurrency();
 
-    for (const p of presupuestos) {
-        const gastado = (gastos || []).filter(g => g.categoria === p.categoria).reduce((sum, g) => sum + (g.monto_eur || g.monto), 0);
-        const porcentaje = (gastado / p.limite) * 100;
-        
+    for (const presupuesto of presupuestos) {
+        const limite =
+            Number(presupuesto.limite) || 0;
+
+        const gastado =
+            (gastos || [])
+                .filter(
+                    (gasto) =>
+                        gasto.categoria ===
+                        presupuesto.categoria
+                )
+                .reduce(
+                    (total, gasto) =>
+                        total + Number(
+                            gasto.monto ?? 0
+                        ),
+                    0
+                );
+
+        const porcentaje =
+            limite > 0
+                ? (gastado / limite) * 100
+                : 0;
+
         if (porcentaje >= 100) {
-
             alertas.push(
                 `⚠️ ¡ALERTA! Has superado el presupuesto de ` +
-                `"${p.categoria}". ` +
-                `Límite: ${formatCurrency(p.limite, userCurrency)}, ` +
-                `Gastado: ${formatCurrency(gastado, userCurrency)}`
+                `"${presupuesto.categoria}". ` +
+                `Límite: ${formatCurrency(
+                    limite,
+                    userCurrency
+                )}, ` +
+                `Gastado: ${formatCurrency(
+                    gastado,
+                    userCurrency
+                )}`
             );
+
         } else if (porcentaje >= 75) {
-            alertas.push(`📢 Atención: Has alcanzado el ${porcentaje.toFixed(1)}% del presupuesto de "${p.categoria}".`);
+            alertas.push(
+                `📢 Atención: Has alcanzado el ` +
+                `${porcentaje.toFixed(1)}% del presupuesto ` +
+                `de "${presupuesto.categoria}".`
+            );
         }
     }
-    
-    // Mostrar alertas si hay
+
     if (alertas.length > 0) {
-        const mensaje = alertas.join('\n\n');
-        // Usar modal de confirmación como alerta
+        const mensaje =
+            alertas.join('\n\n');
+
         showConfirmModal(
             mensaje,
             () => {},
@@ -2458,5 +2770,3 @@ function hasPermission(roleNeeded) {
     return true;
 }
 console.log('✅ Módulo de dashboard cargado');
-
-

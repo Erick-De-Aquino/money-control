@@ -272,9 +272,28 @@ function formatNumberInput(value) {
 }
 
 // Calcular balance (ingresos - gastos)
-function calculateBalance(ingresos, gastos) {
-    const totalIngresos = ingresos.reduce((sum, item) => sum + (item.monto_eur || item.monto), 0);
-    const totalGastos = gastos.reduce((sum, item) => sum + (item.monto_eur || item.monto), 0);
+function calculateBalance(
+    ingresos,
+    gastos
+) {
+    const totalIngresos =
+        ingresos.reduce(
+            (sum, item) =>
+                sum + Number(
+                    item.monto ?? 0
+                ),
+            0
+        );
+
+    const totalGastos =
+        gastos.reduce(
+            (sum, item) =>
+                sum + Number(
+                    item.monto ?? 0
+                ),
+            0
+        );
+
     return totalIngresos - totalGastos;
 }
 

@@ -30,9 +30,16 @@ async function getGastosAuthUser() {
 async function loadGastos() {
     try {
         const supabase = getSupabase();
-        const container = document.getElementById('gastosList');
-        const totalElement = document.getElementById('totalGastosFiltrados');
-        const userCurrency = getUserCurrency();
+        const container =
+            document.getElementById('gastosList');
+
+        const totalElement =
+            document.getElementById(
+                'totalGastosFiltrados'
+            );
+
+        const userCurrency =
+            getUserCurrency();
 
         gastosList = [];
 
@@ -42,14 +49,26 @@ async function loadGastos() {
         }
 
         if (totalElement) {
-            totalElement.textContent = formatCurrency(0, userCurrency);
+            totalElement.textContent =
+                formatCurrency(
+                    0,
+                    userCurrency
+                );
         }
 
-        const user = await getGastosAuthUser();
+        const user =
+            await getGastosAuthUser();
+
         const userId = user?.id;
 
-        if (!userId || userId === 'undefined') {
-            console.error('No user ID en gastos');
+        if (
+            !userId ||
+            userId === 'undefined'
+        ) {
+            console.error(
+                'No user ID en gastos'
+            );
+
             return [];
         }
 
@@ -59,33 +78,55 @@ async function loadGastos() {
             .eq('user_id', userId);
 
         if (filtroGastos.desde) {
-            query = query.gte('fecha', filtroGastos.desde);
+            query = query.gte(
+                'fecha',
+                filtroGastos.desde
+            );
         }
 
         if (filtroGastos.hasta) {
-            query = query.lte('fecha', filtroGastos.hasta);
+            query = query.lte(
+                'fecha',
+                filtroGastos.hasta
+            );
         }
 
-        const { data, error } = await query.order(
+        const {
+            data,
+            error
+        } = await query.order(
             'fecha',
             { ascending: false }
         );
 
         if (error) {
-            console.error('Error al cargar gastos:', error);
-            showError?.('Error al cargar los gastos');
+            console.error(
+                'Error al cargar gastos:',
+                error
+            );
+
+            showError?.(
+                'Error al cargar los gastos'
+            );
+
             return [];
         }
 
         gastosList = data || [];
 
         if (
-            Array.isArray(filtroGastos.categoria) &&
+            Array.isArray(
+                filtroGastos.categoria
+            ) &&
             filtroGastos.categoria.length > 0
         ) {
-            gastosList = gastosList.filter((gasto) =>
-                filtroGastos.categoria.includes(gasto.categoria)
-            );
+            gastosList =
+                gastosList.filter(
+                    (gasto) =>
+                        filtroGastos.categoria.includes(
+                            gasto.categoria
+                        )
+                );
         }
 
         displayGastos?.();
@@ -94,38 +135,45 @@ async function loadGastos() {
             filtroGastos.desde ||
             filtroGastos.hasta ||
             (
-                Array.isArray(filtroGastos.categoria) &&
+                Array.isArray(
+                    filtroGastos.categoria
+                ) &&
                 filtroGastos.categoria.length > 0
             );
 
         if (totalElement) {
             if (hayFiltros) {
-                const total = gastosList.reduce(
-                    (sum, gasto) =>
-                        sum + Number(
-                            gasto.monto_eur ??
-                            gasto.monto ??
-                            0
-                        ),
-                    0
-                );
+                const total =
+                    gastosList.reduce(
+                        (sum, gasto) =>
+                            sum + Number(
+                                gasto.monto ?? 0
+                            ),
+                        0
+                    );
 
-                totalElement.textContent = formatCurrency(
-                    total,
-                    userCurrency
-                );
+                totalElement.textContent =
+                    formatCurrency(
+                        total,
+                        userCurrency
+                    );
             } else {
-                totalElement.textContent = formatCurrency(
-                    0,
-                    userCurrency
-                );
+                totalElement.textContent =
+                    formatCurrency(
+                        0,
+                        userCurrency
+                    );
             }
         }
 
         return gastosList;
 
     } catch (error) {
-        console.error('Error en loadGastos:', error);
+        console.error(
+            'Error en loadGastos:',
+            error
+        );
+
         return [];
     }
 }
@@ -464,10 +512,6 @@ async function sincronizarHistorialGastosPeriodo(
         return false;
     }
 
-    /*
-     * Si el mes todavía no tiene historial, no hay nada
-     * que actualizar.
-     */
     if (
         !historialMes ||
         historialMes.length === 0
@@ -498,7 +542,7 @@ async function sincronizarHistorialGastosPeriodo(
     } = await supabase
         .from(TABLES.gastos)
         .select(
-            'categoria, monto, monto_eur'
+            'categoria, monto'
         )
         .eq('user_id', userId)
         .gte('fecha', fechaInicio)
@@ -519,50 +563,60 @@ async function sincronizarHistorialGastosPeriodo(
                 item.categoria !== 'GENERAL'
         );
 
-    for (const item of categoriasHistorial) {
-        const limite =
-            Number(item.limite) || 0;
+    const resultadosCategorias =
+        categoriasHistorial.map((item) => {
+            const limite =
+                Number(item.limite) || 0;
 
-        const gastado = (gastosMes || [])
-            .filter(
-                (gasto) =>
-                    gasto.categoria ===
-                    item.categoria
-            )
-            .reduce(
-                (total, gasto) =>
-                    total + Number(
-                        gasto.monto_eur ??
-                        gasto.monto ??
-                        0
-                    ),
-                0
-            );
+            const gastado = (gastosMes || [])
+                .filter(
+                    (gasto) =>
+                        gasto.categoria ===
+                        item.categoria
+                )
+                .reduce(
+                    (total, gasto) =>
+                        total + Number(
+                            gasto.monto ?? 0
+                        ),
+                    0
+                );
 
-        const porcentaje =
-            limite > 0
-                ? (gastado / limite) * 100
-                : 0;
+            const porcentaje =
+                limite > 0
+                    ? (gastado / limite) * 100
+                    : 0;
 
-        const color =
-            porcentaje >= 100
-                ? 'rojo'
-                : 'verde';
+            const color =
+                porcentaje >= 100
+                    ? 'rojo'
+                    : 'verde';
 
+            return {
+                id: item.id,
+                categoria: item.categoria,
+                gastado,
+                porcentaje,
+                color
+            };
+        });
+
+    for (const resultado of resultadosCategorias) {
         const { error: updateError } =
             await supabase
                 .from('historial_presupuestos')
                 .update({
-                    gastado,
-                    porcentaje,
-                    color
+                    gastado: resultado.gastado,
+                    porcentaje:
+                        resultado.porcentaje,
+                    color: resultado.color
                 })
-                .eq('id', item.id)
+                .eq('id', resultado.id)
                 .eq('user_id', userId);
 
         if (updateError) {
             console.error(
-                `Error actualizando historial de "${item.categoria}":`,
+                `Error actualizando historial de "${resultado.categoria}":`,
                 updateError
             );
 
@@ -571,41 +625,16 @@ async function sincronizarHistorialGastosPeriodo(
     }
 
     const categoriasCumplidas =
-        categoriasHistorial.filter(
-            (item) => {
-                const limite =
-                    Number(item.limite) || 0;
-
-                const gastado = (gastosMes || [])
-                    .filter(
-                        (gasto) =>
-                            gasto.categoria ===
-                            item.categoria
-                    )
-                    .reduce(
-                        (total, gasto) =>
-                            total + Number(
-                                gasto.monto_eur ??
-                                gasto.monto ??
-                                0
-                            ),
-                        0
-                    );
-
-                const porcentaje =
-                    limite > 0
-                        ? (gastado / limite) * 100
-                        : 0;
-
-                return porcentaje < 100;
-            }
+        resultadosCategorias.filter(
+            (resultado) =>
+                resultado.porcentaje < 100
         ).length;
 
     const cumplimientoGeneral =
-        categoriasHistorial.length > 0
+        resultadosCategorias.length > 0
             ? (
                 categoriasCumplidas /
-                categoriasHistorial.length
+                resultadosCategorias.length
             ) * 100
             : 0;
 
@@ -719,7 +748,6 @@ async function saveGasto(event) {
         categoria,
         monto,
         moneda,
-        monto_eur: monto,
         descripcion: descripcion || null,
         user_id: user.id
     };
@@ -766,10 +794,7 @@ async function saveGasto(event) {
 
         let historialSincronizado = true;
 
-        for (
-            const fechaAfectada
-            of fechasAfectadas
-        ) {
+        for (const fechaAfectada of fechasAfectadas) {
             const sincronizado =
                 await sincronizarHistorialGastosPeriodo(
                     fechaAfectada,
@@ -1015,25 +1040,26 @@ async function initGastosEvents() {
 
 // Actualizar total de gastos filtrados
 function actualizarTotalGastosFiltrados() {
-    const total = gastosList.reduce(
-        (sum, gasto) =>
-            sum + Number(
-                gasto.monto_eur ??
-                gasto.monto ??
-                0
-            ),
-        0
-    );
+    const total =
+        gastosList.reduce(
+            (sum, gasto) =>
+                sum + Number(
+                    gasto.monto ?? 0
+                ),
+            0
+        );
 
-    const totalElement = document.getElementById(
-        'totalGastosFiltrados'
-    );
+    const totalElement =
+        document.getElementById(
+            'totalGastosFiltrados'
+        );
 
     if (totalElement) {
-        totalElement.textContent = formatCurrency(
-            total,
-            getUserCurrency()
-        );
+        totalElement.textContent =
+            formatCurrency(
+                total,
+                getUserCurrency()
+            );
     }
 }
 

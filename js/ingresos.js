@@ -32,11 +32,19 @@ async function getIngresosAuthUser() {
 async function loadIngresos() {
     try {
         const supabase = getSupabase();
-        const container = document.getElementById('ingresosList');
-        const totalElement = document.getElementById(
-            'totalIngresosFiltrados'
-        );
-        const userCurrency = getUserCurrency();
+
+        const container =
+            document.getElementById(
+                'ingresosList'
+            );
+
+        const totalElement =
+            document.getElementById(
+                'totalIngresosFiltrados'
+            );
+
+        const userCurrency =
+            getUserCurrency();
 
         ingresosList = [];
 
@@ -46,17 +54,26 @@ async function loadIngresos() {
         }
 
         if (totalElement) {
-            totalElement.textContent = formatCurrency(
-                0,
-                userCurrency
-            );
+            totalElement.textContent =
+                formatCurrency(
+                    0,
+                    userCurrency
+                );
         }
 
-        const user = await getIngresosAuthUser();
+        const user =
+            await getIngresosAuthUser();
+
         const userId = user?.id;
 
-        if (!userId || userId === 'undefined') {
-            console.error('No user ID en ingresos');
+        if (
+            !userId ||
+            userId === 'undefined'
+        ) {
+            console.error(
+                'No user ID en ingresos'
+            );
+
             return [];
         }
 
@@ -79,7 +96,10 @@ async function loadIngresos() {
             );
         }
 
-        const { data, error } = await query.order(
+        const {
+            data,
+            error
+        } = await query.order(
             'fecha',
             { ascending: false }
         );
@@ -90,22 +110,28 @@ async function loadIngresos() {
                 error
             );
 
-            showError?.('Error al cargar los ingresos');
+            showError?.(
+                'Error al cargar los ingresos'
+            );
+
             return [];
         }
 
         ingresosList = data || [];
 
         if (
-            Array.isArray(filtroIngresos.categoria) &&
+            Array.isArray(
+                filtroIngresos.categoria
+            ) &&
             filtroIngresos.categoria.length > 0
         ) {
-            ingresosList = ingresosList.filter(
-                (ingreso) =>
-                    filtroIngresos.categoria.includes(
-                        ingreso.origen
-                    )
-            );
+            ingresosList =
+                ingresosList.filter(
+                    (ingreso) =>
+                        filtroIngresos.categoria.includes(
+                            ingreso.origen
+                        )
+                );
         }
 
         displayIngresos?.();
@@ -114,38 +140,45 @@ async function loadIngresos() {
             filtroIngresos.desde ||
             filtroIngresos.hasta ||
             (
-                Array.isArray(filtroIngresos.categoria) &&
+                Array.isArray(
+                    filtroIngresos.categoria
+                ) &&
                 filtroIngresos.categoria.length > 0
             );
 
         if (totalElement) {
             if (hayFiltros) {
-                const total = ingresosList.reduce(
-                    (sum, ingreso) =>
-                        sum + Number(
-                            ingreso.monto_eur ??
-                            ingreso.monto ??
-                            0
-                        ),
-                    0
-                );
+                const total =
+                    ingresosList.reduce(
+                        (sum, ingreso) =>
+                            sum + Number(
+                                ingreso.monto ?? 0
+                            ),
+                        0
+                    );
 
-                totalElement.textContent = formatCurrency(
-                    total,
-                    userCurrency
-                );
+                totalElement.textContent =
+                    formatCurrency(
+                        total,
+                        userCurrency
+                    );
             } else {
-                totalElement.textContent = formatCurrency(
-                    0,
-                    userCurrency
-                );
+                totalElement.textContent =
+                    formatCurrency(
+                        0,
+                        userCurrency
+                    );
             }
         }
 
         return ingresosList;
 
     } catch (error) {
-        console.error('Error en loadIngresos:', error);
+        console.error(
+            'Error en loadIngresos:',
+            error
+        );
+
         return [];
     }
 }
@@ -479,7 +512,6 @@ async function saveIngreso(event) {
         origen,
         monto,
         moneda,
-        monto_eur: monto,
         descripcion: descripcion || null,
         user_id: user.id
     };

@@ -71,8 +71,12 @@ async function loadPresupuestos() {
 
 // Mostrar presupuestos en UI
 async function displayPresupuestos() {
-    const container = document.getElementById('presupuestosList');
-    if (!container) return;
+    const container =
+        document.getElementById('presupuestosList');
+
+    if (!container) {
+        return;
+    }
 
     const escapeHTML = (value) => {
         return String(value ?? '')
@@ -84,35 +88,51 @@ async function displayPresupuestos() {
     };
 
     if (presupuestosList.length === 0) {
-        container.innerHTML = '<p class="empty-message">No hay presupuestos para este período</p>';
+        container.innerHTML =
+            '<p class="empty-message">No hay presupuestos para este período</p>';
+
         return;
     }
 
-    const gastos = await getGastosDelMes(filtroPresupuesto.año, filtroPresupuesto.mes);
+    const gastos = await getGastosDelMes(
+        filtroPresupuesto.año,
+        filtroPresupuesto.mes
+    );
 
     const userCurrency = getUserCurrency();
 
-    container.innerHTML = presupuestosList.map(p => {
-        const id = Number(p.id);
-        const categoria = escapeHTML(p.categoria || 'Sin categoría');
-        const mes = Number(p.mes) || '';
-        const año = Number(p.año) || '';
-        const limite = Number(p.limite) || 0;
+    container.innerHTML = presupuestosList.map((presupuesto) => {
+        const id = Number(presupuesto.id);
+
+        const categoria = escapeHTML(
+            presupuesto.categoria || 'Sin categoría'
+        );
+
+        const mes = Number(presupuesto.mes) || '';
+        const año = Number(presupuesto.año) || '';
+        const limite = Number(presupuesto.limite) || 0;
 
         const gastado = gastos
-            .filter(g => g.categoria === p.categoria)
+            .filter(
+                (gasto) =>
+                    gasto.categoria === presupuesto.categoria
+            )
             .reduce(
-                (sum, g) =>
-                    sum + Number(
-                        g.monto_eur ??
-                        g.monto ??
-                        0
-                    ),
+                (total, gasto) =>
+                    total + Number(gasto.monto ?? 0),
                 0
             );
 
-        const porcentaje = limite > 0 ? (gastado / limite) * 100 : 0;
-        const porcentajeSeguro = Math.min(Math.max(porcentaje, 0), 100);
+        const porcentaje =
+            limite > 0
+                ? (gastado / limite) * 100
+                : 0;
+
+        const porcentajeSeguro = Math.min(
+            Math.max(porcentaje, 0),
+            100
+        );
+
         const colorBarra =
             porcentaje >= 90
                 ? '#f44336'
@@ -121,46 +141,116 @@ async function displayPresupuestos() {
                     : '#4CAF50';
 
         const gastadoTexto = escapeHTML(
-            formatCurrency(gastado, userCurrency)
+            formatCurrency(
+                gastado,
+                userCurrency
+            )
         );
 
         const limiteTexto = escapeHTML(
-            formatCurrency(limite, userCurrency)
+            formatCurrency(
+                limite,
+                userCurrency
+            )
         );
-        const porcentajeTexto = escapeHTML(porcentaje.toFixed(1));
+
+        const porcentajeTexto = escapeHTML(
+            porcentaje.toFixed(1)
+        );
 
         return `
-            <div class="list-item-card" data-id="${id}">
-                <div class="item-info" style="flex: 2;">
-                    <div class="item-title">${categoria}</div>
-                    <div class="item-subtitle">${mes}/${año}</div>
-                </div>
-
-                <div class="item-info" style="flex: 3;">
-                    <div class="progress-bar-container" style="background: #e0e0e0; border-radius: 10px; height: 20px; width: 100%;">
-                        <div class="progress-bar-fill" style="width: ${porcentajeSeguro}%; background-color: ${colorBarra}; height: 20px; border-radius: 10px; transition: width 0.3s;"></div>
+            <div
+                class="list-item-card"
+                data-id="${id}"
+            >
+                <div
+                    class="item-info"
+                    style="flex: 2;"
+                >
+                    <div class="item-title">
+                        ${categoria}
                     </div>
 
-                    <div class="item-subtitle" style="margin-top: 5px;">
-                        Gastado: ${gastadoTexto} / ${limiteTexto} (${porcentajeTexto}%)
+                    <div class="item-subtitle">
+                        ${mes}/${año}
+                    </div>
+                </div>
+
+                <div
+                    class="item-info"
+                    style="flex: 3;"
+                >
+                    <div
+                        class="progress-bar-container"
+                        style="
+                            background: #e0e0e0;
+                            border-radius: 10px;
+                            height: 20px;
+                            width: 100%;
+                        "
+                    >
+                        <div
+                            class="progress-bar-fill"
+                            style="
+                                width: ${porcentajeSeguro}%;
+                                background-color: ${colorBarra};
+                                height: 20px;
+                                border-radius: 10px;
+                                transition: width 0.3s;
+                            "
+                        ></div>
+                    </div>
+
+                    <div
+                        class="item-subtitle"
+                        style="margin-top: 5px;"
+                    >
+                        Gastado: ${gastadoTexto} /
+                        ${limiteTexto}
+                        (${porcentajeTexto}%)
                     </div>
                 </div>
 
                 <div class="item-actions">
-                    <button class="btn-icon btn-small edit-presupuesto" data-id="${id}" title="Editar">✏️</button>
-                    <button class="btn-icon btn-small delete-presupuesto" data-id="${id}" title="Eliminar">🗑️</button>
+                    <button
+                        class="btn-icon btn-small edit-presupuesto"
+                        data-id="${id}"
+                        title="Editar"
+                    >
+                        ✏️
+                    </button>
+
+                    <button
+                        class="btn-icon btn-small delete-presupuesto"
+                        data-id="${id}"
+                        title="Eliminar"
+                    >
+                        🗑️
+                    </button>
                 </div>
             </div>
         `;
     }).join('');
 
-    document.querySelectorAll('.edit-presupuesto').forEach(btn => {
-        btn.addEventListener('click', () => editPresupuesto(Number(btn.dataset.id)));
-    });
+    document
+        .querySelectorAll('.edit-presupuesto')
+        .forEach((button) => {
+            button.addEventListener('click', () => {
+                editPresupuesto(
+                    Number(button.dataset.id)
+                );
+            });
+        });
 
-    document.querySelectorAll('.delete-presupuesto').forEach(btn => {
-        btn.addEventListener('click', () => deletePresupuesto(Number(btn.dataset.id)));
-    });
+    document
+        .querySelectorAll('.delete-presupuesto')
+        .forEach((button) => {
+            button.addEventListener('click', () => {
+                deletePresupuesto(
+                    Number(button.dataset.id)
+                );
+            });
+        });
 }
 
 // Obtener gastos de un mes específico
@@ -193,11 +283,6 @@ async function getGastosDelMes(año, mes) {
         const fechaInicio =
             `${añoNumerico}-${String(mesNumerico).padStart(2, '0')}-01`;
 
-        /*
-         * Se utiliza el primer día del mes siguiente como límite
-         * exclusivo. Es más seguro que calcular manualmente el
-         * último día del mes.
-         */
         const siguienteMes =
             mesNumerico === 12
                 ? 1
@@ -214,7 +299,7 @@ async function getGastosDelMes(año, mes) {
         const { data, error } = await supabase
             .from('gastos')
             .select(
-                'id, fecha, categoria, monto, monto_eur, moneda, user_id'
+                'id, fecha, categoria, monto, moneda, user_id'
             )
             .eq('user_id', user.id)
             .gte('fecha', fechaInicio)
@@ -233,6 +318,7 @@ async function getGastosDelMes(año, mes) {
         return Array.isArray(data)
             ? data
             : [];
+
     } catch (error) {
         console.error(
             'Error en getGastosDelMes:',
@@ -688,49 +774,78 @@ async function verificarTodasAlertas() {
     const hoy = new Date();
     const mesActual = hoy.getMonth() + 1;
     const añoActual = hoy.getFullYear();
-    
-    // Obtener presupuestos del mes actual
+
     const supabase = getSupabase();
     const user = await getPresupuestoAuthUser();
 
-    if (!user) return;
-    const { data: presupuestos, error } = await supabase
+    if (!user) {
+        return;
+    }
+
+    const {
+        data: presupuestos,
+        error
+    } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('user_id', user.id)
         .eq('mes', mesActual)
         .eq('año', añoActual);
-    
-    if (error || !presupuestos || presupuestos.length === 0) return;
-    
-    // Obtener gastos del mes actual
-    const gastos = await getGastosDelMes(añoActual, mesActual);
-    
+
+    if (
+        error ||
+        !presupuestos ||
+        presupuestos.length === 0
+    ) {
+        return;
+    }
+
+    const gastos = await getGastosDelMes(
+        añoActual,
+        mesActual
+    );
+
     const todasAlertas = [];
-    
-    for (const p of presupuestos) {
+
+    for (const presupuesto of presupuestos) {
         const gastado = (gastos || [])
-            .filter(g => g.categoria === p.categoria)
+            .filter(
+                (gasto) =>
+                    gasto.categoria ===
+                    presupuesto.categoria
+            )
             .reduce(
-                (sum, g) =>
-                    sum + Number(
-                        g.monto_eur ??
-                        g.monto ??
-                        0
+                (total, gasto) =>
+                    total + Number(
+                        gasto.monto ?? 0
                     ),
                 0
             );
-        const alertas = await verificarAlertasPresupuestoUnico(p, gastado, mesActual, añoActual);
+
+        const alertas =
+            await verificarAlertasPresupuestoUnico(
+                presupuesto,
+                gastado,
+                mesActual,
+                añoActual
+            );
+
         todasAlertas.push(...alertas);
-        
-        // Guardar alertas que se mostrarán
+
         for (const alerta of alertas) {
-            await guardarAlertaMostrada(p.id, alerta.tipo, mesActual, añoActual);
+            await guardarAlertaMostrada(
+                presupuesto.id,
+                alerta.tipo,
+                mesActual,
+                añoActual
+            );
         }
     }
-    
+
     if (todasAlertas.length > 0) {
-        await mostrarAlertasSecuencial(todasAlertas);
+        await mostrarAlertasSecuencial(
+            todasAlertas
+        );
     }
 }
 
@@ -782,7 +897,6 @@ async function guardarMesEnHistorial(año, mes) {
         return false;
     }
 
-    // Obtener presupuestos pendientes del mes cerrado
     const {
         data: presupuestos,
         error: errorPresupuestos
@@ -802,11 +916,13 @@ async function guardarMesEnHistorial(año, mes) {
         return false;
     }
 
-    if (!presupuestos || presupuestos.length === 0) {
+    if (
+        !presupuestos ||
+        presupuestos.length === 0
+    ) {
         return false;
     }
 
-    // Obtener los registros históricos ya existentes para ese mes
     const {
         data: historialExistente,
         error: errorHistorial
@@ -829,7 +945,10 @@ async function guardarMesEnHistorial(año, mes) {
     const historialPorCategoria = new Map();
 
     (historialExistente || [])
-        .filter((item) => item.categoria !== 'GENERAL')
+        .filter(
+            (item) =>
+                item.categoria !== 'GENERAL'
+        )
         .forEach((item) => {
             historialPorCategoria.set(
                 item.categoria,
@@ -839,10 +958,10 @@ async function guardarMesEnHistorial(año, mes) {
 
     const registroGeneralExistente =
         (historialExistente || []).find(
-            (item) => item.categoria === 'GENERAL'
+            (item) =>
+                item.categoria === 'GENERAL'
         ) || null;
 
-    // Obtener los gastos del mes completo
     const gastos = await getGastosDelMes(
         añoNumerico,
         mesNumerico
@@ -863,9 +982,7 @@ async function guardarMesEnHistorial(año, mes) {
             .reduce(
                 (total, gasto) =>
                     total + Number(
-                        gasto.monto_eur ??
-                        gasto.monto ??
-                        0
+                        gasto.monto ?? 0
                     ),
                 0
             );
@@ -875,16 +992,21 @@ async function guardarMesEnHistorial(año, mes) {
                 ? (gastado / limite) * 100
                 : 0;
 
-        const cumplido = porcentaje < 100;
+        const cumplido =
+            porcentaje < 100;
 
         const datosHistorial = {
-            categoria: presupuesto.categoria,
+            categoria:
+                presupuesto.categoria,
             mes: mesNumerico,
             año: añoNumerico,
             limite,
             gastado,
             porcentaje,
-            color: cumplido ? 'verde' : 'rojo',
+            color:
+                cumplido
+                    ? 'verde'
+                    : 'rojo',
             user_id: user.id
         };
 
@@ -926,16 +1048,14 @@ async function guardarMesEnHistorial(año, mes) {
         return false;
     }
 
-    /*
-     * Volver a consultar todas las categorías históricas del mes,
-     * incluyendo las que ya existían y las recién añadidas.
-     */
     const {
         data: categoriasHistorial,
         error: errorCategoriasHistorial
     } = await supabase
         .from('historial_presupuestos')
-        .select('id, categoria, porcentaje')
+        .select(
+            'id, categoria, porcentaje'
+        )
         .eq('user_id', user.id)
         .eq('mes', mesNumerico)
         .eq('año', añoNumerico)
@@ -954,10 +1074,12 @@ async function guardarMesEnHistorial(año, mes) {
         categoriasHistorial?.length || 0;
 
     const categoriasCumplidas =
-        (categoriasHistorial || []).filter(
-            (item) =>
-                Number(item.porcentaje) < 100
-        ).length;
+        (categoriasHistorial || [])
+            .filter(
+                (item) =>
+                    Number(item.porcentaje) < 100
+            )
+            .length;
 
     const cumplimientoGeneral =
         totalCategorias > 0
@@ -973,7 +1095,8 @@ async function guardarMesEnHistorial(año, mes) {
         año: añoNumerico,
         limite: 0,
         gastado: 0,
-        porcentaje: cumplimientoGeneral,
+        porcentaje:
+            cumplimientoGeneral,
         color:
             cumplimientoGeneral >= 100
                 ? 'verde'
@@ -989,7 +1112,10 @@ async function guardarMesEnHistorial(año, mes) {
         const { error } = await supabase
             .from('historial_presupuestos')
             .update(datosGenerales)
-            .eq('id', registroGeneralExistente.id)
+            .eq(
+                'id',
+                registroGeneralExistente.id
+            )
             .eq('user_id', user.id);
 
         errorGuardarGeneral = error;
@@ -1010,17 +1136,14 @@ async function guardarMesEnHistorial(año, mes) {
         return false;
     }
 
-    /*
-     * Eliminar los presupuestos pendientes únicamente después
-     * de que todos hayan sido guardados correctamente.
-     */
-    const { error: errorEliminarPresupuestos } =
-        await supabase
-            .from('presupuestos')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('mes', mesNumerico)
-            .eq('año', añoNumerico);
+    const {
+        error: errorEliminarPresupuestos
+    } = await supabase
+        .from('presupuestos')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('mes', mesNumerico)
+        .eq('año', añoNumerico);
 
     if (errorEliminarPresupuestos) {
         console.error(
@@ -1031,13 +1154,14 @@ async function guardarMesEnHistorial(año, mes) {
         return false;
     }
 
-    const { error: errorEliminarAlertas } =
-        await supabase
-            .from('alertas_mostradas')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('mes', mesNumerico)
-            .eq('año', añoNumerico);
+    const {
+        error: errorEliminarAlertas
+    } = await supabase
+        .from('alertas_mostradas')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('mes', mesNumerico)
+        .eq('año', añoNumerico);
 
     if (errorEliminarAlertas) {
         console.warn(
@@ -1132,6 +1256,3 @@ async function initHistorialCheck() {
 }
 
 console.log('✅ Módulo de presupuestos cargado');
-
-
-
