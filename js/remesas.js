@@ -539,66 +539,158 @@ async function saveRemesa() {
 }
 
 async function saveConfirmRemesa() {
-    console.log('saveConfirmRemesa ejecutada');
-    try {
+    if (window.isSavingConfirmRemesa) {
+        return;
+    }
 
+    window.isSavingConfirmRemesa = true;
+
+    try {
         const remesa = window.currentConfirmRemesa;
 
-        if (!remesa) return;
+        if (!remesa?.id || !remesa?.user_id) {
+            showInfoModal?.(
+                'No se pudo identificar la remesa.',
+                'Error al confirmar remesa'
+            );
 
-        const gananciaReal = parseFloat(
-            document.getElementById('confirmGananciaReal').value
+            return;
+        }
+
+        const gananciaInput = document.getElementById(
+            'confirmGananciaReal'
         );
 
-        if (isNaN(gananciaReal) || gananciaReal < 0) {
+        const gananciaReal = Number.parseFloat(
+            gananciaInput?.value
+        );
 
+        if (
+            !Number.isFinite(gananciaReal) ||
+            gananciaReal < 0
+        ) {
             showInfoModal?.(
                 'Ingrese una ganancia válida.',
                 'Ganancia no válida'
             );
 
             return;
-
         }
 
         const supabase = getSupabase();
 
-        const { error: updateError } = await supabase
+        /*
+         * Consultar el estado real en Supabase.
+         * Evita confirmar dos veces por clics repetidos.
+         */
+        const {
+            data: remesaActual,
+            error: remesaError
+        } = await supabase
             .from(TABLES.remesas)
-            .update({
+            .select(
+                'id, user_id, status, ganancia_real'
+            )
+            .eq('id', remesa.id)
+            .eq('user_id', remesa.user_id)
+            .single();
 
-                status: 'completed',
+        if (remesaError) {
+            throw remesaError;
+        }
 
-                ganancia_real: gananciaReal
-
-            })
-            .eq('id', remesa.id);
-
-        if (updateError) throw updateError;
-
-        const { error: ingresoError } = await supabase
+        /*
+         * Comprobar si ya existe un ingreso para esta remesa.
+         */
+        const {
+            data: ingresosExistentes,
+            error: consultaIngresoError
+        } = await supabase
             .from(TABLES.ingresos)
-            .insert({
+            .select('id')
+            .eq('remesa_id', remesa.id)
+            .eq('user_id', remesa.user_id)
+            .limit(1);
 
-                user_id: remesa.user_id,
+        if (consultaIngresoError) {
+            throw consultaIngresoError;
+        }
 
-                fecha: getTodayDate(),
+        const ingresoExistente =
+            Array.isArray(ingresosExistentes) &&
+            ingresosExistentes.length > 0;
 
-                origen: 'Remesas',
+        let ingresoCreadoId = null;
 
-                monto: gananciaReal,
+        /*
+         * Crear el ingreso solo si todavía no existe.
+         * Ya no se envía monto_eur.
+         */
+        if (!ingresoExistente) {
+            const {
+                data: ingresoCreado,
+                error: ingresoError
+            } = await supabase
+                .from(TABLES.ingresos)
+                .insert({
+                    user_id: remesa.user_id,
+                    fecha: getTodayDate(),
+                    origen: 'Remesas',
+                    monto: gananciaReal,
+                    moneda: 'EUR',
+                    descripcion: `Remesa #${remesa.id}`,
+                    remesa_id: remesa.id
+                })
+                .select('id')
+                .single();
 
-                monto_eur: gananciaReal,
+            if (ingresoError) {
+                throw ingresoError;
+            }
 
-                moneda: 'EUR',
+            ingresoCreadoId = ingresoCreado?.id || null;
+        }
 
-                descripcion: `Remesa #${remesa.id}`,
+        /*
+         * Marcar como completada después de asegurar
+         * que el ingreso existe.
+         */
+        if (remesaActual.status !== 'completed') {
+            const { error: updateError } = await supabase
+                .from(TABLES.remesas)
+                .update({
+                    status: 'completed',
+                    ganancia_real: gananciaReal
+                })
+                .eq('id', remesa.id)
+                .eq('user_id', remesa.user_id)
+                .eq('status', 'pending');
 
-                remesa_id: remesa.id
+            if (updateError) {
+                /*
+                 * Reversión: si acabamos de crear el ingreso
+                 * pero no pudimos confirmar la remesa,
+                 * eliminamos ese ingreso.
+                 */
+                if (ingresoCreadoId) {
+                    const { error: rollbackError } =
+                        await supabase
+                            .from(TABLES.ingresos)
+                            .delete()
+                            .eq('id', ingresoCreadoId)
+                            .eq('user_id', remesa.user_id);
 
-            });
+                    if (rollbackError) {
+                        console.error(
+                            'Error revirtiendo el ingreso de la remesa:',
+                            rollbackError
+                        );
+                    }
+                }
 
-        if (ingresoError) throw ingresoError;
+                throw updateError;
+            }
+        }
 
         closeConfirmRemesaModal();
 
@@ -607,28 +699,34 @@ async function saveConfirmRemesa() {
         await loadRemesas();
 
         if (typeof loadIngresos === 'function') {
-
             await loadIngresos();
+        }
 
+        if (typeof loadDashboardData === 'function') {
+            await loadDashboardData();
         }
 
         showInfoModal?.(
-            'Remesa confirmada correctamente.',
+            ingresoExistente
+                ? 'La remesa ya estaba confirmada. No se duplicó el ingreso.'
+                : 'Remesa confirmada correctamente y ganancia registrada en Ingresos.',
             'Remesa confirmada'
         );
 
-    }
-    catch(err){
-
-        console.error(err);
+    } catch (error) {
+        console.error(
+            'Error en saveConfirmRemesa:',
+            error
+        );
 
         showInfoModal?.(
             'No se pudo confirmar la remesa. Revisa los datos e inténtalo de nuevo.',
             'Error al confirmar remesa'
         );
 
+    } finally {
+        window.isSavingConfirmRemesa = false;
     }
-
 }
 
 function initConfirmRemesaModal() {
