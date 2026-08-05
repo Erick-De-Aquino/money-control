@@ -634,7 +634,9 @@ async function saveConfirmRemesa() {
                 .from(TABLES.ingresos)
                 .insert({
                     user_id: remesa.user_id,
-                    fecha: getTodayDate(),
+                    fecha: remesa.fecha
+                    ? remesa.fecha.slice(0, 10)
+                    : getTodayDate(),
                     origen: 'Remesas',
                     monto: gananciaReal,
                     moneda: 'EUR',
